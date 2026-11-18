@@ -1,0 +1,2 @@
+import {Controller,Get} from "@nestjs/common";import {ApiOperation,ApiTags} from "@nestjs/swagger";
+@ApiTags("health")@Controller("health")export class HealthController{@Get("live")@ApiOperation({summary:"Process liveness"})live(){return {data:{status:"ok"}}}@Get("ready")@ApiOperation({summary:"Readiness (infrastructure checks pending)"})ready(){return {data:{status:"bootstrapped",database:"not_configured"}}}}
