@@ -17,7 +17,7 @@ Unique stable QR per table; changing table label/location does not rotate token.
 Two fixed departments: waiter and hookah. Owner creates username/password employee account; starts/ends shift via Expo app, owner may force-end, configurable auto-end. Routing defaults restaurant-wide with branch override: all on-shift employees in branch OR on-shift employees of requested department. Foreground realtime, background push, distinct sounds where OS supports, call history. Call is a notification-only event; no accept/complete. If no eligible staff, record event and alert owner in dashboard and external channel when available; customer success message must not imply delivery to employee.
 
 ## Technical
-Admin and owner dashboards React+Vite; customer Next.js; employee Expo RN Android/iOS; NestJS PostgreSQL; object storage; VPS Docker Dokploy. Secure persistent login, backups, monitoring and alerts. Backend first, pilot one restaurant. ESP32 deferred entirely to separate phase.
+Admin and owner dashboards share one React+Vite repository with independent deployment targets; customer React+Vite in its own repository; employee Expo RN Android/iOS; NestJS PostgreSQL; object storage; VPS Docker Dokploy. Secure persistent login, backups, monitoring and alerts. Backend first, pilot one restaurant. ESP32 deferred entirely to separate phase.
 
 ## Acceptance
 Tenant isolation; independent branch menus; QR revoke; first-call confirmation; atomic cooldown/idempotency; branch routing; shift lifecycle; no-staff fallback; manual renewal only; archived historical records; mock/live contract equivalence.
