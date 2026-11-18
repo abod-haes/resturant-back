@@ -31,3 +31,6 @@ Read `docs/ARCHITECTURE.md`, `docs/API_CONTRACTS.md`, `docs/RBAC_MATRIX.md`, and
 - [ ] Typecheck, lint, tests, build actually executed
 - [ ] Docs and changelog updated
 - [ ] No secrets or unrelated modifications
+
+## REQUIRED after EVERY feature (no exceptions)
+Read and follow `docs/FEATURE_COMPLETION_CHECKLIST.md`. Design for modularity, customization through typed props/config/theme/i18n, reusability without premature abstraction, and easy independent changes. Before completion, self-review all changed files for duplication, responsibility boundaries and maintainability. Run architecture check, typecheck, lint/tests/build where configured, and validate normal/error/empty states. Report PASS/FAIL/NOT RUN for each gate. If any required gate fails or was not run, mark work NOT COMPLETE and explain why; never claim success without evidence. This instruction applies to each feature, bugfix and refactor, not just project milestones.
