@@ -1,0 +1,105 @@
+openapi: 3.1.0
+info:
+  title: Restaurant Platform API
+  version: 0.2.0-draft
+  description: "Initial executable contract slice. Remaining endpoints documented in docs/OPENAPI_IMPLEMENTATION.md; do not treat this file as complete."
+servers:
+  - url: /api/v1
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    ApiError:
+      type: object
+      required: [error, requestId]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code: { type: string }
+            message: { type: string }
+            details: { type: object, additionalProperties: true }
+        requestId: { type: string }
+    PageMeta:
+      type: object
+      required: [nextCursor, hasMore]
+      properties:
+        nextCursor: { type: [string, "null"] }
+        hasMore: { type: boolean }
+    ServiceCall:
+      type: object
+      required: [id, createdAt, deliveryState, ownerAlerted]
+      properties:
+        id: { type: string, format: uuid }
+        createdAt: { type: string, format: date-time }
+        deliveryState: { type: string, enum: [queued, no_staff] }
+        ownerAlerted: { type: boolean }
+paths:
+  /health/live:
+    get:
+      operationId: healthLive
+      responses:
+        '200': { description: Process is live }
+  /health/ready:
+    get:
+      operationId: healthReady
+      responses:
+        '200': { description: Bootstrap state; DB readiness not yet implemented }
+  /public/t/{qrToken}/sessions:
+    post:
+      operationId: createTableSession
+      parameters:
+        - in: path
+          name: qrToken
+          required: true
+          schema: { type: string }
+      responses:
+        '201':
+          description: Visit session
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    required: [sessionToken, expiresAt, firstCallNeedsConfirmation]
+                    properties:
+                      sessionToken: { type: string }
+                      expiresAt: { type: string, format: date-time }
+                      firstCallNeedsConfirmation: { type: boolean }
+        '410': { description: QR revoked }
+        '403': { description: Subscription inactive }
+  /public/calls:
+    post:
+      operationId: createServiceCall
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [sessionToken, type, idempotencyKey]
+              properties:
+                sessionToken: { type: string }
+                type: { type: string, enum: [waiter, hookah] }
+                idempotencyKey: { type: string }
+      responses:
+        '201':
+          description: Call recorded; not necessarily delivered
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ServiceCall'
+        '429': { description: Cooldown active; retryAfterSeconds in error details }
+        '403': { description: Calls disabled }
+        '401': { description: Session expired }
