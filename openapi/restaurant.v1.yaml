@@ -71,7 +71,7 @@ paths:
                     required: [sessionToken, expiresAt, firstCallNeedsConfirmation]
                     properties:
                       sessionToken: { type: string }
-                      expiresAt: { type: string, format: date-time }
+                      expiresAt: { type: integer, format: int64, description: Unix timestamp in milliseconds }
                       firstCallNeedsConfirmation: { type: boolean }
         '410': { description: QR revoked }
         '403': { description: Subscription inactive }
