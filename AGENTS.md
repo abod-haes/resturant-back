@@ -1,4 +1,8 @@
 # AGENTS.md — mandatory engineering contract
+
+## Mandatory workflow and automated guard
+Read `docs/ENGINEERING_PLAYBOOK.md` before every change. Run `npm run check:architecture` before opening a PR. The checker enforces selected import boundaries; it does not replace code review, strict typecheck or tests. Keep architectural exceptions in a reviewed ADR, never bypass the checker. No code changes may be described as verified unless the commands actually ran.
+
 Read `docs/ARCHITECTURE.md`, `docs/API_CONTRACTS.md`, `docs/RBAC_MATRIX.md`, and `docs/TEST_STRATEGY.md` before editing. PRD and ADR-001 override old plans. Do not invent features or endpoints.
 
 ## Non-negotiable rules
