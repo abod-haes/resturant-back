@@ -1,12 +1,29 @@
-# AGENTS.md — Repository engineering rules
-- Follow the product PRD and `docs/API_CONTRACTS.md`; no speculative product features.
-- Use TypeScript strict mode, reusable typed modules, composition over duplication, accessible UI and explicit loading/error/empty states.
-- No hardcoded API response shapes in screens. Network access only through typed service/repository adapters.
-- Mock and live adapters MUST implement the same interface and validate against the same contract. Toggle by environment config; never scatter `if(mock)` throughout UI.
-- Never edit shared fixtures/contract without updating `docs/CONTRACT_CHANGELOG.md`, corresponding tests, and other impacted repositories.
-- Never treat QR as physical-presence proof. No GPS in V1. Server enforces call cooldown and idempotency.
-- Tenant and branch scope are always verified on server. No passwords/tokens in logs or fixtures.
-- Reuse design tokens, UI primitives, and shared domain types. Prefer feature modules over large pages/components.
-- All new features need unit tests, integration/contract tests where relevant, and documentation.
-- Never commit secrets or production credentials. Avoid premature abstractions and unnecessary dependencies.
-- Do not push or merge application code without explicit approval; documentation changes in this request are authorized.
+# AGENTS.md — mandatory engineering contract
+Read `docs/ARCHITECTURE.md`, `docs/API_CONTRACTS.md`, `docs/RBAC_MATRIX.md`, and `docs/TEST_STRATEGY.md` before editing. PRD and ADR-001 override old plans. Do not invent features or endpoints.
+
+## Non-negotiable rules
+1. Feature-first modules. Each module owns UI/application/domain/infrastructure as applicable. Imports follow dependency direction; no feature imports another feature's private files. Public barrels only.
+2. Strict TypeScript; no `any`, unsafe casts, untyped JSON, ignored TS errors, or silent catch. Validate external input at boundaries (Zod for clients, DTO validation for Nest).
+3. Keep UI presentation separate from network/state. All HTTP via typed API adapters; mock and live satisfy same interface. Never import fixtures in screen components.
+4. No duplicated UI primitives, API clients, error handling, role checks, or domain models. Reuse shared packages. Do not over-abstract one-off logic.
+5. Server is sole authority for tenant/branch RBAC, subscription, QR validation, rate limits, cooldown and idempotency. Frontend route guards are UX only.
+6. Small cohesive functions; descriptive names; single responsibility; explicit dependencies; immutable updates. Avoid giant components, circular dependencies, hidden global state, and magic strings.
+7. Errors are typed, observable and user-safe. Handle loading, empty, offline, forbidden and expired states. Do not claim a call was delivered when merely recorded.
+8. Accessibility, Arabic RTL, responsive layouts, keyboard focus, safe-area on mobile; use design tokens, no ad-hoc styling duplication.
+9. Security: no secrets, passwords, token logs, unsafe localStorage credentials, bypassed permissions, raw SQL interpolation or untrusted URLs. No GPS or checkout in V1.
+10. Tests required with every behavior change: unit for logic, integration for adapters, E2E for critical paths. No snapshots as substitute for behavior tests.
+11. Every contract change: update backend OpenAPI, version/changelog, fixture schemas, all impacted adapters, contract tests and CI. Mock data need NOT synchronize at runtime across apps.
+12. No drive-by refactors. Inspect existing code, list impacted files, implement minimal coherent change, run lint/typecheck/tests/build, report exact results and limitations.
+13. Do not suppress CI, disable validation, introduce `TODO` as fake implementation, or claim unrun tests passed. Never rewrite another app's files without need.
+14. One source of truth per concept. Document ADR for architectural changes; do not silently reverse approved decisions.
+15. Respect deployment boundaries and workspace package exports. No cross-app relative imports; use packages.
+16. When task is ambiguous, prefer existing architecture and ask only if a decision materially changes behavior.
+## Completion checklist
+- [ ] Correct feature module and boundary
+- [ ] Types, validation, auth/tenant scoping
+- [ ] Mock/live parity and API compatibility
+- [ ] Error/empty/loading/accessibility/RTL
+- [ ] Tests and no regressions
+- [ ] Typecheck, lint, tests, build actually executed
+- [ ] Docs and changelog updated
+- [ ] No secrets or unrelated modifications
