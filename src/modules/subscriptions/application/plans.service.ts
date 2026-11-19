@@ -1,5 +1,5 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from "@nestjs/common";
-import { sql } from "kysely";
+import { sql, type RawBuilder } from "kysely";
 import { DatabaseService } from "../../../database/database.service";
 import type { PlanFeatures } from "../../../database/database.types";
 import type { AuthPrincipal } from "../../../common/auth/principal";
@@ -104,13 +104,16 @@ export class PlansService {
         if (!existing) throw new NotFoundException("Plan not found");
         const patch: {
           name?: string; max_branches?: number; max_tables?: number;
-          max_employees?: number; features?: PlanFeatures; is_active?: boolean;
+          max_employees?: number; features?: PlanFeatures | RawBuilder<PlanFeatures>; is_active?: boolean;
         } = {};
         if (input.name !== undefined) patch.name = input.name.trim();
         if (input.maxBranches !== undefined) patch.max_branches = input.maxBranches;
         if (input.maxTables !== undefined) patch.max_tables = input.maxTables;
         if (input.maxEmployees !== undefined) patch.max_employees = input.maxEmployees;
-        if (input.features !== undefined) patch.features = { ...existing.features, ...input.features };
+        // PostgreSQL JSONB patch preserves absent flags; never reset a subscribed feature by omission.
+        if (input.features !== undefined) {
+          patch.features = sql<PlanFeatures>`plans.features || ${JSON.stringify(input.features)}::jsonb`;
+        }
         if (input.isActive !== undefined) patch.is_active = input.isActive;
         await trx.updateTable("plans").set(patch).where("id", "=", id).execute();
         await trx.insertInto("audit_logs").values({

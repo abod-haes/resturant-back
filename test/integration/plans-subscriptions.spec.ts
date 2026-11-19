@@ -220,6 +220,7 @@ describe("Manual plan subscriptions and tenant entitlements (PostgreSQL)", () =>
     const changed = await request(app.getHttpServer()).patch("/api/v1/admin/plans/" + currentPlanId)
       .set(admin()).send({ maxTables: 80, features: { analytics: true } });
     expect(changed.status).toBe(200);
+    expect(changed.body.data.features).toEqual({ ...features, analytics: true });
     const unchanged = await pool.query("SELECT entitlement_snapshot FROM subscriptions WHERE id = $1", [subscriptionId]);
     expect(unchanged.rows[0].entitlement_snapshot.maxTables).toBe(50);
 
