@@ -24,3 +24,6 @@ Important: queue state means call saved + recipient pending rows **only**; it do
 - Backend requires PostgreSQL forward migrations before releasing v1.8.
 - Push device API, native notification sounds, WebSockets/SSE, external owner WhatsApp/SMS and async outbox consumer have NOT been implemented in this PR. **Do not enable an employee device push UI or claim notification delivery.**
 - Owner/customer/Expo frontend repos were not modified in this backend PR; end-to-end staging adapters and user acceptance testing remain BLOCKED.
+
+## v1.9 extension
+Backend now exposes authenticated owner/employee SSE events, employee Expo device registration and an optional push worker. See `docs/PUSH_REALTIME_HANDOFF.md`. No change to POST /public/calls payload or deliveryState semantics; queued is still not a handset acknowledgment.

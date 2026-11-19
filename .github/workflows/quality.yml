@@ -42,6 +42,7 @@ jobs:
       - run: npm run db:migrate # idempotency: reapply is a no-op
       - run: npm run db:migrate:check
       - run: npm run check:architecture
+      - run: npm run check:contract
       - run: npm run typecheck
       - run: npm run lint
       - run: npm run test:unit

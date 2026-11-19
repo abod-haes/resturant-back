@@ -1,5 +1,9 @@
 # Contract changelog
 
+## v1.9.0 — 2026-11-19 (Expo push backend + durable SSE)
+New encrypted employee device registry (GET/POST/DELETE /employee/devices), five active devices maximum, server-side account binding and redacted response DTOs. Opt-in standalone push worker with per-device durable state, bounded retry/lease, Expo HTTP tickets and separate receipt reconciliation, invalid token deactivation. Restaurant-scoped transactional realtime event sequence, authenticated owner and employee SSE with cursor replay, per-tick session revalidation and multi-replica PostgreSQL polling. Events: call.created, owner.alert.created, shift.updated. **Expo tickets/receipts are not confirmation that a human received an alert**. OS sound channel registration and physical phone tests require the Expo app; no external owner channel, Redis, mobile frontend or dashboard staging integration. See ADR-009 and PUSH_REALTIME_HANDOFF.md.
+
+
 ## v1.8.0 — 2026-11-19 (Visits, employees, shifts, calls)
 4-hour idle QR-linked anonymous visit tokens hashed at rest; first-call confirmation, transactional per-table/type 10-second cooldown, session+UUID idempotency, and QR rotation/disable revocation. Owner employee accounts with scoped branch/department and maxEmployees quota, password reset and archiving; employee shifts with configurable 60..1440 minute automatic cutoff. Global call settings and nullable branch overrides; shift/department routing to durable per-recipient pending outbox. No-staff calls persist owner dashboard alerts. Owner/employee paginated call histories. Public QR callsAvailable reflects settings and entitlement. **Push, realtime, external delivery, employee device registration and analytics are not implemented**. See docs/VISITS_CALLS_HANDOFF.md and ADR-008.
 

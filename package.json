@@ -13,6 +13,7 @@
     "test:integration": "jest --config jest.config.cjs --runInBand test/integration",
     "lint": "eslint src test --max-warnings=0",
     "check:architecture": "node scripts/check-boundaries.mjs",
+    "check:contract": "node scripts/check-contract.mjs",
     "db:migrate": "node scripts/migrate.mjs",
     "db:seed:demo": "node scripts/seed-demo.mjs",
     "db:migrate:check": "node scripts/migrate.mjs --check",
@@ -49,6 +50,7 @@
     "eslint": "^9.0.0",
     "typescript-eslint": "^8.46.0",
     "@types/express": "^5.0.3",
-    "@types/qrcode": "^1.5.6"
+    "@types/qrcode": "^1.5.6",
+    "yaml": "^2.7.0"
   }
 }
