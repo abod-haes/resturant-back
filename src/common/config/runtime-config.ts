@@ -7,6 +7,7 @@ export interface RuntimeConfig {
   readonly databaseUrl: string;
   readonly databaseConnectTimeoutMs: number;
   readonly corsOrigins: readonly string[];
+  readonly mediaAllowedOrigins: readonly string[];
   readonly authAccessSecret: string;
 }
 
@@ -53,6 +54,17 @@ export function parseRuntimeConfig(env: NodeJS.ProcessEnv): RuntimeConfig {
     }
   }
 
+  const mediaAllowedOrigins = (env.MEDIA_ALLOWED_ORIGINS ?? "")
+    .split(",").map((origin) => origin.trim()).filter(Boolean);
+  for (const origin of mediaAllowedOrigins) {
+    let parsed: URL;
+    try { parsed = new URL(origin); }
+    catch { throw new Error("MEDIA_ALLOWED_ORIGINS must contain valid HTTPS origins"); }
+    if (parsed.protocol !== "https:" || parsed.origin !== origin || parsed.username || parsed.password) {
+      throw new Error("MEDIA_ALLOWED_ORIGINS must contain exact HTTPS origins without paths");
+    }
+  }
+
   const authAccessSecret = env.AUTH_ACCESS_SECRET ?? "";
   if (Buffer.byteLength(authAccessSecret, "utf8") < 32) {
     throw new Error("AUTH_ACCESS_SECRET must contain at least 32 bytes of secret entropy");
@@ -64,6 +76,7 @@ export function parseRuntimeConfig(env: NodeJS.ProcessEnv): RuntimeConfig {
     databaseUrl,
     databaseConnectTimeoutMs: positiveInteger(env.DB_CONNECT_TIMEOUT_MS ?? "2000", "DB_CONNECT_TIMEOUT_MS", 60000),
     corsOrigins: Object.freeze(corsOrigins),
+    mediaAllowedOrigins: Object.freeze(mediaAllowedOrigins),
     authAccessSecret,
   });
 }

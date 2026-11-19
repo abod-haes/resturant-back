@@ -1,7 +1,8 @@
 import {
-  BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException,
+  BadRequestException, ConflictException, Injectable, NotFoundException,
 } from "@nestjs/common";
 import { sql, type Selectable } from "kysely";
+import { requireOperationalEntitlements } from "../../../common/subscription/operational-entitlement";
 import { DatabaseService } from "../../../database/database.service";
 import type { FeatureKey, SubscriptionsTable, SubscriptionPeriod } from "../../../database/database.types";
 import type { AuthPrincipal } from "../../../common/auth/principal";
@@ -176,18 +177,6 @@ export class SubscriptionsService {
   }
 
   async assertOperational(restaurantId: string, feature?: FeatureKey): Promise<void> {
-    const restaurant = await this.database.db.selectFrom("restaurants").select("is_active")
-      .where("id", "=", restaurantId).executeTakeFirst();
-    if (!restaurant?.is_active) {
-      throw new ForbiddenException({ code: "SUBSCRIPTION_INACTIVE", message: "Restaurant is inactive" });
-    }
-    const current = await this.currentForRestaurant(restaurantId);
-    if (!current || !current.canOperate || !current.entitlements) {
-      throw new ForbiddenException({ code: "SUBSCRIPTION_INACTIVE", message: "Subscription inactive or expired" });
-    }
-    if (feature && !current.entitlements.features[feature]) {
-      throw new ForbiddenException({ code: "PLAN_FEATURE_DISABLED", message: "Feature is not included in the subscription" });
-    }
+    await requireOperationalEntitlements(this.database.db, restaurantId, feature);
   }
-
 }

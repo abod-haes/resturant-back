@@ -1,0 +1,63 @@
+{
+  "schemaVersion": "1.6.0",
+  "branch": {
+    "id": "42e946bb-194e-41b1-9ead-dd0ab7b90e1a",
+    "name": "الفرع الرئيسي",
+    "slug": "b-42e946bb194e41b19eaddd0ab7b90e1a",
+    "currency": "USD",
+    "isActive": true,
+    "createdAt": "2026-11-19T19:00:00.000Z"
+  },
+  "category": {
+    "id": "a074a20d-a70a-46e1-9717-437963ce76ea",
+    "branchId": "42e946bb-194e-41b1-9ead-dd0ab7b90e1a",
+    "name": "مشروبات",
+    "description": null,
+    "sortOrder": 0,
+    "isActive": true,
+    "createdAt": "2026-11-19T19:10:00.000Z"
+  },
+  "product": {
+    "id": "c97b5dd7-7afb-439b-8f06-633f97280dce",
+    "branchId": "42e946bb-194e-41b1-9ead-dd0ab7b90e1a",
+    "categoryId": "a074a20d-a70a-46e1-9717-437963ce76ea",
+    "name": "قهوة",
+    "description": "قهوة عربية",
+    "priceMinor": 1500,
+    "oldPriceMinor": 2000,
+    "currency": "USD",
+    "tags": [
+      "hot"
+    ],
+    "isVisible": true,
+    "isSoldOut": false,
+    "sortOrder": 0,
+    "images": [
+      {
+        "id": "8c3100bc-61dc-460c-aed6-c60add87243a",
+        "url": "https://images.example.test/menu/coffee.webp",
+        "alt": "Cup of coffee",
+        "sortOrder": 0
+      }
+    ],
+    "createdAt": "2026-11-19T19:12:00.000Z"
+  },
+  "publicEnvelope": {
+    "data": {
+      "restaurant": {
+        "name": "مطعم الياسمين"
+      },
+      "branch": {
+        "name": "الفرع الرئيسي",
+        "slug": "b-42e946bb194e41b19eaddd0ab7b90e1a",
+        "currency": "USD"
+      },
+      "categories": [],
+      "products": []
+    },
+    "meta": {
+      "nextCursor": null,
+      "hasMore": false
+    }
+  }
+}
