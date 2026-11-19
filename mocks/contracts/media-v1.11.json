@@ -1,0 +1,56 @@
+{
+  "schemaVersion": "1.11.0",
+  "image": {
+    "data": {
+      "id": "4e606885-a6d2-4163-8c91-eb5eb5d02aba",
+      "branchId": "4291d217-8c17-47b9-a177-d0ffb611c45b",
+      "kind": "image",
+      "url": "https://cdn.example.test/r/6f0b1dfd-46da-4358-9439-4a83f2c8a4e2/4e606885-a6d2-4163-8c91-eb5eb5d02aba.webp",
+      "name": "photo.png",
+      "contentType": "image/webp",
+      "byteSize": 15000,
+      "width": 1200,
+      "height": 800,
+      "createdAt": "2026-11-20T00:00:00.000Z"
+    }
+  },
+  "document": {
+    "data": {
+      "id": "8f3d4255-7f43-4fe2-a0bf-62fd2a066140",
+      "branchId": "4291d217-8c17-47b9-a177-d0ffb611c45b",
+      "kind": "document",
+      "url": null,
+      "name": "guide.pdf",
+      "contentType": "application/pdf",
+      "byteSize": 25000,
+      "width": null,
+      "height": null,
+      "createdAt": "2026-11-20T00:00:00.000Z"
+    }
+  },
+  "gallery": {
+    "data": [
+      {
+        "id": "f0b6ae73-f768-446e-a6e7-c399e44fc013",
+        "mediaId": "4e606885-a6d2-4163-8c91-eb5eb5d02aba",
+        "url": "https://cdn.example.test/r/6f0b1dfd-46da-4358-9439-4a83f2c8a4e2/4e606885-a6d2-4163-8c91-eb5eb5d02aba.webp",
+        "alt": "Photo",
+        "sortOrder": 0,
+        "isPrimary": true
+      }
+    ]
+  },
+  "signedDownload": {
+    "data": {
+      "url": "https://private-storage.example.test/temporary",
+      "expiresInSeconds": 60
+    }
+  },
+  "error": {
+    "error": {
+      "code": "MEDIA_IN_USE",
+      "message": "Remove media from products before deleting it"
+    },
+    "requestId": "example"
+  }
+}

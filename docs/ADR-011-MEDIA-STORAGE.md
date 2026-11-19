@@ -1,0 +1,9 @@
+# ADR-011 — Media storage and image galleries
+
+Date: 2026-11-20. Accepted v1.11 backend.
+
+- Store bytes in S3-compatible storage, metadata/tenant identity/lifecycle in PostgreSQL. Per-restaurant UUID-based object key `r/{restaurantId}/{assetId}.webp|.pdf`; no client key or S3 upload URL. New assets are `uploading` until storage completes, then `ready`; failed deletes are `deleting` for safe retry. No database transaction held over S3 network requests. 1000 nondeleted assets max per restaurant, serialized via restaurant row lock.
+- JPEG/PNG/WebP only, decoding and pixel cap with Sharp, EXIF removal, resize max 2000px without enlargement, WebP 82. Do not permit SVG/animated GIFs. Private PDFs only, max 10 MiB, short-lived signed attachment links; public CDN must serve WebP object paths ONLY. No antivirus in V1, so PDFs remain private.
+- Product gallery is replaced atomically with ordered 0–8 managed image UUIDs; first is primary. Same-tenant assets may be linked from multiple branches; FK `(media_asset_id,restaurant_id)` enforces tenant identity, FK `(product_id,branch_id,restaurant_id)` enforces product location. Menu copies keep asset references; historical external approved HTTPS image URLs remain valid and are checked for usage before deleting their matching managed CDN assets.
+- Deletion first marks `deleting` inside a tenant-locked transaction if no image reference exists, then deletes S3 outside transaction; failure remains retryable. Explicit `npm run media:cleanup` handles 7-day unused ready images, >1h abandoned uploads and deleting rows, max 100. It does not delete unused PDFs. Product archive retains historical references. No background worker started by API.
+- Requires live S3/CDN policy, real upload smoke, upload throughput validation and privacy check on Dokploy before production. No client or phone integration verified.

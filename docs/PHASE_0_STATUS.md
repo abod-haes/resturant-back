@@ -61,3 +61,8 @@ PR #4 runs DB migrations twice, checksum gate, architecture, typecheck, lint, Je
 - Owner query for UTC-bounded (1–90 calendar days, default 30) service call totals, waiter/hookah/no-staff/routed and distinct tables, zero-filled daily rows; branch filter checked against JWT tenant, analytics subscription feature enforced.
 - PRIMARY_ADMIN-only paginated audit event metadata (no raw metadata JSON); optional actor/restaurant/action filters, stable keyset cursor.
 - Additive indexes only. Frontend mock/live contract handshake and production pilot remain NOT COMPLETE.
+
+## Media and files v1.11.0 — PR #15
+- Owner media uploads (JPEG/PNG/WebP->WebP, private PDF), branch-scoped list, signed document links, deletion and 7-day unused image cleanup command.
+- Product gallery ordered max 8 with first image primary; same-restaurant asset reuse, tenant-safe SQL FKs and copy of managed references.
+- No live object-store/CDN or dashboard integration asserted; credentials, bucket/CDN access policy and real-world tests still required.

@@ -1,5 +1,9 @@
 # Contract changelog
 
+## v1.11.0 — 2026-11-20 (Managed media and files)
+New tenant-scoped S3-compatible image & private PDF uploads, Sharp WebP processing, metadata library paging, short-lived private document download, guarded deletion and cleanup. Product gallery GET/PUT with ordered image IDs (first primary, max 8), composite tenant FK constraints and menu-copy reference preservation; legacy HTTPS image URLs remain compatible. Storage configuration optional at startup and mandatory for uploads. No live S3/CDN/dashboard deployment verified; PDF antivirus scan not provided. See docs/MEDIA_DASHBOARD_HANDOFF.md and ADR-011.
+
+
 ## v1.10.0 — 2026-11-20 (Call analytics and audit view)
 Implemented gated owner call analytics `GET /owner/call-analytics` with strict 1–90-day UTC [from,to) date bounds, 30-day default, tenant-verifiable optional branch, zero-filled daily aggregates and summary distinct-table count. `routedCalls` is the already persisted queue routing state, not notification delivery. Added `GET /admin/audit-logs` for PRIMARY_ADMIN only with bounded stable keyset pagination and optional filters, excluding sensitive audit metadata from all responses. Added forward-only SQL indexes, OpenAPI, fixtures and integration/unit tests. No metrics for sales/checkout (not in V1). No dashboard/live staging adaptation or restore drill asserted. See `docs/ANALYTICS_AUDIT_HANDOFF.md` and ADR-010.
 
