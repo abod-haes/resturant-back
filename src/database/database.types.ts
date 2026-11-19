@@ -129,6 +129,7 @@ export interface UsersTable extends Timestamped {
   department: Department | null;
   must_change_password: Generated<boolean>;
   is_active: Generated<boolean>;
+  archived_at: Generated<Date | null>;
 }
 
 export interface PlansTable extends Timestamped {
@@ -215,6 +216,16 @@ export interface AuthLoginAttemptsTable {
   blocked_until: Date | null;
 }
 
+export type CallRoutingMode = "all_on_shift" | "department_on_shift";
+export type CallType = "waiter" | "hookah";
+export type CallDeliveryState = "queued" | "no_staff";
+export interface RestaurantCallSettingsTable { restaurant_id: string; enabled: Generated<boolean>; waiter_enabled: Generated<boolean>; hookah_enabled: Generated<boolean>; routing_mode: Generated<CallRoutingMode>; shift_auto_end_minutes: Generated<number>; updated_at: Generated<Date>; }
+export interface BranchCallSettingsTable { branch_id: string; enabled: boolean | null; waiter_enabled: boolean | null; hookah_enabled: boolean | null; routing_mode: CallRoutingMode | null; updated_at: Generated<Date>; }
+export interface EmployeeShiftsTable { id: Generated<string>; user_id: string; restaurant_id: string; branch_id: string; department: Department; started_at: Generated<Date>; auto_end_at: Date; ended_at: Date | null; ended_by_user_id: string | null; }
+export interface VisitSessionsTable { id: Generated<string>; restaurant_id: string; branch_id: string; table_id: string; credential_id: string; credential_version: number; token_hash: string; created_at: Generated<Date>; last_activity_at: Generated<Date>; expires_at: Date; first_call_confirmed: Generated<boolean>; revoked_at: Date | null; }
+export interface ServiceCallsTable { id: Generated<string>; restaurant_id: string; branch_id: string; table_id: string; session_id: string; type: CallType; idempotency_key: string; delivery_state: CallDeliveryState; recipients_count: number; owner_alerted: boolean; created_at: Generated<Date>; }
+export interface CallOutboxTable { id: Generated<string>; call_id: string; recipient_user_id: string; state: Generated<"pending" | "sent" | "failed">; attempts: Generated<number>; created_at: Generated<Date>; last_attempt_at: Date | null; }
+export interface OwnerAlertsTable { id: Generated<string>; restaurant_id: string; branch_id: string; call_id: string; type: "no_staff"; created_at: Generated<Date>; viewed_at: Date | null; }
 export interface DatabaseTables {
   restaurants: RestaurantsTable;
   branches: BranchesTable;
@@ -234,4 +245,11 @@ export interface DatabaseTables {
   auth_sessions: AuthSessionsTable;
   auth_login_attempts: AuthLoginAttemptsTable;
   auth_refresh_history: AuthRefreshHistoryTable;
+  restaurant_call_settings: RestaurantCallSettingsTable;
+  branch_call_settings: BranchCallSettingsTable;
+  employee_shifts: EmployeeShiftsTable;
+  visit_sessions: VisitSessionsTable;
+  service_calls: ServiceCallsTable;
+  call_outbox: CallOutboxTable;
+  owner_alerts: OwnerAlertsTable;
 }
