@@ -13,6 +13,7 @@
     "lint": "eslint src test --max-warnings=0",
     "check:architecture": "node scripts/check-boundaries.mjs",
     "db:migrate": "node scripts/migrate.mjs",
+    "db:seed:demo": "node scripts/seed-demo.mjs",
     "db:migrate:check": "node scripts/migrate.mjs --check",
     "auth:bootstrap:primary": "node scripts/bootstrap-primary.mjs"
   },

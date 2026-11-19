@@ -24,3 +24,11 @@ Run `npm run db:migrate:check`, `npm run check:architecture`, `npm run typecheck
 Use Dokploy environment secrets, HTTPS reverse proxy, exact browser origin allowlist, PostgreSQL backups, and load balancer/IP rate limits. Session cleanup, secret rotation and full staging smoke tests are required before production. Never commit passwords, JWT secrets or production DB credentials.
 
 See `docs/ADR-003-DATABASE-PERSISTENCE.md` and `docs/ADR-004-AUTH-SESSION-SECURITY.md` for boundaries.
+
+## Dokploy staging database
+
+Deploy PostgreSQL 17 on the private service network first. Configure the API runtime with its internal `DATABASE_URL`, a unique `AUTH_ACCESS_SECRET`, and the exact HTTPS dashboard origins in `CORS_ORIGINS`. Use the root Dockerfile and container port 3000. The container applies pending migrations before starting NestJS. Check the deployment logs and run `npm run db:migrate:check` inside the API container after startup.
+
+To provision the first platform admin, run `npm run auth:bootstrap:primary` with the temporary credentials described above.
+
+For a dedicated staging database, set `APP_ENV=staging` and provide temporary `DEMO_YASMIN_OWNER_PASSWORD` and `DEMO_WARD_OWNER_PASSWORD` values. Run `npm run db:seed:demo` inside the migrated API container, then remove the temporary passwords. The command creates the two fixture restaurants, three branches, and the owner accounts `demo.yasmin.owner` and `demo.ward.owner`. Owners must change their password on first login. Rerunning the command preserves existing seeded records and passwords. A conflicting slug or username on an unrelated record aborts the transaction. The web dashboard must use the live API to see these records.
