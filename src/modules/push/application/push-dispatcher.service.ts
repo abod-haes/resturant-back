@@ -152,7 +152,8 @@ export class PushDispatcherService {
         state, lease_until: null,
         ticket_id: ticket.ok ? ticket.id : null,
         last_error_code: ticket.ok ? null : ticket.errorCode,
-        next_attempt_at: retry ? new Date(Date.now() + pushRetryDelay(claim.attempts)) : now,
+        next_attempt_at: ticket.ok ? new Date(Date.now() + RECEIPT_POLL_DELAY_MS)
+          : retry ? new Date(Date.now() + pushRetryDelay(claim.attempts)) : now,
       }).where("id", "=", claim.id).where("state", "=", "pending")
         .where("attempts", "=", claim.attempts).returning("id").executeTakeFirst();
       if (!changed) return;
@@ -185,8 +186,8 @@ export class PushDispatcherService {
     const rows = await this.database.db.selectFrom("push_deliveries").select(["id", "ticket_id", "device_id", "created_at"])
       .where("state", "=", "accepted").where("receipt_status", "=", "waiting")
       .where("ticket_id", "is not", null)
-      .where("updated_at", "<=", new Date(now.getTime() - RECEIPT_POLL_DELAY_MS))
-      .orderBy("updated_at", "asc").limit(BATCH_LIMIT).execute();
+      .where("next_attempt_at", "<=", now)
+      .orderBy("next_attempt_at", "asc").limit(BATCH_LIMIT).execute();
     const ready = rows.filter((r): r is typeof r & { ticket_id: string } => r.ticket_id !== null);
     if (!ready.length) return 0;
     let receipts: Record<string, import("../infrastructure/expo-push.gateway").PushReceipt>;
@@ -202,7 +203,8 @@ export class PushDispatcherService {
       if (!receipt && !tooOld) {
         // Reschedule unknown receipts instead of hammering Expo on every worker tick.
         await this.database.db.updateTable("push_deliveries")
-          .set({ receipt_checked_at: now })
+          .set({ receipt_checked_at: now,
+            next_attempt_at: new Date(now.getTime() + RECEIPT_POLL_DELAY_MS) })
           .where("id", "=", row.id).where("receipt_status", "=", "waiting").execute();
         continue;
       }

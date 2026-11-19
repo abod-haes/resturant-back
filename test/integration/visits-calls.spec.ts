@@ -234,7 +234,7 @@ describe("QR sessions and shift-aware calls (PostgreSQL)", () => {
       receipt_status: "waiting" }]);
     const outbox = await pool.query("SELECT state FROM call_outbox WHERE recipient_user_id=$1", [employeeId]);
     expect(outbox.rows[0].state).toBe("sent");
-    await pool.query("UPDATE push_deliveries SET updated_at=now()-interval '65 seconds' WHERE device_id=$1", [deviceId]);
+    await pool.query("UPDATE push_deliveries SET next_attempt_at=now()-interval '1 second' WHERE device_id=$1", [deviceId]);
     const checked = await worker.tick();
     expect(checked.receipts).toBe(1);
     const receipt = await pool.query("SELECT receipt_status FROM push_deliveries WHERE device_id=$1", [deviceId]);

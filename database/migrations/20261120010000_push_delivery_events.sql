@@ -35,7 +35,7 @@ CREATE TABLE push_deliveries (
 );
 CREATE INDEX push_delivery_due_idx ON push_deliveries(next_attempt_at,id)
   WHERE state='pending';
-CREATE INDEX push_receipts_due_idx ON push_deliveries(updated_at,id)
+CREATE INDEX push_receipts_due_idx ON push_deliveries(next_attempt_at,id)
   WHERE state='accepted' AND receipt_status='waiting' AND ticket_id IS NOT NULL;
 CREATE TRIGGER push_deliveries_touch_updated_at BEFORE UPDATE ON push_deliveries
   FOR EACH ROW EXECUTE FUNCTION platform_touch_updated_at();
