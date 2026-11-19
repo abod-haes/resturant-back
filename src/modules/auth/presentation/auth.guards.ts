@@ -67,7 +67,7 @@ export class ScopeGuard implements CanActivate {
     const principal = request.principal;
     const requestedId = request.params?.[scope.parameter];
     if (!principal || !requestedId) throw new ForbiddenException("Resource scope required");
-    if (!/^[a-f\\d]{8}-[a-f\\d]{4}-[1-8][a-f\\d]{3}-[89ab][a-f\\d]{3}-[a-f\\d]{12}$/i.test(requestedId)) {
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(requestedId)) {
       throw new NotFoundException("Resource not found");
     }
 
