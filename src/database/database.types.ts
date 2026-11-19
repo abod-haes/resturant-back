@@ -118,6 +118,87 @@ export interface QrCredentialsTable {
   revoked_at: Date | null;
 }
 
+export type CallKind = "waiter" | "hookah";
+export type CallRoutingMode = "all" | "department";
+export type CallDeliveryState = "queued" | "no_staff";
+
+export interface VisitSessionsTable {
+  id: Generated<string>;
+  restaurant_id: string;
+  branch_id: string;
+  table_id: string;
+  qr_credential_id: string;
+  qr_version: number;
+  token_hash: string;
+  first_call_confirmed: Generated<boolean>;
+  last_activity_at: Generated<Date>;
+  expires_at: Date;
+  created_at: Generated<Date>;
+}
+
+export interface EmployeeShiftsTable {
+  id: Generated<string>;
+  employee_user_id: string;
+  restaurant_id: string;
+  branch_id: string;
+  started_at: Generated<Date>;
+  planned_ends_at: Date;
+  ended_at: Date | null;
+  ended_by_user_id: string | null;
+  created_at: Generated<Date>;
+}
+
+export interface RestaurantCallSettingsTable {
+  restaurant_id: string;
+  routing_mode: Generated<CallRoutingMode>;
+  updated_at: Generated<Date>;
+}
+
+export interface BranchCallSettingsTable {
+  branch_id: string;
+  routing_mode: CallRoutingMode | null;
+  shift_max_minutes: Generated<number>;
+  updated_at: Generated<Date>;
+}
+
+export interface ServiceCallsTable {
+  id: Generated<string>;
+  restaurant_id: string;
+  branch_id: string;
+  table_id: string;
+  session_id: string;
+  kind: CallKind;
+  idempotency_key: string;
+  delivery_state: CallDeliveryState;
+  owner_alerted: Generated<boolean>;
+  created_at: Generated<Date>;
+}
+
+export interface CallRecipientsTable {
+  call_id: string;
+  employee_user_id: string;
+  created_at: Generated<Date>;
+}
+
+export interface CallDeliveryOutboxTable {
+  id: Generated<string>;
+  call_id: string;
+  employee_user_id: string;
+  state: Generated<"pending" | "sent" | "failed">;
+  attempts: Generated<number>;
+  created_at: Generated<Date>;
+  sent_at: Date | null;
+}
+
+export interface OwnerAlertsTable {
+  id: Generated<string>;
+  restaurant_id: string;
+  branch_id: string;
+  call_id: string;
+  created_at: Generated<Date>;
+  read_at: Date | null;
+}
+
 export interface UsersTable extends Timestamped {
   id: Generated<string>;
   username: string;
@@ -225,6 +306,14 @@ export interface DatabaseTables {
   areas: AreasTable;
   restaurant_tables: RestaurantTablesTable;
   qr_credentials: QrCredentialsTable;
+  visit_sessions: VisitSessionsTable;
+  employee_shifts: EmployeeShiftsTable;
+  restaurant_call_settings: RestaurantCallSettingsTable;
+  branch_call_settings: BranchCallSettingsTable;
+  service_calls: ServiceCallsTable;
+  call_recipients: CallRecipientsTable;
+  call_delivery_outbox: CallDeliveryOutboxTable;
+  owner_alerts: OwnerAlertsTable;
   users: UsersTable;
   plans: PlansTable;
   subscriptions: SubscriptionsTable;
