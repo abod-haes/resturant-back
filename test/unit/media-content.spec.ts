@@ -1,7 +1,7 @@
 import sharp from "sharp";
 import {
   MAX_GALLERY_IMAGES, MAX_IMAGE_BYTES, cleanFilename, processMedia,
-} from "../../src/modules/media/domain/media-content";
+} from "../../src/modules/media/application/media-content";
 
 function upload(buffer: Buffer, mimetype: string, originalname: string): Express.Multer.File {
   return { buffer, mimetype, originalname, size: buffer.length } as Express.Multer.File;

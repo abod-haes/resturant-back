@@ -8,7 +8,7 @@ import type { MediaAssetsTable, MediaKind } from "../../../database/database.typ
 import type { AuthPrincipal } from "../../../common/auth/principal";
 import { RUNTIME_CONFIG, type RuntimeConfig } from "../../../common/config/runtime-config";
 import { decodeKeysetCursor, encodeKeysetCursor } from "../../../common/pagination/keyset";
-import { MAX_MEDIA_ASSETS, processMedia } from "../domain/media-content";
+import { MAX_MEDIA_ASSETS, processMedia } from "./media-content";
 import { MEDIA_STORAGE, type MediaStorageGateway } from "../infrastructure/media-storage.gateway";
 import type { MediaDto, MediaListQueryDto } from "../presentation/media.dto";
 import { lockMediaTenant, ownerTenant, requireMediaBranch } from "./media-access";
