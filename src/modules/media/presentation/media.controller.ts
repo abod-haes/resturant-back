@@ -9,7 +9,7 @@ import {
 import type { Response } from "express";
 import type { AuthenticatedRequest } from "../../../common/auth/authenticated-request";
 import { BranchScope, Roles } from "../../../common/auth/policy.decorators";
-import { MAX_UPLOAD_BYTES } from "./media-content";
+import { MAX_UPLOAD_BYTES } from "../application/media-content";
 import { MediaService } from "../application/media.service";
 import { ProductGalleryService } from "../application/product-gallery.service";
 import {
