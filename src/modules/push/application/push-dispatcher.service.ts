@@ -1,4 +1,4 @@
-import { Inject, Injectable, Logger } from "@nestjs/common";
+import { ForbiddenException, Inject, Injectable, Logger } from "@nestjs/common";
 import { sql } from "kysely";
 import { DatabaseService } from "../../../database/database.service";
 import { RUNTIME_CONFIG, type RuntimeConfig } from "../../../common/config/runtime-config";
@@ -63,7 +63,8 @@ export class PushDispatcherService {
         try {
           await requireOperationalEntitlements(trx, row.restaurant_id,
             row.type === "waiter" ? "waiter_calls" : "hookah_calls");
-        } catch {
+        } catch (error: unknown) {
+          if (!(error instanceof ForbiddenException)) throw error;
           await trx.updateTable("call_outbox").set({ state: "failed" }).where("id", "=", row.id).execute();
           continue;
         }
@@ -140,8 +141,10 @@ export class PushDispatcherService {
           tableLabel: record.label, type: record.type,
         };
         ticket = await this.gateway.send(token, message);
-      } catch {
-        ticket = { ok: false, retryable: false, errorCode: "SENDER_NOT_AVAILABLE" };
+      } catch (error: unknown) {
+        ticket = error instanceof ForbiddenException
+          ? { ok: false, retryable: false, errorCode: "SUBSCRIPTION_INACTIVE" }
+          : { ok: false, retryable: true, errorCode: "SENDER_TEMPORARY" };
       }
     }
     const retry = !ticket.ok && ticket.retryable && claim.attempts < MAX_ATTEMPTS
