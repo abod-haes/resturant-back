@@ -44,7 +44,11 @@ export function parseRuntimeConfig(env: NodeJS.ProcessEnv): RuntimeConfig {
 
   const corsOrigins = (env.CORS_ORIGINS ?? "")
     .split(",").map((origin) => origin.trim()).filter(Boolean);
+  if (corsOrigins.includes("*") && corsOrigins.length !== 1) {
+    throw new Error("CORS_ORIGINS wildcard must be used alone");
+  }
   for (const origin of corsOrigins) {
+    if (origin === "*") continue;
     let parsedOrigin: URL;
     try {
       parsedOrigin = new URL(origin);
