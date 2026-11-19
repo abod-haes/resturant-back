@@ -29,10 +29,11 @@ describe("parseRuntimeConfig", () => {
     expect(() => parseRuntimeConfig({ ...validEnv, AUTH_ACCESS_SECRET: "short" })).toThrow("AUTH_ACCESS_SECRET");
   });
 
-  it("allows explicit origins but rejects paths and wildcards", () => {
+  it("allows explicit origins or a standalone wildcard but rejects paths and mixed wildcards", () => {
     expect(parseRuntimeConfig({ ...validEnv, CORS_ORIGINS: "https://dash.example.com,http://localhost:5173" }).corsOrigins)
       .toEqual(["https://dash.example.com", "http://localhost:5173"]);
-    expect(() => parseRuntimeConfig({ ...validEnv, CORS_ORIGINS: "*" })).toThrow("CORS_ORIGINS");
+    expect(parseRuntimeConfig({ ...validEnv, CORS_ORIGINS: "*" }).corsOrigins).toEqual(["*"]);
+    expect(() => parseRuntimeConfig({ ...validEnv, CORS_ORIGINS: "*,https://dash.example.com" })).toThrow("CORS_ORIGINS");
     expect(() => parseRuntimeConfig({ ...validEnv, CORS_ORIGINS: "https://example.com/path" })).toThrow("CORS_ORIGINS");
   });
 

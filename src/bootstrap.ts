@@ -16,7 +16,9 @@ export function configureHttpApp(app: INestApplication): void {
   }));
 
   if (config.corsOrigins.length > 0) {
-    app.enableCors({ origin: [...config.corsOrigins], credentials: true });
+    // Reflect the request Origin for wildcard mode: browsers reject "*" with credentials.
+    // Authentication and refresh-cookie origin checks remain independently enforced.
+    app.enableCors({ origin: config.corsOrigins.includes("*") ? true : [...config.corsOrigins], credentials: true });
   }
 
   const swaggerConfig = new DocumentBuilder()
