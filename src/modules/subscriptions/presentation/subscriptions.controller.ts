@@ -1,5 +1,5 @@
 import {
-  Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, Query, Req, UnauthorizedException,
+  Body, Controller, Get, HttpCode, HttpStatus, Param, ParseUUIDPipe, Patch, Post, Query, Req, UnauthorizedException,
 } from "@nestjs/common";
 import {
   ApiBearerAuth, ApiCreatedResponse, ApiOkResponse, ApiOperation, ApiTags,
@@ -77,6 +77,7 @@ export class SubscriptionsController {
   }
 
   @Post("subscriptions/:id/activate")
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Activate pending subscription with explicit UTC start and grace period" })
   @ApiOkResponse({ type: SubscriptionResponseDto })
   async activate(
@@ -87,6 +88,7 @@ export class SubscriptionsController {
   }
 
   @Post("subscriptions/:id/renew")
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Manually renew current subscription, preserving term history" })
   @ApiOkResponse({ type: SubscriptionResponseDto })
   async renew(
