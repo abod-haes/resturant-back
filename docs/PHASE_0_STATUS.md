@@ -34,3 +34,12 @@ PR #4 runs DB migrations twice, checksum gate, architecture, typecheck, lint, Je
 - Independent menu copy into an empty branch in the same restaurant, preserving category/product properties but issuing new IDs. Template/table copy intentionally deferred to QR/tables slice.
 - Public menu and categories (paginated) show only published, in-scope records and expose no QR or staff-call credentials; subscription menu feature and grace checked server-side.
 - Explicit DTO/Swagger contract v1.6 and dashboard handoff. Independent frontend adapters and staging smoke test NOT VERIFIED.
+
+## Tables & QR v1.7.0 — PR #9
+- Floor/area/table CRUD, soft archive with strict dependency checks, and tenant/branch foreign keys. A disabled table still uses plan quota; archived tables release quota.
+- Concurrency-safe table quota and 1-50 bulk creation in one PostgreSQL transaction; partial bulk writes are rolled back.
+- Per-table stable URL on rename or area move; 256-bit random QR token, SHA-256 lookup and AES-256-GCM encrypted stored credential. Rotation immediately invalidates old QR URLs and preserves disabled state; QR disable/reenable explicit.
+- Public table context lookup is read-only; no visit sessions or staff calls yet. General menu remains non-table URL.
+- A4 PDF QR sticker generation with maximum 100 labels per request; print currently uses an ID fallback for Arabic text due to built-in Helvetica glyph limitations.
+- Requires secure Dokploy environment QR_TOKEN_ENCRYPTION_KEY and CUSTOMER_APP_ORIGIN for issuing, rotating, and printing QR codes. Backend does not need them for other modules.
+- Dashboard/client/staging end-to-end handshake and server deployment NOT YET VERIFIED.

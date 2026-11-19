@@ -6,10 +6,11 @@ import { RestaurantAdminModule } from "./modules/restaurants/restaurant-admin.mo
 import { SubscriptionsModule } from "./modules/subscriptions/subscriptions.module";
 import { BranchesModule } from "./modules/branches/branches.module";
 import { MenuModule } from "./modules/menu/menu.module";
+import { TablesModule } from "./modules/tables/tables.module";
 import { HealthController } from "./modules/health/presentation/health.controller";
 
 @Module({
-  imports: [RuntimeConfigModule, DatabaseModule, AuthModule, RestaurantAdminModule, SubscriptionsModule, BranchesModule, MenuModule],
+  imports: [RuntimeConfigModule, DatabaseModule, AuthModule, RestaurantAdminModule, SubscriptionsModule, BranchesModule, MenuModule, TablesModule],
   controllers: [HealthController],
 })
 export class AppModule {}

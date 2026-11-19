@@ -72,6 +72,52 @@ export interface ProductImagesTable {
   created_at: Generated<Date>;
 }
 
+export interface FloorsTable extends Timestamped {
+  id: Generated<string>;
+  restaurant_id: string;
+  branch_id: string;
+  name: string;
+  sort_order: Generated<number>;
+  is_active: Generated<boolean>;
+  archived_at: Date | null;
+}
+
+export interface AreasTable extends Timestamped {
+  id: Generated<string>;
+  restaurant_id: string;
+  branch_id: string;
+  floor_id: string;
+  name: string;
+  sort_order: Generated<number>;
+  is_active: Generated<boolean>;
+  archived_at: Date | null;
+}
+
+export interface RestaurantTablesTable extends Timestamped {
+  id: Generated<string>;
+  restaurant_id: string;
+  branch_id: string;
+  area_id: string;
+  label: string;
+  sort_order: Generated<number>;
+  is_active: Generated<boolean>;
+  qr_enabled: Generated<boolean>;
+  calls_enabled: Generated<boolean>;
+  qr_version: Generated<number>;
+  archived_at: Date | null;
+}
+
+export interface QrCredentialsTable {
+  id: Generated<string>;
+  table_id: string;
+  branch_id: string;
+  version: number;
+  token_hash: string;
+  token_box: string;
+  created_at: Generated<Date>;
+  revoked_at: Date | null;
+}
+
 export interface UsersTable extends Timestamped {
   id: Generated<string>;
   username: string;
@@ -175,6 +221,10 @@ export interface DatabaseTables {
   categories: CategoriesTable;
   products: ProductsTable;
   product_images: ProductImagesTable;
+  floors: FloorsTable;
+  areas: AreasTable;
+  restaurant_tables: RestaurantTablesTable;
+  qr_credentials: QrCredentialsTable;
   users: UsersTable;
   plans: PlansTable;
   subscriptions: SubscriptionsTable;

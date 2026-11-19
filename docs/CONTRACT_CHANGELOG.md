@@ -1,5 +1,9 @@
 # Contract changelog
 
+## v1.7.0 — 2026-11-19 (Tables & QR)
+Tenant/branch-constrained floor, area and table management with soft archives, paginated owner CRUD, atomic bulk table creation (max 50/request), and transactionally enforced maxTables including disabled tables but excluding archived. Stable cryptographically random per-table QR credentials stored only as SHA-256 hashes + AES-256-GCM envelopes. QR issue on table creation; owner GET/rotate/disable; explicit QR re-enable via PATCH table. Public GET /public/t/:token returns read-only table/menu context and no session/call capability. Owner A4 printable QR PDF (up to 100 tables), with Arabic print-label fallback limitation documented. New deployment env QR_TOKEN_ENCRYPTION_KEY and CUSTOMER_APP_ORIGIN required for QR issuance/print. No client app integration, visit sessions, calls or production deployment claimed. See docs/TABLES_QR_DASHBOARD_HANDOFF.md.
+
+
 ## v1.6.0 — 2026-11-19 (Branch & Menu vertical slice)
 Owner branches CRUD with transactional plan quota, tenant isolation and configured per-branch currency. Nested category/product CRUD, search/cursor pagination, old price/sold-out/visibility/tags, soft archive and relational same-branch constraints. Images are URL metadata restricted to configured HTTPS CDN origins; upload/transformation deferred. Menu copy is additive only into empty destination branch with independent IDs; floor/table templates deferred. Public paginated catalog excludes hidden or archived content and never exposes QR/call credentials. Subscription feature and effective expiry apply on every operation. See docs/BRANCH_MENU_DASHBOARD_HANDOFF.md. No dashboard staging adapter handshake claimed.
 
