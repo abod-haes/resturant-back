@@ -56,3 +56,8 @@ PR #4 runs DB migrations twice, checksum gate, architecture, typecheck, lint, Je
 - Separate opt-in worker; durable per-device push delivery jobs, Expo tickets and receipt polling, bounded retries and stale call filtering. Tickets/receipts do not assert handset delivery.
 - Durable transactionally committed per-restaurant SSE event sequence, tenant owner and employee recipient scoping with auth rechecks.
 - Actual Expo/FCM/APNs network delivery and app-specific Android/iOS channel sounds not tested; customer/dashboard/Expo client integrations NOT COMPLETE.
+
+## Analytics & Audit v1.10.0 — PR #14
+- Owner query for UTC-bounded (1–90 calendar days, default 30) service call totals, waiter/hookah/no-staff/routed and distinct tables, zero-filled daily rows; branch filter checked against JWT tenant, analytics subscription feature enforced.
+- PRIMARY_ADMIN-only paginated audit event metadata (no raw metadata JSON); optional actor/restaurant/action filters, stable keyset cursor.
+- Additive indexes only. Frontend mock/live contract handshake and production pilot remain NOT COMPLETE.

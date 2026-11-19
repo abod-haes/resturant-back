@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/** Fail CI on malformed/doubled YAML keys, broken local refs and missing v1.9 operations. */
+/** Fail CI on malformed/doubled YAML keys, broken local refs and missing versioned operations. */
 import { readFileSync } from "node:fs";
 import { parseDocument } from "yaml";
 
@@ -11,7 +11,7 @@ if (spec.errors.length) {
 }
 const doc = spec.toJS();
 if (!doc || typeof doc !== "object" || doc.openapi !== "3.1.0" ||
-  doc.info?.version !== "0.9.0-draft" || !doc.paths || !doc.components?.schemas) {
+  doc.info?.version !== "0.10.0-draft" || !doc.paths || !doc.components?.schemas) {
   throw new Error("OpenAPI root, version or schemas missing");
 }
 const ops = new Set();
@@ -45,10 +45,12 @@ for (const [path, method] of [
   ["/employee/devices","post"], ["/employee/devices","get"], ["/employee/devices/{id}","delete"],
   ["/owner/events","get"], ["/employee/events","get"],
   ["/public/calls","post"], ["/employee/shifts/start","post"],
+  ["/owner/call-analytics","get"], ["/admin/audit-logs","get"],
 ]) {
   if (!doc.paths[path]?.[method]) throw new Error("Missing contract: " + method + " " + path);
 }
-for (const path of ["/owner/events","/employee/events","/employee/devices"]) {
+for (const path of ["/owner/events","/employee/events","/employee/devices",
+  "/owner/call-analytics","/admin/audit-logs"]) {
   const method = path.endsWith("devices") ? "post" : "get";
   if (!doc.paths[path][method].security?.some(x => Object.hasOwn(x, "bearerAuth"))) {
     throw new Error("Bearer security missing from " + path);
@@ -58,4 +60,11 @@ const fixture = JSON.parse(readFileSync("mocks/contracts/push-realtime-v1.9.json
 if (fixture.schemaVersion !== "1.9.0" || fixture.registered?.data?.expoPushToken !== undefined) {
   throw new Error("Push contract fixture version/redaction invalid");
 }
-console.log("OpenAPI and v1.9 contract fixtures OK (" + ops.size + " operations)");
+const reporting = JSON.parse(readFileSync("mocks/contracts/analytics-audit-v1.10.json","utf8"));
+if (reporting.schemaVersion !== "1.10.0" ||
+  !Array.isArray(reporting.ownerAnalytics?.data?.daily) ||
+  !Array.isArray(reporting.adminAudit?.data) ||
+  reporting.adminAudit.data.some(row => "metadata" in row)) {
+  throw new Error("v1.10 report/audit contract fixture invalid or leaking metadata");
+}
+console.log("OpenAPI and versioned fixtures OK (" + ops.size + " operations)");

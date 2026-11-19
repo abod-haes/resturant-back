@@ -1,0 +1,61 @@
+{
+  "schemaVersion": "1.10.0",
+  "ownerAnalytics": {
+    "data": {
+      "from": "2026-11-19",
+      "to": "2026-11-21",
+      "branchId": null,
+      "summary": {
+        "totalCalls": 5,
+        "waiterCalls": 3,
+        "hookahCalls": 2,
+        "routedCalls": 4,
+        "noStaffCalls": 1,
+        "distinctTables": 3
+      },
+      "daily": [
+        {
+          "date": "2026-11-19",
+          "totalCalls": 2,
+          "waiterCalls": 2,
+          "hookahCalls": 0,
+          "routedCalls": 1,
+          "noStaffCalls": 1
+        },
+        {
+          "date": "2026-11-20",
+          "totalCalls": 3,
+          "waiterCalls": 1,
+          "hookahCalls": 2,
+          "routedCalls": 3,
+          "noStaffCalls": 0
+        }
+      ]
+    }
+  },
+  "adminAudit": {
+    "data": [
+      {
+        "id": "d2bb66f8-8cf3-40ca-968b-967b12d25a10",
+        "actorId": "feb0df9b-e54c-4d94-b49b-44317cf13d84",
+        "restaurantId": "48b4bc60-a8c7-47d4-b270-c8e47ea3960f",
+        "action": "subscription.renewed",
+        "entityType": "subscription",
+        "entityId": "f8c1310e-3d25-4656-ac2c-b43357c3e596",
+        "requestId": "req-123",
+        "createdAt": "2026-11-20T20:00:00.000Z"
+      }
+    ],
+    "meta": {
+      "hasMore": false,
+      "nextCursor": null
+    }
+  },
+  "featureDisabled": {
+    "error": {
+      "code": "PLAN_FEATURE_DISABLED",
+      "message": "Feature not included in current subscription"
+    },
+    "requestId": "req-example"
+  }
+}

@@ -1,5 +1,9 @@
 # Contract changelog
 
+## v1.10.0 — 2026-11-20 (Call analytics and audit view)
+Implemented gated owner call analytics `GET /owner/call-analytics` with strict 1–90-day UTC [from,to) date bounds, 30-day default, tenant-verifiable optional branch, zero-filled daily aggregates and summary distinct-table count. `routedCalls` is the already persisted queue routing state, not notification delivery. Added `GET /admin/audit-logs` for PRIMARY_ADMIN only with bounded stable keyset pagination and optional filters, excluding sensitive audit metadata from all responses. Added forward-only SQL indexes, OpenAPI, fixtures and integration/unit tests. No metrics for sales/checkout (not in V1). No dashboard/live staging adaptation or restore drill asserted. See `docs/ANALYTICS_AUDIT_HANDOFF.md` and ADR-010.
+
+
 ## v1.9.0 — 2026-11-19 (Expo push backend + durable SSE)
 New encrypted employee device registry (GET/POST/DELETE /employee/devices), five active devices maximum, server-side account binding and redacted response DTOs. Opt-in standalone push worker with per-device durable state, bounded retry/lease, Expo HTTP tickets and separate receipt reconciliation, invalid token deactivation. Restaurant-scoped transactional realtime event sequence, authenticated owner and employee SSE with cursor replay, per-tick session revalidation and multi-replica PostgreSQL polling. Events: call.created, owner.alert.created, shift.updated. **Expo tickets/receipts are not confirmation that a human received an alert**. OS sound channel registration and physical phone tests require the Expo app; no external owner channel, Redis, mobile frontend or dashboard staging integration. See ADR-009 and PUSH_REALTIME_HANDOFF.md.
 
