@@ -1,0 +1,49 @@
+{
+  "schemaVersion": "1.4.0",
+  "request": {
+    "name": "مطعم الياسمين",
+    "owner": {
+      "name": "مالك المطعم",
+      "username": "owner_example",
+      "initialPassword": "example-only-do-not-use-as-real-password"
+    },
+    "initialBranch": {
+      "name": "الفرع الرئيسي"
+    }
+  },
+  "createdResponse": {
+    "data": {
+      "id": "0130ab64-5131-4fbe-ae40-6fbce8a507a1",
+      "name": "مطعم الياسمين",
+      "ownerId": "394b8e59-d5a3-4f5e-a165-003189858f21",
+      "branchId": "f4d12588-9b0e-4b76-86df-5be5d2d09f9f"
+    }
+  },
+  "listResponse": {
+    "data": [
+      {
+        "id": "0130ab64-5131-4fbe-ae40-6fbce8a507a1",
+        "name": "مطعم الياسمين",
+        "slug": "r-0130ab6451314fbeae406fbce8a507a1",
+        "isActive": true,
+        "createdAt": "2026-11-19T19:00:00.000Z",
+        "owner": {
+          "id": "394b8e59-d5a3-4f5e-a165-003189858f21",
+          "name": "مالك المطعم",
+          "username": "owner_example"
+        }
+      }
+    ],
+    "meta": {
+      "nextCursor": null,
+      "hasMore": false
+    }
+  },
+  "errorResponse": {
+    "error": {
+      "code": "OWNER_USERNAME_TAKEN",
+      "message": "Owner username is already in use"
+    },
+    "requestId": "example-request-2026"
+  }
+}

@@ -1,17 +1,12 @@
 import { CanActivate, ExecutionContext, ForbiddenException, Injectable, NotFoundException, UnauthorizedException } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
-import type { IncomingMessage } from "node:http";
 import { DatabaseService } from "../../../database/database.service";
 import type { PlatformRole } from "../../../database/database.types";
-import type { AuthPrincipal } from "../domain/auth.types";
+import type { AuthenticatedRequest } from "../../../common/auth/authenticated-request";
 import { AuthService } from "../application/auth.service";
 import { ALLOW_PASSWORD_CHANGE_KEY, AUTHENTICATED_KEY, PUBLIC_KEY, RESOURCE_SCOPE_KEY, ROLES_KEY, type ResourceScope } from "../../../common/auth/policy.decorators";
 
-export interface AuthenticatedRequest extends IncomingMessage {
-  principal?: AuthPrincipal;
-  requestId?: string;
-  params?: Record<string, string>;
-}
+export type { AuthenticatedRequest } from "../../../common/auth/authenticated-request";
 
 function metadata<T>(context: ExecutionContext, reflector: Reflector, key: string): T | undefined {
   return reflector.getAllAndOverride<T>(key, [context.getHandler(), context.getClass()]);

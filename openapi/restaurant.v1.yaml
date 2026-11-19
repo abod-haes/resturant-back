@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Restaurant Platform API
-  version: 0.3.0-draft
+  version: 0.4.0-draft
   description: "Initial executable contract slice. Remaining endpoints documented in docs/OPENAPI_IMPLEMENTATION.md; do not treat this file as complete."
 servers:
   - url: /api/v1
@@ -30,6 +30,24 @@ components:
       properties:
         nextCursor: { type: [string, "null"] }
         hasMore: { type: boolean }
+    RestaurantSummary:
+      type: object
+      required: [id, name, slug, isActive, createdAt, owner]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        slug: { type: string }
+        isActive: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        owner:
+          oneOf:
+            - type: 'null'
+            - type: object
+              required: [id, name, username]
+              properties:
+                id: { type: string, format: uuid }
+                name: { type: string }
+                username: { type: string }
     ServiceCall:
       type: object
       required: [id, createdAt, deliveryState, ownerAlerted]
@@ -39,6 +57,124 @@ components:
         deliveryState: { type: string, enum: [queued, no_staff] }
         ownerAlerted: { type: boolean }
 paths:
+  /admin/restaurants:
+    post:
+      operationId: createRestaurant
+      tags: [Platform restaurants]
+      security: [{ bearerAuth: [] }]
+      description: Atomic creation of restaurant, owner and first branch. No subscription is enabled.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [name, owner, initialBranch]
+              properties:
+                name: { type: string, maxLength: 200 }
+                owner:
+                  type: object
+                  required: [name, username, initialPassword]
+                  properties:
+                    name: { type: string, maxLength: 200 }
+                    username: { type: string, minLength: 3, maxLength: 64 }
+                    initialPassword: { type: string, minLength: 12, maxLength: 128, writeOnly: true }
+                initialBranch:
+                  type: object
+                  required: [name]
+                  properties:
+                    name: { type: string, maxLength: 200 }
+      responses:
+        '201':
+          description: Created restaurant, owner and first branch
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    required: [id, name, ownerId, branchId]
+                    properties:
+                      id: { type: string, format: uuid }
+                      name: { type: string }
+                      ownerId: { type: string, format: uuid }
+                      branchId: { type: string, format: uuid }
+        '400': { description: Invalid request }
+        '401': { description: Unauthorized }
+        '403': { description: Not a platform administrator }
+        '409': { description: OWNER_USERNAME_TAKEN }
+    get:
+      operationId: listRestaurants
+      tags: [Platform restaurants]
+      security: [{ bearerAuth: [] }]
+      description: Stable keyset pagination ordered newest-first, with literal case-insensitive search.
+      parameters:
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        - in: query
+          name: cursor
+          schema: { type: string }
+        - in: query
+          name: search
+          schema: { type: string, maxLength: 100 }
+      responses:
+        '200':
+          description: Paginated restaurant summaries
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/RestaurantSummary' }
+                  meta: { $ref: '#/components/schemas/PageMeta' }
+        '400': { description: Bad pagination parameters }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+  /admin/restaurants/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: getRestaurant
+      tags: [Platform restaurants]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Restaurant details with first branch
+        '400': { description: Invalid ID }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+        '404': { description: Restaurant not found }
+    patch:
+      operationId: updateRestaurant
+      tags: [Platform restaurants]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              minProperties: 1
+              additionalProperties: false
+              properties:
+                name: { type: string, maxLength: 200 }
+                isActive: { type: boolean }
+      responses:
+        '200': { description: Updated restaurant details }
+        '400': { description: Invalid patch }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+        '404': { description: Restaurant not found }
   /auth/login:
     post:
       operationId: authLogin
@@ -112,7 +248,8 @@ paths:
     get:
       operationId: healthReady
       responses:
-        '200': { description: Bootstrap state; DB readiness not yet implemented }
+        '200': { description: Database is reachable }
+        '503': { description: Database unavailable }
   /public/t/{qrToken}/sessions:
     post:
       operationId: createTableSession

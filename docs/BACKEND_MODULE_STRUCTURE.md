@@ -20,7 +20,7 @@ src/
     health/
     auth/
     platform-admin/
-    restaurants/
+    restaurants/                  # admin onboarding (controller/application/DTO) and future owner branch logic
     subscriptions/
     branches/
     menus/
