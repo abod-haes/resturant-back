@@ -1,19 +1,15 @@
-# Phase 0 engineering status — 2026-11-19
+# Phase 0 implementation status — 2026-11-19
 
-## Delivered in this change (subject to CI verification)
-- Typed env/config validation.
-- Centralized HTTP bootstrap, global request-ID and exception envelope.
-- PostgreSQL connection pool and real live/ready probe semantics.
-- Unit tests for configuration validation; integration tests for healthy and unavailable DB.
-- Jest test commands and ESLint flat config; CI starts PostgreSQL and runs quality gates.
-- Corrected repo architecture decision for two Vite dashboard apps in one workspace and removed duplicate conflicting RBAC table.
+## Delivered and checked in pull requests
+- Typed runtime config, safe HTTP errors/requestId, correct PostgreSQL readiness and shutdown.
+- CI runs architecture, TypeScript, lint, unit, integration and build. Earlier Phase 0 foundation PR #1 has passed CI and merged.
+- **Core database foundation (in progress until CI succeeds)**: PostgreSQL SQL migration runner with checksums/advisory locking, first relational schema (users/restaurants/branches/plans/subscriptions/audit), typed Kysely query client and schema constraint integration tests.
 
-## Not delivered — DO NOT call Phase 0 complete
-- Type-safe data access / migration runner ADR, migrations, transactional schema, and safe seed flows.
-- Authentication and role/tenant authorization vertical slice.
-- Full implemented/generated OpenAPI DTOs + validation/contract tests.
-- Integrated end-to-end dashboard handshake and staging smoke verification.
-- Pinned, committed dependency lockfile and production security hardening.
+## Not yet implemented
+- Fully working authentication, password/session rotation, RBAC guards and application-level tenant query scoping.
+- Business CRUD endpoints, DTO/generated OpenAPI, production plan rules and outbox.
+- Safe primary admin bootstrapping; no hardcoded credentials or placeholder seeds will be committed.
+- Staging/production backups and migration rehearsal, committed dependency lockfile and cross-repository integration smoke test.
 
-## Quality verification
-A remote PR CI workflow is configured. Actual PASS/FAIL depends on its completed checks; no local install, DB integration, or build is claimed without execution. Do not merge until CI passes and remaining foundation work is tracked.
+## Verification
+CI must be green on each pull request before review/merge. A passing CI test does not mean auth/business feature completeness.
