@@ -73,6 +73,30 @@ export interface AuditLogsTable {
   created_at: Generated<Date>;
 }
 
+export interface AuthSessionsTable {
+  id: Generated<string>;
+  user_id: string;
+  refresh_hash: string;
+  previous_refresh_hash: string | null;
+  expires_at: Date;
+  revoked_at: Date | null;
+  created_at: Generated<Date>;
+  rotated_at: Generated<Date>;
+}
+
+export interface AuthRefreshHistoryTable {
+  refresh_hash: string;
+  session_id: string;
+  created_at: Generated<Date>;
+}
+
+export interface AuthLoginAttemptsTable {
+  identity_hash: string;
+  attempts: Generated<number>;
+  window_started_at: Generated<Date>;
+  blocked_until: Date | null;
+}
+
 export interface DatabaseTables {
   restaurants: RestaurantsTable;
   branches: BranchesTable;
@@ -80,4 +104,7 @@ export interface DatabaseTables {
   plans: PlansTable;
   subscriptions: SubscriptionsTable;
   audit_logs: AuditLogsTable;
+  auth_sessions: AuthSessionsTable;
+  auth_login_attempts: AuthLoginAttemptsTable;
+  auth_refresh_history: AuthRefreshHistoryTable;
 }

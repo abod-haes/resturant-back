@@ -4,6 +4,7 @@ const validEnv = {
   NODE_ENV: "test",
   PORT: "3000",
   DATABASE_URL: "postgresql://restaurant:test@localhost:5432/restaurant",
+  AUTH_ACCESS_SECRET: "test-only-unit-secret-must-not-be-used-in-production-2026",
 };
 
 describe("parseRuntimeConfig", () => {
@@ -19,8 +20,13 @@ describe("parseRuntimeConfig", () => {
   });
 
   it("rejects missing and non-Postgres database URLs", () => {
-    expect(() => parseRuntimeConfig({ NODE_ENV: "test" })).toThrow("DATABASE_URL");
+    expect(() => parseRuntimeConfig({ ...validEnv, DATABASE_URL: "" })).toThrow("DATABASE_URL");
     expect(() => parseRuntimeConfig({ ...validEnv, DATABASE_URL: "https://example.com/db" })).toThrow("DATABASE_URL");
+  });
+
+  it("rejects missing or weak JWT signing secrets", () => {
+    expect(() => parseRuntimeConfig({ ...validEnv, AUTH_ACCESS_SECRET: "" })).toThrow("AUTH_ACCESS_SECRET");
+    expect(() => parseRuntimeConfig({ ...validEnv, AUTH_ACCESS_SECRET: "short" })).toThrow("AUTH_ACCESS_SECRET");
   });
 
   it("allows explicit origins but rejects paths and wildcards", () => {

@@ -3,7 +3,6 @@ on:
   push:
     branches: [main]
   pull_request:
-
 jobs:
   quality:
     runs-on: ubuntu-latest
@@ -26,6 +25,8 @@ jobs:
       DATABASE_URL: postgresql://restaurant:test-password@localhost:5432/restaurant_test
       DB_CONNECT_TIMEOUT_MS: 2000
       PORT: 3000
+      CORS_ORIGINS: http://localhost:5173
+      AUTH_ACCESS_SECRET: ci-only-test-jwt-signing-key-2026-do-not-use-in-production
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -33,7 +34,7 @@ jobs:
           node-version: "20"
       - run: npm install --no-audit --no-fund
       - run: npm run db:migrate
-      - run: npm run db:migrate # idempotency: reapply must be a safe no-op
+      - run: npm run db:migrate # idempotency: reapply is a no-op
       - run: npm run db:migrate:check
       - run: npm run check:architecture
       - run: npm run typecheck

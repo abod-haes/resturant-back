@@ -7,14 +7,13 @@ export interface RuntimeConfig {
   readonly databaseUrl: string;
   readonly databaseConnectTimeoutMs: number;
   readonly corsOrigins: readonly string[];
+  readonly authAccessSecret: string;
 }
 
 export const RUNTIME_CONFIG = Symbol("RUNTIME_CONFIG");
 
 function positiveInteger(value: string, label: string, maximum: number): number {
-  if (!/^[0-9]+$/.test(value)) {
-    throw new Error(label + " must be a positive integer");
-  }
+  if (!/^[0-9]+$/.test(value)) throw new Error(label + " must be a positive integer");
   const number = Number(value);
   if (!Number.isSafeInteger(number) || number < 1 || number > maximum) {
     throw new Error(label + " must be between 1 and " + maximum);
@@ -29,25 +28,19 @@ export function parseRuntimeConfig(env: NodeJS.ProcessEnv): RuntimeConfig {
   }
 
   const databaseUrl = env.DATABASE_URL?.trim();
-  if (!databaseUrl) {
-    throw new Error("DATABASE_URL is required");
-  }
-
+  if (!databaseUrl) throw new Error("DATABASE_URL is required");
   let parsedUrl: URL;
   try {
     parsedUrl = new URL(databaseUrl);
   } catch {
     throw new Error("DATABASE_URL must be a valid PostgreSQL connection URL");
   }
-  if (!["postgres:", "postgresql:"].includes(parsedUrl.protocol) || !parsedUrl.hostname || !parsedUrl.pathname || parsedUrl.pathname === "/") {
+  if (!["postgres:", "postgresql:"].includes(parsedUrl.protocol) || !parsedUrl.hostname || parsedUrl.pathname === "/") {
     throw new Error("DATABASE_URL must be a PostgreSQL connection URL with host and database name");
   }
 
   const corsOrigins = (env.CORS_ORIGINS ?? "")
-    .split(",")
-    .map((origin) => origin.trim())
-    .filter(Boolean);
-
+    .split(",").map((origin) => origin.trim()).filter(Boolean);
   for (const origin of corsOrigins) {
     let parsedOrigin: URL;
     try {
@@ -60,12 +53,18 @@ export function parseRuntimeConfig(env: NodeJS.ProcessEnv): RuntimeConfig {
     }
   }
 
+  const authAccessSecret = env.AUTH_ACCESS_SECRET ?? "";
+  if (Buffer.byteLength(authAccessSecret, "utf8") < 32) {
+    throw new Error("AUTH_ACCESS_SECRET must contain at least 32 bytes of secret entropy");
+  }
+
   return Object.freeze({
     nodeEnv,
     port: positiveInteger(env.PORT ?? "3000", "PORT", 65535),
     databaseUrl,
     databaseConnectTimeoutMs: positiveInteger(env.DB_CONNECT_TIMEOUT_MS ?? "2000", "DB_CONNECT_TIMEOUT_MS", 60000),
     corsOrigins: Object.freeze(corsOrigins),
+    authAccessSecret,
   });
 }
 

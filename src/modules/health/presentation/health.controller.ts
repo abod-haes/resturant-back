@@ -1,7 +1,9 @@
 import { Controller, Get, ServiceUnavailableException } from "@nestjs/common";
 import { ApiOperation, ApiResponse, ApiTags } from "@nestjs/swagger";
+import { Public } from "../../../common/auth/policy.decorators";
 import { DatabaseService } from "../../../database/database.service";
 
+@Public()
 @ApiTags("health")
 @Controller("health")
 export class HealthController {

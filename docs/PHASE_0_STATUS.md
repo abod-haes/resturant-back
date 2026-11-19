@@ -1,15 +1,16 @@
 # Phase 0 implementation status — 2026-11-19
 
-## Delivered and checked in pull requests
-- Typed runtime config, safe HTTP errors/requestId, correct PostgreSQL readiness and shutdown.
-- CI runs architecture, TypeScript, lint, unit, integration and build. Earlier Phase 0 foundation PR #1 has passed CI and merged.
-- **Core database foundation (in progress until CI succeeds)**: PostgreSQL SQL migration runner with checksums/advisory locking, first relational schema (users/restaurants/branches/plans/subscriptions/audit), typed Kysely query client and schema constraint integration tests.
+## Merged
+- PR #1: typed runtime config, safe error envelope, PostgreSQL readiness and CI.
+- PR #2: Kysely typed schema, transactional SQL migrations with checksums, PostgreSQL relational tenant constraints.
 
-## Not yet implemented
-- Fully working authentication, password/session rotation, RBAC guards and application-level tenant query scoping.
-- Business CRUD endpoints, DTO/generated OpenAPI, production plan rules and outbox.
-- Safe primary admin bootstrapping; no hardcoded credentials or placeholder seeds will be committed.
-- Staging/production backups and migration rehearsal, committed dependency lockfile and cross-repository integration smoke test.
+## Auth v1.3.0 in progress (subject to CI)
+- POST auth login/refresh/logout/change-password and GET auth/me.
+- JWT + DB active-session verification, rotating opaque hashed refresh, replay revocation, web cookies/mobile body, forced password change, audit record.
+- Deny-by-default roles and resource scope decorators, no default platform support impersonation.
+- Deterministic isolated integration tests incl. cross-branch, replay, expired/invalid tokens and missing route policy.
 
-## Verification
-CI must be green on each pull request before review/merge. A passing CI test does not mean auth/business feature completeness.
+## Not complete
+- Platform-admin management, restaurant onboarding CRUD, subscription enforcement, employee shifts and operational calls.
+- Production edge rate limits, secret lifecycle, backup and restore drills, comprehensive app staging handshake and mock/live adapter updates.
+- Pinned dependency lockfile and proven container deploy.
