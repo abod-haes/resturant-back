@@ -345,9 +345,10 @@ describe("Branches, categories, products and independent menu copy (PostgreSQL)"
 
     const previous = await pool.query("SELECT starts_at,ends_at,grace_ends_at FROM subscriptions WHERE id = $1",
       [subscriptionIds[0]]);
-    const expiredDate = new Date(Date.now() - 2000);
-    await pool.query("UPDATE subscriptions SET ends_at=$2, grace_ends_at=$2 WHERE id=$1",
-      [subscriptionIds[0], expiredDate]);
+    const expiredStart = new Date(Date.now() - 60 * 86400_000);
+    const expiredDate = new Date(Date.now() - 30 * 86400_000);
+    await pool.query("UPDATE subscriptions SET starts_at=$2, ends_at=$3, grace_ends_at=$3 WHERE id=$1",
+      [subscriptionIds[0], expiredStart, expiredDate]);
     try {
       const ownerDenied = await request(app.getHttpServer())
         .get("/api/v1/owner/branches").set(ownerAuth());

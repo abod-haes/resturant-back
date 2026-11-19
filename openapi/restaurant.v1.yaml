@@ -914,7 +914,15 @@ paths:
         required: true
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/CreateCategory' }
+            schema:
+              type: object
+              minProperties: 1
+              additionalProperties: false
+              properties:
+                name: { type: string, maxLength: 160 }
+                description: { type: [string, "null"], maxLength: 1000 }
+                sortOrder: { type: integer, minimum: 0, maximum: 1000000 }
+                isActive: { type: boolean }
       responses:
         '200': { description: Updated category }
         '400': { description: Invalid or empty patch }
@@ -988,7 +996,29 @@ paths:
         required: true
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/CreateProduct' }
+            schema:
+              type: object
+              minProperties: 1
+              additionalProperties: false
+              properties:
+                categoryId: { type: string, format: uuid }
+                name: { type: string, maxLength: 200 }
+                description: { type: [string, "null"], maxLength: 3000 }
+                priceMinor: { type: integer, minimum: 0, maximum: 2147483647 }
+                oldPriceMinor: { type: [integer, "null"], minimum: 1 }
+                tags: { type: array, maxItems: 12, uniqueItems: true, items: { type: string, maxLength: 32 } }
+                isVisible: { type: boolean }
+                isSoldOut: { type: boolean }
+                sortOrder: { type: integer, minimum: 0 }
+                images:
+                  type: array
+                  maxItems: 8
+                  items:
+                    type: object
+                    required: [url]
+                    properties:
+                      url: { type: string, format: uri, description: Approved HTTPS origin only }
+                      alt: { type: [string, "null"] }
       responses:
         '200': { description: Updated product, partial fields allowed }
         '400': { description: Invalid price or media URL }
