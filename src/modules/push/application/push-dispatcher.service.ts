@@ -111,12 +111,14 @@ export class PushDispatcherService {
       .innerJoin("restaurant_tables", "restaurant_tables.id", "service_calls.table_id")
       .innerJoin("employee_push_devices", "employee_push_devices.id", "push_deliveries.device_id")
       .innerJoin("users", "users.id", "call_outbox.recipient_user_id")
+      .innerJoin("branches", "branches.id", "service_calls.branch_id")
       .select([
         "call_outbox.id as outbox_id", "call_outbox.recipient_user_id",
         "service_calls.id as call_id", "service_calls.branch_id", "service_calls.restaurant_id",
         "service_calls.table_id", "service_calls.type", "service_calls.created_at",
         "restaurant_tables.label", "employee_push_devices.token_box", "employee_push_devices.is_active as device_active",
         "users.is_active as employee_active", "users.archived_at as employee_archived",
+        "branches.is_active as branch_active",
       ]).where("push_deliveries.id", "=", claim.id).executeTakeFirstOrThrow();
     const now = new Date();
     const stillOnShift = await this.database.db.selectFrom("employee_shifts")
@@ -124,7 +126,7 @@ export class PushDispatcherService {
       .where("branch_id", "=", record.branch_id).where("ended_at", "is", null)
       .where("auto_end_at", ">", now).executeTakeFirst();
     let ticket: PushTicket;
-    if (!record.device_active || !record.employee_active || record.employee_archived ||
+    if (!record.device_active || !record.employee_active || !record.branch_active || record.employee_archived ||
       !stillOnShift || now.getTime() - record.created_at.getTime() > MAX_PUSH_AGE_MS) {
       ticket = { ok: false, retryable: false, errorCode: "RECIPIENT_NOT_ELIGIBLE" };
     } else {
@@ -197,7 +199,13 @@ export class PushDispatcherService {
     for (const row of ready) {
       const receipt = receipts[row.ticket_id];
       const tooOld = now.getTime() - row.created_at.getTime() > RECEIPT_EXPIRE_MS;
-      if (!receipt && !tooOld) continue;
+      if (!receipt && !tooOld) {
+        // Reschedule unknown receipts instead of hammering Expo on every worker tick.
+        await this.database.db.updateTable("push_deliveries")
+          .set({ receipt_checked_at: now })
+          .where("id", "=", row.id).where("receipt_status", "=", "waiting").execute();
+        continue;
+      }
       const status = receipt?.status === "ok" ? "ok" as const
         : receipt?.status === "error" ? "error" as const : "expired" as const;
       await this.database.db.updateTable("push_deliveries")
