@@ -19,9 +19,7 @@ describe("QR visits, staff shifts, idempotent calls and owner fallback (PostgreS
   let ownerToken = "";
   let otherOwnerToken = "";
   let restaurantId = "";
-  let otherRestaurantId = "";
   let branchId = "";
-  let otherBranchId = "";
   let tableId = "";
   let qrToken = "";
   let visitToken = "";
@@ -116,7 +114,7 @@ describe("QR visits, staff shifts, idempotent calls and owner fallback (PostgreS
     const a = await provisionRestaurant();
     const b = await provisionRestaurant();
     restaurantId = a.id; branchId = a.branchId; ownerToken = a.ownerToken;
-    otherRestaurantId = b.id; otherBranchId = b.branchId; otherOwnerToken = b.ownerToken;
+    otherOwnerToken = b.ownerToken;
     const floor = await request(app.getHttpServer()).post(route("floors"))
       .set(owner()).send({ name: "Ground" });
     expect(floor.status).toBe(201);
