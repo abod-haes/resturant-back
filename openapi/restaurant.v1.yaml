@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Restaurant Platform API
-  version: 0.4.0-draft
+  version: 0.5.0-draft
   description: "Initial executable contract slice. Remaining endpoints documented in docs/OPENAPI_IMPLEMENTATION.md; do not treat this file as complete."
 servers:
   - url: /api/v1
@@ -48,6 +48,56 @@ components:
                 id: { type: string, format: uuid }
                 name: { type: string }
                 username: { type: string }
+    Plan:
+      type: object
+      required: [id, name, maxBranches, maxTables, maxEmployees, features, isActive, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        maxBranches: { type: integer, minimum: 1 }
+        maxTables: { type: integer, minimum: 1 }
+        maxEmployees: { type: integer, minimum: 0 }
+        isActive: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        features:
+          type: object
+          required: [menu, waiter_calls, hookah_calls, analytics]
+          properties:
+            menu: { type: boolean }
+            waiter_calls: { type: boolean }
+            hookah_calls: { type: boolean }
+            analytics: { type: boolean }
+    Subscription:
+      type: object
+      required: [id, restaurantId, planId, period, effectiveStatus, canOperate, graceDays, startsAt, endsAt, graceEndsAt, entitlements]
+      properties:
+        id: { type: string, format: uuid }
+        restaurantId: { type: string, format: uuid }
+        planId: { type: string, format: uuid }
+        period: { type: string, enum: [monthly, yearly] }
+        effectiveStatus: { type: string, enum: [pending, scheduled, active, grace, expired, cancelled] }
+        canOperate: { type: boolean }
+        startsAt: { type: [string, "null"], format: date-time }
+        endsAt: { type: [string, "null"], format: date-time }
+        graceEndsAt: { type: [string, "null"], format: date-time }
+        graceDays: { type: integer, minimum: 0, maximum: 365 }
+        entitlements:
+          oneOf:
+            - type: "null"
+            - type: object
+              properties:
+                maxBranches: { type: integer }
+                maxTables: { type: integer }
+                maxEmployees: { type: integer }
+                features: { type: object }
+    RenewalContact:
+      type: object
+      required: [type, label, value, enabled]
+      properties:
+        type: { type: string, enum: [whatsapp, phone, email] }
+        label: { type: string }
+        value: { type: string }
+        enabled: { type: boolean }
     ServiceCall:
       type: object
       required: [id, createdAt, deliveryState, ownerAlerted]
@@ -175,6 +225,221 @@ paths:
         '401': { description: Unauthorized }
         '403': { description: Forbidden }
         '404': { description: Restaurant not found }
+  /admin/plans:
+    get:
+      operationId: listPlans
+      tags: [Plans]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        - in: query
+          name: cursor
+          schema: { type: string }
+      responses:
+        '200':
+          description: Stable keyset page
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/Plan' } }
+                  meta: { $ref: '#/components/schemas/PageMeta' }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+    post:
+      operationId: createPlan
+      tags: [Plans]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, maxBranches, maxTables, maxEmployees, features]
+              properties:
+                name: { type: string, maxLength: 120 }
+                maxBranches: { type: integer, minimum: 1 }
+                maxTables: { type: integer, minimum: 1 }
+                maxEmployees: { type: integer, minimum: 0 }
+                features:
+                  type: object
+                  required: [menu, waiter_calls, hookah_calls, analytics]
+                  properties:
+                    menu: { type: boolean }
+                    waiter_calls: { type: boolean }
+                    hookah_calls: { type: boolean }
+                    analytics: { type: boolean }
+      responses:
+        '201': { description: Plan created }
+        '400': { description: Invalid plan }
+        '409': { description: PLAN_NAME_TAKEN }
+  /admin/plans/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: getPlan
+      tags: [Plans]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Plan }
+        '404': { description: Plan not found }
+    patch:
+      operationId: patchPlan
+      tags: [Plans]
+      security: [{ bearerAuth: [] }]
+      description: Partial plan updates do not affect existing subscription entitlement snapshots.
+      responses:
+        '200': { description: Updated plan }
+        '400': { description: Invalid fields }
+        '409': { description: PLAN_NAME_TAKEN }
+  /admin/restaurants/{restaurantId}/subscriptions:
+    post:
+      operationId: createPendingSubscription
+      tags: [Subscriptions]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: restaurantId
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [planId, period]
+              properties:
+                planId: { type: string, format: uuid }
+                period: { type: string, enum: [monthly, yearly] }
+      responses:
+        '201': { description: Pending manual subscription created }
+        '400': { description: PLAN_UNAVAILABLE or invalid body }
+        '404': { description: Restaurant not found }
+        '409': { description: SUBSCRIPTION_PENDING }
+  /admin/restaurants/{restaurantId}/subscription:
+    get:
+      operationId: getRestaurantSubscription
+      tags: [Subscriptions]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: restaurantId
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: Current or latest subscription, nullable }
+  /admin/subscriptions/{id}/activate:
+    post:
+      operationId: activateSubscription
+      tags: [Subscriptions]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [graceDays]
+              properties:
+                startsAt: { type: string, format: date-time, description: Must end in Z }
+                graceDays: { type: integer, minimum: 0, maximum: 365 }
+      responses:
+        '200': { description: Subscription activated with snapshot }
+        '400': { description: Invalid body/plan }
+        '404': { description: Subscription missing }
+        '409': { description: Existing active subscription or invalid status }
+  /admin/subscriptions/{id}/renew:
+    post:
+      operationId: renewSubscription
+      tags: [Subscriptions]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [graceDays]
+              properties:
+                period: { type: string, enum: [monthly, yearly] }
+                graceDays: { type: integer, minimum: 0, maximum: 365 }
+      responses:
+        '200': { description: Term renewed and recorded atomically }
+        '400': { description: Invalid fields/plan }
+        '404': { description: Subscription missing }
+        '409': { description: Subscription is not renewable }
+  /admin/contact-methods:
+    get:
+      operationId: listRenewalContacts
+      tags: [Renewal contacts]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Configured renewal channels }
+    patch:
+      operationId: replaceRenewalContacts
+      tags: [Renewal contacts]
+      security: [{ bearerAuth: [] }]
+      description: Atomically replaces at most ten renewal channels with audit.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [contacts]
+              properties:
+                contacts:
+                  type: array
+                  maxItems: 10
+                  items: { $ref: '#/components/schemas/RenewalContact' }
+      responses:
+        '200': { description: Updated contact list }
+        '400': { description: Invalid channels }
+  /owner/subscription:
+    get:
+      operationId: getOwnerSubscription
+      tags: [Owner subscription]
+      security: [{ bearerAuth: [] }]
+      description: Tenant-scoped subscription state and active renewal contacts remain readable after expiry.
+      responses:
+        '200':
+          description: Current subscription and enabled contact methods
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      subscription:
+                        oneOf:
+                          - type: 'null'
+                          - $ref: '#/components/schemas/Subscription'
+                      canOperate: { type: boolean }
+                      renewalContacts:
+                        type: array
+                        items: { $ref: '#/components/schemas/RenewalContact' }
+        '401': { description: Unauthorized }
+        '403': { description: Not a restaurant owner }
   /auth/login:
     post:
       operationId: authLogin

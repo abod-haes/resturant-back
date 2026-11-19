@@ -1,5 +1,9 @@
 # Contract changelog
 
+## v1.5.0 — 2026-11-19 (Manual Plans & Subscriptions)
+Admin plan create/list/get/update; explicit feature flags and limit data, snapshot on activation/renewal. Pending restaurant subscription create, manual activate/renew (no payment), effective scheduled/active/grace/expired evaluation from UTC calendar dates, audited immutable term history. Configurable renewal contacts and owner read endpoint usable while expired. Contract handoff: docs/SUBSCRIPTION_DASHBOARD_HANDOFF.md. Branch/table/employee resource limit enforcement will be wired transactionally in their later feature slices; not claimed integrated now. Swagger generated from implemented controllers; OpenAPI YAML remains partly draft.
+
+
 ## v1.4.0 — 2026-11-19 (Restaurant onboarding vertical slice)
 Implemented POST/GET paginated admin restaurants, GET/PATCH admin restaurant details. Admin creates restaurant, owner and initial branch in an atomic transaction; errors and audit follow v1 standard. Created owner has mustChangePassword=true and no subscription is automatically activated. Stable opaque cursor, default 20 max 100, and literal substring search. Fixture example: `mocks/contracts/restaurant-onboarding-v1.4.json`. Dashboard handoff: `docs/RESTAURANT_DASHBOARD_HANDOFF.md`. Other CRUD endpoints remain drafts; no staging integration claimed.
 

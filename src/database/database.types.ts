@@ -4,6 +4,14 @@ export type PlatformRole = "PRIMARY_ADMIN" | "PLATFORM_ADMIN" | "RESTAURANT_OWNE
 export type Department = "waiter" | "hookah";
 export type SubscriptionPeriod = "monthly" | "yearly";
 export type SubscriptionStatus = "pending" | "active" | "expired" | "cancelled";
+export type FeatureKey = "menu" | "waiter_calls" | "hookah_calls" | "analytics";
+export type PlanFeatures = Record<FeatureKey, boolean>;
+export interface EntitlementSnapshot {
+  maxBranches: number;
+  maxTables: number;
+  maxEmployees: number;
+  features: PlanFeatures;
+}
 
 interface Timestamped {
   created_at: Generated<Date>;
@@ -45,7 +53,7 @@ export interface PlansTable extends Timestamped {
   max_branches: number;
   max_tables: number;
   max_employees: number;
-  features: ColumnType<Record<string, unknown>, Record<string, unknown> | undefined, Record<string, unknown>>;
+  features: ColumnType<PlanFeatures, PlanFeatures | undefined, PlanFeatures>;
   is_active: Generated<boolean>;
 }
 
@@ -59,6 +67,32 @@ export interface SubscriptionsTable extends Timestamped {
   ends_at: Date | null;
   grace_ends_at: Date | null;
   activated_by_user_id: string | null;
+  grace_days: Generated<number>;
+  entitlement_snapshot: Generated<EntitlementSnapshot | null>;
+}
+
+export interface SubscriptionTermsTable {
+  id: Generated<string>;
+  subscription_id: string;
+  sequence: number;
+  plan_id: string;
+  period: SubscriptionPeriod;
+  starts_at: Date;
+  ends_at: Date;
+  grace_ends_at: Date;
+  entitlement_snapshot: ColumnType<EntitlementSnapshot, EntitlementSnapshot, never>;
+  activated_by_user_id: string;
+  created_at: Generated<Date>;
+}
+
+export interface RenewalContactsTable {
+  id: Generated<string>;
+  type: "whatsapp" | "phone" | "email";
+  label: string;
+  value: string;
+  is_enabled: Generated<boolean>;
+  sort_order: number;
+  created_at: Generated<Date>;
 }
 
 export interface AuditLogsTable {
@@ -103,6 +137,8 @@ export interface DatabaseTables {
   users: UsersTable;
   plans: PlansTable;
   subscriptions: SubscriptionsTable;
+  subscription_terms: SubscriptionTermsTable;
+  renewal_contacts: RenewalContactsTable;
   audit_logs: AuditLogsTable;
   auth_sessions: AuthSessionsTable;
   auth_login_attempts: AuthLoginAttemptsTable;

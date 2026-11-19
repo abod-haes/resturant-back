@@ -19,3 +19,10 @@
 
 ## Quality
 PR #4 runs DB migrations twice, checksum gate, architecture, typecheck, lint, Jest unit/integration against PostgreSQL 17 and build. Verify the completed PR run before merging; never claim deployed production readiness from PR CI alone.
+
+## Plans & Subscriptions v1.5.0 — PR #5
+- Admin plans: create/list/get/patch with explicit boolean feature flags, numeric limits, audit and stable cursor pagination.
+- Admin subscriptions: pending manual assignment, activation, renewal, immutable term snapshots, expiry/grace computation and audit.
+- Owner: read current subscription and configured enabled renewal channels even when subscription is expired.
+- No payments, card billing or automatic renewal. New plan limits do not retroactively alter the current term.
+- The `SubscriptionsService.assertOperational` policy exists for future owner/employee/public operational routes, but branch/table/employee quota enforcement is **not integrated yet** because those CRUD routes do not exist. No production environment/staging client handshake claimed.
