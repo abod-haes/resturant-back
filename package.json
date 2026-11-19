@@ -17,7 +17,8 @@
     "db:migrate": "node scripts/migrate.mjs",
     "db:seed:demo": "node scripts/seed-demo.mjs",
     "db:migrate:check": "node scripts/migrate.mjs --check",
-    "auth:bootstrap:primary": "node scripts/bootstrap-primary.mjs"
+    "auth:bootstrap:primary": "node scripts/bootstrap-primary.mjs",
+    "media:cleanup": "node dist/media-cleanup.js"
   },
   "dependencies": {
     "@nestjs/common": "^11.1.0",
