@@ -3,6 +3,11 @@ import type { INestApplication } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 import { Pool } from "pg";
 import request from "supertest";
+import { firstValueFrom, filter } from "rxjs";
+import { PUSH_GATEWAY, type PushGateway } from "../../src/modules/push/infrastructure/expo-push.gateway";
+import { PushDispatcherService } from "../../src/modules/push/application/push-dispatcher.service";
+import { RealtimeService } from "../../src/modules/realtime/application/realtime.service";
+import { AuthService } from "../../src/modules/auth";
 import { AppModule } from "../../src/app.module";
 import { configureHttpApp } from "../../src/bootstrap";
 import { hashPassword } from "../../src/common/crypto/password";
@@ -20,6 +25,11 @@ describe("QR sessions and shift-aware calls (PostgreSQL)", () => {
   let adminToken = "", ownerToken = "", employeeToken = "";
   let restaurantId = "", branchId = "", tableId = "", qrToken = "", visitToken = "";
   let employeeId = "";
+  const gateway: PushGateway = {
+    send: jest.fn(async () => ({ ok: true as const, id: "integration-expo-ticket" })),
+    receipts: jest.fn(async (ids: readonly string[]) => Object.fromEntries(
+      ids.map(id => [id, { status: "ok" as const }]))),
+  };
   const users: string[] = [], names: string[] = [];
   const restaurantIds: string[] = [], branchIds: string[] = [], planIds: string[] = [], subscriptionIds: string[] = [];
   const unique = () => "calltest_" + randomUUID().replaceAll("-", "");
@@ -47,7 +57,8 @@ describe("QR sessions and shift-aware calls (PostgreSQL)", () => {
   beforeAll(async () => {
     if (process.env.NODE_ENV !== "test") throw new Error("Use isolated test DB");
     pool = new Pool({ connectionString: process.env.DATABASE_URL });
-    const module = await Test.createTestingModule({ imports: [AppModule] }).compile();
+    const module = await Test.createTestingModule({ imports: [AppModule] })
+      .overrideProvider(PUSH_GATEWAY).useValue(gateway).compile();
     app = module.createNestApplication(); configureHttpApp(app); await app.init();
     const adminName = unique(), adminId = randomUUID();
     users.push(adminId); names.push(adminName);
@@ -91,6 +102,10 @@ describe("QR sessions and shift-aware calls (PostgreSQL)", () => {
   afterAll(async () => {
     if (app) await app.close();
     if (!pool) return;
+    await pool.query("DELETE FROM push_deliveries WHERE outbox_id IN (SELECT id FROM call_outbox WHERE call_id IN (SELECT id FROM service_calls WHERE restaurant_id=ANY($1::uuid[])))", [restaurantIds]);
+    await pool.query("DELETE FROM employee_push_devices WHERE user_id=ANY($1::uuid[])", [users]);
+    await pool.query("DELETE FROM realtime_events WHERE restaurant_id=ANY($1::uuid[])", [restaurantIds]);
+    await pool.query("DELETE FROM restaurant_event_counters WHERE restaurant_id=ANY($1::uuid[])", [restaurantIds]);
     await pool.query("DELETE FROM call_outbox WHERE call_id IN (SELECT id FROM service_calls WHERE restaurant_id=ANY($1::uuid[]))", [restaurantIds]);
     await pool.query("DELETE FROM owner_alerts WHERE restaurant_id=ANY($1::uuid[])", [restaurantIds]);
     await pool.query("DELETE FROM service_calls WHERE restaurant_id=ANY($1::uuid[])", [restaurantIds]);
@@ -182,6 +197,78 @@ describe("QR sessions and shift-aware calls (PostgreSQL)", () => {
       .set(auth(employeeToken));
     expect(staffCalls.status).toBe(200);
     expect(staffCalls.body.data).toHaveLength(1);
+  });
+
+  it("registers encrypted device; dispatches with Expo ticket semantics and exposes tenant/recipient SSE only", async () => {
+    const token = "ExpoPushToken[abcdefghijklmnopqrst1234567890]";
+    expect((await request(app.getHttpServer()).post("/api/v1/employee/devices").set(owner())
+      .send({ expoPushToken: token, platform: "android" })).status).toBe(403);
+    const invalid = await request(app.getHttpServer()).post("/api/v1/employee/devices")
+      .set(auth(employeeToken)).send({ expoPushToken: "bad", platform: "android" });
+    expect(invalid.status).toBe(400);
+    const device = await request(app.getHttpServer()).post("/api/v1/employee/devices")
+      .set(auth(employeeToken)).send({ expoPushToken: token, platform: "android" });
+    expect(device.status).toBe(201);
+    const deviceId = device.body.data.id as string;
+    expect(device.body.data).not.toHaveProperty("expoPushToken");
+    expect(device.body.data).not.toHaveProperty("token_box");
+    const again = await request(app.getHttpServer()).post("/api/v1/employee/devices")
+      .set(auth(employeeToken)).send({ expoPushToken: token, platform: "android" });
+    expect(again.status).toBe(201);
+    expect(again.body.data.id).toBe(deviceId);
+    const stored = await pool.query("SELECT token_box,token_hash FROM employee_push_devices WHERE id=$1", [deviceId]);
+    expect(stored.rows).toHaveLength(1);
+    expect(stored.rows[0].token_box).not.toContain(token);
+    expect(stored.rows[0].token_hash).toMatch(/^[0-9a-f]{64}$/);
+    const devices = await request(app.getHttpServer()).get("/api/v1/employee/devices").set(auth(employeeToken));
+    expect(devices.status).toBe(200);
+    expect(devices.body.data).toHaveLength(1);
+
+    const worker = app.get(PushDispatcherService);
+    const run = await worker.tick(); // Fake Expo gateway only; zero outbound traffic.
+    expect(run.attempts).toBe(1);
+    expect(gateway.send).toHaveBeenCalledTimes(1);
+    const delivered = await pool.query("SELECT state,ticket_id,receipt_status FROM push_deliveries WHERE device_id=$1",
+      [deviceId]);
+    expect(delivered.rows).toEqual([{ state: "accepted", ticket_id: "integration-expo-ticket",
+      receipt_status: "waiting" }]);
+    const outbox = await pool.query("SELECT state FROM call_outbox WHERE recipient_user_id=$1", [employeeId]);
+    expect(outbox.rows[0].state).toBe("sent");
+    await pool.query("UPDATE push_deliveries SET updated_at=now()-interval '65 seconds' WHERE device_id=$1", [deviceId]);
+    const checked = await worker.tick();
+    expect(checked.receipts).toBe(1);
+    const receipt = await pool.query("SELECT receipt_status FROM push_deliveries WHERE device_id=$1", [deviceId]);
+    expect(receipt.rows[0].receipt_status).toBe("ok");
+
+    const authService = app.get(AuthService);
+    const realtime = app.get(RealtimeService);
+    const ownerPrincipal = await authService.authenticate(ownerToken);
+    const staffPrincipal = await authService.authenticate(employeeToken);
+    const ownerEvent = await firstValueFrom(realtime.stream(ownerPrincipal, ownerToken, 0)
+      .pipe(filter(event => event.type === "call.created")));
+    const employeeEvent = await firstValueFrom(realtime.stream(staffPrincipal, employeeToken, 0)
+      .pipe(filter(event => event.type === "call.created")));
+    expect(ownerEvent.type).toBe("call.created");
+    expect(employeeEvent.type).toBe("call.created");
+    expect(ownerEvent.data).toMatchObject({ branchId, eventType: "call.created" });
+    expect(employeeEvent.data).toMatchObject({ branchId, eventType: "call.created" });
+    expect(employeeEvent.data).not.toHaveProperty("sessionToken");
+    const separated = await pool.query(`SELECT recipient_user_id,event_type FROM realtime_events
+      WHERE restaurant_id=$1 ORDER BY sequence`, [restaurantId]);
+    expect(separated.rows.some(r => r.recipient_user_id === null && r.event_type === "call.created")).toBe(true);
+    expect(separated.rows.some(r => r.recipient_user_id === employeeId && r.event_type === "call.created")).toBe(true);
+    expect((await request(app.getHttpServer()).get("/api/v1/owner/events")
+      .set(auth(employeeToken))).status).toBe(403);
+    expect((await request(app.getHttpServer()).get("/api/v1/employee/events")
+      .set(owner())).status).toBe(403);
+
+    const unregistered = await request(app.getHttpServer()).delete("/api/v1/employee/devices/" + deviceId)
+      .set(auth(employeeToken));
+    expect(unregistered.status).toBe(200);
+    expect(unregistered.body.data.unregistered).toBe(true);
+    const listAfter = await request(app.getHttpServer()).get("/api/v1/employee/devices")
+      .set(auth(employeeToken));
+    expect(listAfter.body.data).toEqual([]);
   });
 
   it("supports branch override, disables types and respects QR rotation and session expiry", async () => {
