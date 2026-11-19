@@ -185,7 +185,10 @@ export class EmployeesService {
   }
 
   async startShift(principal: AuthPrincipal): Promise<ShiftDto> {
-    if (principal.role !== "EMPLOYEE" || !principal.restaurantId || !principal.branchId || !principal.department) {
+    const restaurantId = principal.restaurantId;
+    const branchId = principal.branchId;
+    const department = principal.department;
+    if (principal.role !== "EMPLOYEE" || !restaurantId || !branchId || !department) {
       throw new ForbiddenException("Employee role required");
     }
     return this.database.db.transaction().execute(async trx => {
@@ -193,11 +196,11 @@ export class EmployeesService {
         .where("id", "=", principal.id).forUpdate().executeTakeFirst();
       if (!employee?.is_active || employee.archived_at) throw new ForbiddenException("Employee inactive");
       const branch = await trx.selectFrom("branches").select("is_active")
-        .where("id", "=", principal.branchId)
-        .where("restaurant_id", "=", principal.restaurantId).executeTakeFirst();
+        .where("id", "=", branchId)
+        .where("restaurant_id", "=", restaurantId).executeTakeFirst();
       if (!branch?.is_active) throw new ForbiddenException("Branch inactive");
-      await requireOperationalEntitlements(trx, principal.restaurantId,
-        principal.department === "waiter" ? "waiter_calls" : "hookah_calls");
+      await requireOperationalEntitlements(trx, restaurantId,
+        department === "waiter" ? "waiter_calls" : "hookah_calls");
       const now = new Date();
       await trx.updateTable("employee_shifts").set({ ended_at: sql`auto_end_at` })
         .where("user_id", "=", principal.id).where("ended_at", "is", null)
@@ -205,10 +208,10 @@ export class EmployeesService {
       const open = await trx.selectFrom("employee_shifts").selectAll()
         .where("user_id", "=", principal.id).where("ended_at", "is", null).executeTakeFirst();
       if (open) throw new ConflictException({ code: "SHIFT_ALREADY_ACTIVE", message: "Employee already on shift" });
-      const settings = await effectiveCallSettings(trx, principal.restaurantId, principal.branchId);
+      const settings = await effectiveCallSettings(trx, restaurantId, branchId);
       const shift = await trx.insertInto("employee_shifts").values({
-        user_id: principal.id, restaurant_id: principal.restaurantId, branch_id: principal.branchId,
-        department: principal.department,
+        user_id: principal.id, restaurant_id: restaurantId, branch_id: branchId,
+        department: department,
         auto_end_at: new Date(now.getTime() + settings.shiftAutoEndMinutes * 60_000),
         ended_at: null, ended_by_user_id: null,
       }).returningAll().executeTakeFirstOrThrow();
