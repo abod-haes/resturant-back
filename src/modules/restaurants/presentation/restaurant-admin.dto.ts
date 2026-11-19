@@ -1,7 +1,7 @@
 import { Type } from "class-transformer";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import {
-  IsBoolean, IsInt, IsOptional, IsString, Matches, Max, MaxLength, Min, MinLength,
+  IsBoolean, IsDefined, IsInt, IsOptional, IsString, Matches, Max, MaxLength, Min, MinLength,
   ValidateNested,
 } from "class-validator";
 
@@ -40,11 +40,13 @@ export class CreateRestaurantDto {
   name!: string;
 
   @ApiProperty({ type: CreateOwnerDto })
+  @IsDefined()
   @ValidateNested()
   @Type(() => CreateOwnerDto)
   owner!: CreateOwnerDto;
 
   @ApiProperty({ type: InitialBranchDto })
+  @IsDefined()
   @ValidateNested()
   @Type(() => InitialBranchDto)
   initialBranch!: InitialBranchDto;
