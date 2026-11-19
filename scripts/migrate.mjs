@@ -17,9 +17,13 @@ if (!databaseUrl) {
   const pool = new pg.Pool({ connectionString: databaseUrl, connectionTimeoutMillis: 5000, max: 1 });
   let client;
   try {
-    const names = (await readdir(folder))
-      .filter((name) => /^\d{14}_[a-z0-9_-]+\.sql$/.test(name))
-      .sort();
+    const entries = await readdir(folder);
+    const validName = /^\d{14}_[a-z0-9_-]+\.sql$/;
+    const incorrectlyNamed = entries.filter((name) => name.endsWith(".sql") && !validName.test(name));
+    if (incorrectlyNamed.length > 0) {
+      throw new Error("Invalid SQL migration filename(s): " + incorrectlyNamed.join(", "));
+    }
+    const names = entries.filter((name) => validName.test(name)).sort();
     if (names.length === 0) throw new Error("No SQL migration files found");
 
     client = await pool.connect();
@@ -35,15 +39,20 @@ if (!databaseUrl) {
       .map((row) => [row.name, row.checksum]));
     const pending = [];
 
+    let foundPendingMigration = false;
     for (const name of names) {
       const sql = await readFile(join(folder, name), "utf8");
       const checksum = createHash("sha256").update(sql).digest("hex");
       if (recorded.has(name)) {
+        if (foundPendingMigration) {
+          throw new Error("Out-of-order migration detected: " + name);
+        }
         if (recorded.get(name) !== checksum) {
           throw new Error("Migration checksum changed: " + name);
         }
         recorded.delete(name);
       } else {
+        foundPendingMigration = true;
         pending.push({ name, checksum, sql });
       }
     }

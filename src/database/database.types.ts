@@ -45,7 +45,7 @@ export interface PlansTable extends Timestamped {
   max_branches: number;
   max_tables: number;
   max_employees: number;
-  features: ColumnType<Record<string, boolean>, Record<string, boolean> | undefined, Record<string, boolean>>;
+  features: ColumnType<Record<string, unknown>, Record<string, unknown> | undefined, Record<string, unknown>>;
   is_active: Generated<boolean>;
 }
 
