@@ -1,0 +1,51 @@
+{
+  "schemaVersion": "1.7.0",
+  "floor": {
+    "id": "8f3d4255-7f43-4fe2-a0bf-62fd2a066140",
+    "branchId": "4291d217-8c17-47b9-a177-d0ffb611c45b",
+    "name": "الطابق الأرضي",
+    "sortOrder": 0,
+    "isActive": true
+  },
+  "area": {
+    "id": "62a736a4-5cc0-4c0e-90d6-176678f77632",
+    "branchId": "4291d217-8c17-47b9-a177-d0ffb611c45b",
+    "floorId": "8f3d4255-7f43-4fe2-a0bf-62fd2a066140",
+    "name": "الصالة الرئيسية",
+    "sortOrder": 0,
+    "isActive": true
+  },
+  "table": {
+    "id": "4e606885-a6d2-4163-8c91-eb5eb5d02aba",
+    "branchId": "4291d217-8c17-47b9-a177-d0ffb611c45b",
+    "areaId": "62a736a4-5cc0-4c0e-90d6-176678f77632",
+    "label": "طاولة 1",
+    "sortOrder": 1,
+    "isActive": true,
+    "qrEnabled": true,
+    "callsEnabled": true,
+    "qrVersion": 1
+  },
+  "print": {
+    "contentType": "application/pdf",
+    "maxLabels": 100,
+    "labelsPerPage": 6
+  },
+  "publicContext": {
+    "data": {
+      "restaurant": {
+        "name": "مطعم الياسمين"
+      },
+      "branch": {
+        "name": "الفرع الرئيسي",
+        "slug": "b-4291d2178c1747b9a177d0ffb611c45b"
+      },
+      "table": {
+        "id": "4e606885-a6d2-4163-8c91-eb5eb5d02aba",
+        "label": "طاولة 1"
+      },
+      "menuPath": "/api/v1/public/menu/b-4291d2178c1747b9a177d0ffb611c45b",
+      "callsAvailable": false
+    }
+  }
+}

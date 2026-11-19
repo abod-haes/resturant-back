@@ -133,11 +133,21 @@ export class QrService {
   async printable(principal: AuthPrincipal, branchId: string, selectedIds: string[] | null) {
     const { key, origin } = requireQrConfig(this.config);
     await ownerBranch(this.database.db, principal, branchId);
-    let query = this.database.db.selectFrom("restaurant_tables").select(["id", "label", "sort_order"])
-      .where("branch_id", "=", branchId).where("archived_at", "is", null)
-      .where("is_active", "=", true).where("qr_enabled", "=", true);
+    let query = this.database.db.selectFrom("restaurant_tables")
+      .innerJoin("areas", (join) => join.onRef("areas.id", "=", "restaurant_tables.area_id")
+        .onRef("areas.branch_id", "=", "restaurant_tables.branch_id"))
+      .innerJoin("floors", (join) => join.onRef("floors.id", "=", "areas.floor_id")
+        .onRef("floors.branch_id", "=", "areas.branch_id"))
+      .select(["restaurant_tables.id", "restaurant_tables.label", "restaurant_tables.sort_order"])
+      .where("restaurant_tables.branch_id", "=", branchId)
+      .where("restaurant_tables.archived_at", "is", null)
+      .where("restaurant_tables.is_active", "=", true)
+      .where("restaurant_tables.qr_enabled", "=", true)
+      .where("areas.archived_at", "is", null).where("areas.is_active", "=", true)
+      .where("floors.archived_at", "is", null).where("floors.is_active", "=", true);
     if (selectedIds) query = query.where("id", "in", selectedIds);
-    const rows = await query.orderBy("sort_order", "asc").orderBy("id", "asc").limit(101).execute();
+    const rows = await query.orderBy("restaurant_tables.sort_order", "asc")
+      .orderBy("restaurant_tables.id", "asc").limit(101).execute();
     if (rows.length > 100) throw new ConflictException({
       code: "QR_PRINT_TOO_MANY", message: "Print at most 100 tables per PDF",
     });

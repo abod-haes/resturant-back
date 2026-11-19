@@ -3,7 +3,7 @@ import {
   Patch, Post, Query, Req, Res, UnauthorizedException, BadRequestException,
 } from "@nestjs/common";
 import {
-  ApiBearerAuth, ApiConsumes, ApiCreatedResponse, ApiOkResponse, ApiOperation,
+  ApiBearerAuth, ApiCreatedResponse, ApiOkResponse, ApiOperation,
   ApiProduces, ApiTags,
 } from "@nestjs/swagger";
 import type { Response } from "express";
@@ -184,7 +184,9 @@ export class PublicTableQrController {
   constructor(private readonly qr: QrService) {}
   @Get(":qrToken") @ApiOkResponse({ type: PublicTableContextResponseDto })
   @ApiOperation({ summary: "Resolve an active table QR into read-only table/menu context; no visit sessions or calls yet" })
-  async resolve(@Param("qrToken") token: string): Promise<PublicTableContextResponseDto> {
+  async resolve(@Param("qrToken") token: string,
+    @Res({ passthrough: true }) res: Response): Promise<PublicTableContextResponseDto> {
+    res.setHeader("Cache-Control", "no-store");
     return { data: await this.qr.resolvePublic(token) };
   }
 }

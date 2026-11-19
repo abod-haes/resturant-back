@@ -90,7 +90,7 @@ export class TablesService {
     areaId: string, requestId?: string, orders?: number[]): Promise<RestaurantTableDto[]> {
     const { key } = requireQrConfig(this.config);
     const prepared = labels.map((label) => label.trim());
-    if (new Set(prepared.map((label) => label.toLocaleLowerCase("und"))).size !== prepared.length) {
+    if (new Set(prepared.map((label) => label.toLowerCase())).size !== prepared.length) {
       throw new BadRequestException({ code: "DUPLICATE_TABLE_LABELS", message: "Duplicate table labels in request" });
     }
     try {

@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Restaurant Platform API
-  version: 0.6.0-draft
+  version: 0.7.0-draft
   description: "Initial executable contract slice. Remaining endpoints documented in docs/OPENAPI_IMPLEMENTATION.md; do not treat this file as complete."
 servers:
   - url: /api/v1
@@ -177,6 +177,53 @@ components:
             properties:
               url: { type: string, format: uri, description: Allowed HTTPS origin, no query/hash }
               alt: { type: [string, "null"] }
+    Floor:
+      type: object
+      required: [id, branchId, name, sortOrder, isActive]
+      properties:
+        id: { type: string, format: uuid }
+        branchId: { type: string, format: uuid }
+        name: { type: string }
+        sortOrder: { type: integer, minimum: 0 }
+        isActive: { type: boolean }
+    Area:
+      type: object
+      required: [id, branchId, floorId, name, sortOrder, isActive]
+      properties:
+        id: { type: string, format: uuid }
+        branchId: { type: string, format: uuid }
+        floorId: { type: string, format: uuid }
+        name: { type: string }
+        sortOrder: { type: integer, minimum: 0 }
+        isActive: { type: boolean }
+    RestaurantTable:
+      type: object
+      required: [id, branchId, areaId, label, sortOrder, isActive, qrEnabled, callsEnabled, qrVersion]
+      properties:
+        id: { type: string, format: uuid }
+        branchId: { type: string, format: uuid }
+        areaId: { type: string, format: uuid }
+        label: { type: string }
+        sortOrder: { type: integer, minimum: 0 }
+        isActive: { type: boolean }
+        qrEnabled: { type: boolean }
+        callsEnabled: { type: boolean }
+        qrVersion: { type: integer, minimum: 1 }
+    QrData:
+      type: object
+      required: [url, version, enabled]
+      properties:
+        url: { type: string, format: uri, description: Encrypted-at-rest bearer QR URL for owner only }
+        version: { type: integer, minimum: 1 }
+        enabled: { type: boolean }
+    TablePage:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/RestaurantTable' }
+        meta: { $ref: '#/components/schemas/PageMeta' }
     ServiceCall:
       type: object
       required: [id, createdAt, deliveryState, ownerAlerted]
@@ -519,6 +566,388 @@ paths:
                         items: { $ref: '#/components/schemas/RenewalContact' }
         '401': { description: Unauthorized }
         '403': { description: Not a restaurant owner }
+  /owner/branches/{branchId}/floors:
+    parameters:
+      - in: path
+        name: branchId
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: listOwnerFloors
+      tags: [Owner floors]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        - in: query
+          name: cursor
+          schema: { type: string }
+      responses:
+        '200': { description: Paginated floors ordered by sortOrder and ID }
+        '401': { description: Unauthorized }
+        '403': { description: Owner role or subscription required }
+        '404': { description: Branch not in tenant }
+    post:
+      operationId: createOwnerFloor
+      tags: [Owner floors]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              additionalProperties: false
+              properties:
+                name: { type: string, maxLength: 120 }
+                sortOrder: { type: integer, minimum: 0, maximum: 1000000 }
+      responses:
+        '201': { description: Floor created }
+        '400': { description: Validation error }
+        '409': { description: FLOOR_NAME_TAKEN }
+  /owner/branches/{branchId}/floors/{id}:
+    parameters:
+      - in: path
+        name: branchId
+        required: true
+        schema: { type: string, format: uuid }
+      - in: path
+        name: id
+        required: true
+        schema: { type: string, format: uuid }
+    patch:
+      operationId: patchOwnerFloor
+      tags: [Owner floors]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              minProperties: 1
+              additionalProperties: false
+              properties:
+                name: { type: string, maxLength: 120 }
+                sortOrder: { type: integer, minimum: 0, maximum: 1000000 }
+                isActive: { type: boolean }
+      responses:
+        '200': { description: Updated floor }
+        '404': { description: Floor not found in branch }
+        '409': { description: Duplicate name }
+    delete:
+      operationId: archiveOwnerFloor
+      tags: [Owner floors]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Soft archive if no live areas }
+        '404': { description: Floor not found }
+        '409': { description: FLOOR_NOT_EMPTY }
+  /owner/branches/{branchId}/areas:
+    parameters:
+      - in: path
+        name: branchId
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: listOwnerAreas
+      tags: [Owner areas]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        - in: query
+          name: cursor
+          schema: { type: string }
+      responses:
+        '200': { description: Paginated area list }
+        '403': { description: Subscription inactive }
+        '404': { description: Branch not in tenant }
+    post:
+      operationId: createOwnerArea
+      tags: [Owner areas]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [floorId, name]
+              properties:
+                floorId: { type: string, format: uuid }
+                name: { type: string, maxLength: 120 }
+                sortOrder: { type: integer, minimum: 0, maximum: 1000000 }
+      responses:
+        '201': { description: Area created under active floor }
+        '404': { description: Floor missing in branch }
+        '409': { description: AREA_NAME_TAKEN }
+  /owner/branches/{branchId}/areas/{id}:
+    parameters:
+      - in: path
+        name: branchId
+        required: true
+        schema: { type: string, format: uuid }
+      - in: path
+        name: id
+        required: true
+        schema: { type: string, format: uuid }
+    patch:
+      operationId: patchOwnerArea
+      tags: [Owner areas]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              minProperties: 1
+              additionalProperties: false
+              properties:
+                floorId: { type: string, format: uuid }
+                name: { type: string, maxLength: 120 }
+                sortOrder: { type: integer, minimum: 0, maximum: 1000000 }
+                isActive: { type: boolean }
+      responses:
+        '200': { description: Area updated }
+        '404': { description: Area or floor not in branch }
+        '409': { description: AREA_NAME_TAKEN }
+    delete:
+      operationId: archiveOwnerArea
+      tags: [Owner areas]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Soft archive if no live tables }
+        '404': { description: Area not found }
+        '409': { description: AREA_NOT_EMPTY }
+  /owner/branches/{branchId}/tables:
+    parameters:
+      - in: path
+        name: branchId
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: listOwnerTables
+      tags: [Owner tables]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        - in: query
+          name: cursor
+          schema: { type: string }
+      responses:
+        '200':
+          description: Tenant-scoped paginated tables
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TablePage' }
+        '401': { description: Unauthorized }
+        '403': { description: Subscription or owner access required }
+        '404': { description: Branch not found in tenant }
+    post:
+      operationId: createOwnerTable
+      tags: [Owner tables]
+      security: [{ bearerAuth: [] }]
+      description: Issues a new encrypted-at-rest QR credential, enforces restaurant-wide table limit atomically.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [areaId, label]
+              additionalProperties: false
+              properties:
+                areaId: { type: string, format: uuid }
+                label: { type: string, maxLength: 100 }
+                sortOrder: { type: integer, minimum: 0, maximum: 1000000 }
+      responses:
+        '201': { description: Table created, no QR token returned in table body }
+        '400': { description: Invalid body }
+        '403': { description: PLAN_LIMIT_REACHED or PLAN_FEATURE_DISABLED }
+        '404': { description: Area not in branch }
+        '409': { description: TABLE_LABEL_TAKEN }
+        '503': { description: QR_NOT_CONFIGURED }
+  /owner/branches/{branchId}/tables/bulk:
+    parameters:
+      - in: path
+        name: branchId
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      operationId: bulkCreateOwnerTables
+      tags: [Owner tables]
+      security: [{ bearerAuth: [] }]
+      description: Transactional all-or-nothing creation of 1-50 tables under restaurant row lock.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [areaId, labels]
+              additionalProperties: false
+              properties:
+                areaId: { type: string, format: uuid }
+                labels:
+                  type: array
+                  minItems: 1
+                  maxItems: 50
+                  uniqueItems: true
+                  items: { type: string, maxLength: 100 }
+      responses:
+        '201': { description: Created table list }
+        '400': { description: Duplicate labels or invalid request }
+        '403': { description: PLAN_LIMIT_REACHED }
+        '409': { description: TABLE_LABEL_TAKEN }
+        '503': { description: QR_NOT_CONFIGURED }
+  /owner/branches/{branchId}/tables/{id}:
+    parameters:
+      - in: path
+        name: branchId
+        required: true
+        schema: { type: string, format: uuid }
+      - in: path
+        name: id
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: getOwnerTable
+      tags: [Owner tables]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Table metadata without QR secret }
+        '404': { description: Not found in branch }
+    patch:
+      operationId: patchOwnerTable
+      tags: [Owner tables]
+      security: [{ bearerAuth: [] }]
+      description: Name or area changes never rotate the QR; disable/enable is a separate flag.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              minProperties: 1
+              additionalProperties: false
+              properties:
+                areaId: { type: string, format: uuid }
+                label: { type: string, maxLength: 100 }
+                sortOrder: { type: integer, minimum: 0, maximum: 1000000 }
+                isActive: { type: boolean }
+                qrEnabled: { type: boolean }
+                callsEnabled: { type: boolean }
+      responses:
+        '200': { description: Updated table }
+        '400': { description: Validation error }
+        '404': { description: Table or area outside branch }
+        '409': { description: TABLE_LABEL_TAKEN }
+    delete:
+      operationId: archiveOwnerTable
+      tags: [Owner tables]
+      security: [{ bearerAuth: [] }]
+      description: Soft archives table, revokes its QR and releases quota slot.
+      responses:
+        '200': { description: Table archived }
+        '404': { description: Table not found }
+  /owner/tables/{tableId}/qr:
+    parameters:
+      - in: path
+        name: tableId
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: getOwnerTableQr
+      tags: [Owner QR]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Only tenant owner can receive the full bearer QR URL
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/QrData' }
+        '404': { description: Table not in tenant }
+        '409': { description: QR_REVOKED }
+        '503': { description: QR_NOT_CONFIGURED }
+  /owner/tables/{tableId}/qr/rotate:
+    post:
+      operationId: rotateOwnerTableQr
+      tags: [Owner QR]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: tableId
+          required: true
+          schema: { type: string, format: uuid }
+      description: Atomically revokes old credential, creates new one and preserves qrEnabled flag.
+      responses:
+        '200': { description: New QR URL and incremented version }
+        '404': { description: Table not found }
+        '503': { description: QR_NOT_CONFIGURED }
+  /owner/tables/{tableId}/qr/disable:
+    post:
+      operationId: disableOwnerTableQr
+      tags: [Owner QR]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: tableId
+          required: true
+          schema: { type: string, format: uuid }
+      description: Disables QR until explicit PATCH table qrEnabled:true.
+      responses:
+        '200': { description: QR disabled without changing secret }
+        '404': { description: Table not found }
+  /owner/branches/{branchId}/qr/print:
+    get:
+      operationId: printOwnerTableQrs
+      tags: [Owner QR printing]
+      security: [{ bearerAuth: [] }]
+      parameters:
+      - in: path
+        name: branchId
+        required: true
+        schema: { type: string, format: uuid }
+        - in: query
+          name: tableIds
+          schema: { type: string, maxLength: 3700 }
+          description: Optional comma-separated UUIDv4 values (up to 100)
+      responses:
+        '200':
+          description: A4 PDF QR labels, 6 per page, no-store
+          content:
+            application/pdf:
+              schema: { type: string, format: binary }
+        '400': { description: Invalid tableIds }
+        '404': { description: Selected table not active/accessible }
+        '409': { description: QR_PRINT_TOO_MANY or QR_REVOKED }
+        '503': { description: QR_NOT_CONFIGURED }
+  /public/t/{qrToken}:
+    get:
+      operationId: resolvePublicTableQr
+      tags: [Public table QR]
+      description: Read-only active table context, without visit session or staff-call capability.
+      parameters:
+        - in: path
+          name: qrToken
+          required: true
+          schema: { type: string, minLength: 43, maxLength: 43 }
+      responses:
+        '200':
+          description: Restaurant, branch, table, menuPath and callsAvailable=false
+        '403': { description: SUBSCRIPTION_INACTIVE or PLAN_FEATURE_DISABLED }
+        '404': { description: QR_REVOKED, disabled or unavailable }
   /owner/branches:
     get:
       operationId: listOwnerBranches
