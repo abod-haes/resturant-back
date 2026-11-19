@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { DatabaseService } from "../../../database/database.service";
 import type { AuthPrincipal } from "../../../common/auth/principal";
 import { lockMediaTenant, ownerTenant, requireMediaBranch } from "./media-access";
