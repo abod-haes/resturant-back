@@ -145,7 +145,7 @@ export class QrService {
       .where("restaurant_tables.qr_enabled", "=", true)
       .where("areas.archived_at", "is", null).where("areas.is_active", "=", true)
       .where("floors.archived_at", "is", null).where("floors.is_active", "=", true);
-    if (selectedIds) query = query.where("id", "in", selectedIds);
+    if (selectedIds) query = query.where("restaurant_tables.id", "in", selectedIds);
     const rows = await query.orderBy("restaurant_tables.sort_order", "asc")
       .orderBy("restaurant_tables.id", "asc").limit(101).execute();
     if (rows.length > 100) throw new ConflictException({

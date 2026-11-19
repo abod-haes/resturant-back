@@ -254,20 +254,39 @@ describe("Tables/QR: tenant, quota, rotation and printable PDF (PostgreSQL)", ()
 
   it("renders a valid PDF for owner; refuses other tenants and unexpected identifiers", async () => {
     const result = await request(app.getHttpServer()).get("/api/v1/owner/branches/" + branchA + "/qr/print")
-      .set(owner()).buffer(true);
+      .set(owner()).buffer(true)
+      .parse((response, callback) => {
+        const chunks: Buffer[] = [];
+        response.on("data", (chunk: Buffer) => chunks.push(chunk));
+        response.on("end", () => callback(null, Buffer.concat(chunks)));
+        response.on("error", callback);
+      })
+      .timeout({ response: 12000, deadline: 18000 });
     expect(result.status).toBe(200);
     expect(result.headers["content-type"]).toMatch(/application\/pdf/);
     expect(result.headers["cache-control"]).toBe("no-store");
     const pdfBytes = Buffer.isBuffer(result.body) ? result.body : Buffer.from(result.text, "binary");
     const pdf = await PDFDocument.load(pdfBytes);
     expect(pdf.getPageCount()).toBe(1);
+    const selected = await request(app.getHttpServer())
+      .get("/api/v1/owner/branches/" + branchA + "/qr/print?tableIds=" + tableId)
+      .set(owner()).buffer(true)
+      .parse((response, callback) => {
+        const chunks: Buffer[] = [];
+        response.on("data", (chunk: Buffer) => chunks.push(chunk));
+        response.on("end", () => callback(null, Buffer.concat(chunks)));
+        response.on("error", callback);
+      })
+      .timeout({ response: 12000, deadline: 18000 });
+    expect(selected.status).toBe(200);
+    expect((await PDFDocument.load(selected.body)).getPageCount()).toBe(1);
     const forbidden = await request(app.getHttpServer())
       .get("/api/v1/owner/branches/" + branchB + "/qr/print").set(owner());
     expect(forbidden.status).toBe(404);
     const invalid = await request(app.getHttpServer())
       .get("/api/v1/owner/branches/" + branchA + "/qr/print?tableIds=invalid").set(owner());
     expect(invalid.status).toBe(400);
-  });
+  }, 25000);
 
   it("archives tables without losing QR history, frees quota and rejects old QR", async () => {
     const oldToken = qrUrl.split("/").at(-1)!;
