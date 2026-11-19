@@ -84,6 +84,12 @@ export interface AuthSessionsTable {
   rotated_at: Generated<Date>;
 }
 
+export interface AuthRefreshHistoryTable {
+  refresh_hash: string;
+  session_id: string;
+  created_at: Generated<Date>;
+}
+
 export interface AuthLoginAttemptsTable {
   identity_hash: string;
   attempts: Generated<number>;
@@ -100,4 +106,5 @@ export interface DatabaseTables {
   audit_logs: AuditLogsTable;
   auth_sessions: AuthSessionsTable;
   auth_login_attempts: AuthLoginAttemptsTable;
+  auth_refresh_history: AuthRefreshHistoryTable;
 }

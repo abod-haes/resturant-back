@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Restaurant Platform API
-  version: 0.2.0-draft
+  version: 0.3.0-draft
   description: "Initial executable contract slice. Remaining endpoints documented in docs/OPENAPI_IMPLEMENTATION.md; do not treat this file as complete."
 servers:
   - url: /api/v1
@@ -39,6 +39,70 @@ components:
         deliveryState: { type: string, enum: [queued, no_staff] }
         ownerAlerted: { type: boolean }
 paths:
+  /auth/login:
+    post:
+      operationId: authLogin
+      tags: [Authentication]
+      description: Browser receives an HttpOnly refresh cookie; mobile receives refreshToken in JSON. Access token lasts 15 minutes.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, password]
+              properties:
+                username: { type: string, minLength: 3, maxLength: 64 }
+                password: { type: string, minLength: 1, maxLength: 128, writeOnly: true }
+                client: { type: string, enum: [web, mobile], default: web }
+      responses:
+        '200': { description: Session issued }
+        '400': { description: Validation failure }
+        '401': { description: Invalid username, password or inactive user }
+        '429': { description: Login throttled }
+  /auth/refresh:
+    post:
+      operationId: authRefresh
+      tags: [Authentication]
+      description: Refreshes and atomically rotates opaque credential. Body refreshToken is for mobile clients; web uses HttpOnly cookie and trusted Origin.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                refreshToken: { type: string, description: Mobile clients only }
+      responses:
+        '200': { description: Rotated session }
+        '401': { description: Invalid or replayed refresh credential }
+  /auth/logout:
+    post:
+      operationId: authLogout
+      tags: [Authentication]
+      description: Revoke the credential's session, including its access token.
+      responses:
+        '200': { description: Session revoked }
+        '401': { description: Invalid credential }
+  /auth/me:
+    get:
+      operationId: authMe
+      tags: [Authentication]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Current user scope and password-change state }
+        '401': { description: Missing or revoked session }
+  /auth/change-password:
+    post:
+      operationId: authChangePassword
+      tags: [Authentication]
+      security: [{ bearerAuth: [] }]
+      description: Sets a new password, clears the initial-change flag and revokes all sessions. Client must log in again.
+      responses:
+        '200': { description: Password changed }
+        '400': { description: Invalid password }
+        '401': { description: Missing or revoked session }
+        '403': { description: Current password incorrect }
   /health/live:
     get:
       operationId: healthLive

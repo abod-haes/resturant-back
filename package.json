@@ -13,7 +13,8 @@
     "lint": "eslint src test --max-warnings=0",
     "check:architecture": "node scripts/check-boundaries.mjs",
     "db:migrate": "node scripts/migrate.mjs",
-    "db:migrate:check": "node scripts/migrate.mjs --check"
+    "db:migrate:check": "node scripts/migrate.mjs --check",
+    "auth:bootstrap:primary": "node scripts/bootstrap-primary.mjs"
   },
   "dependencies": {
     "@nestjs/common": "^11.1.0",
@@ -27,7 +28,8 @@
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2",
     "kysely": "^0.28.8",
-    "dotenv": "^16.6.1"
+    "dotenv": "^16.6.1",
+    "@nestjs/jwt": "^11.0.0"
   },
   "devDependencies": {
     "@nestjs/cli": "^11.0.0",
@@ -41,6 +43,7 @@
     "ts-jest": "^29.4.0",
     "supertest": "^7.1.0",
     "eslint": "^9.0.0",
-    "typescript-eslint": "^8.46.0"
+    "typescript-eslint": "^8.46.0",
+    "@types/express": "^5.0.3"
   }
 }

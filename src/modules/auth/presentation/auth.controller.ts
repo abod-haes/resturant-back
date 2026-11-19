@@ -56,7 +56,7 @@ export class AuthController {
   }
 
   private credential(body: RefreshDto, request: AuthenticatedRequest, origin: string | undefined): { token: string; client: "web" | "mobile" } {
-    if (body.refreshToken) {
+    if (body?.refreshToken) {
       return { token: body.refreshToken, client: "mobile" };
     }
     this.requireBrowserOrigin(origin);
@@ -123,8 +123,14 @@ export class AuthController {
   @ApiResponse({ status: 401, description: "Authentication required" })
   me(@Req() req: AuthenticatedRequest): MeResponseDto {
     if (!req.principal) throw new UnauthorizedException();
-    const { sessionId: _sessionId, ...user } = req.principal;
-    return { data: user };
+    return { data: {
+      id: req.principal.id,
+      role: req.principal.role,
+      restaurantId: req.principal.restaurantId,
+      branchId: req.principal.branchId,
+      department: req.principal.department,
+      mustChangePassword: req.principal.mustChangePassword,
+    } };
   }
 
   @AllowAuthenticated()
@@ -136,7 +142,7 @@ export class AuthController {
   @ApiResponse({ status: 403, description: "Incorrect current password" })
   async changePassword(@Req() req: AuthenticatedRequest, @Body() body: ChangePasswordDto): Promise<ChangedResponseDto> {
     if (!req.principal) throw new UnauthorizedException();
-    await this.auth.changePassword(req.principal, body.currentPassword, body.newPassword);
+    await this.auth.changePassword(req.principal, body.currentPassword, body.newPassword, req.requestId);
     return { data: { changed: true } };
   }
 }

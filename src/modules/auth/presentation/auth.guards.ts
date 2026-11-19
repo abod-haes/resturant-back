@@ -9,6 +9,7 @@ import { ALLOW_PASSWORD_CHANGE_KEY, AUTHENTICATED_KEY, PUBLIC_KEY, RESOURCE_SCOP
 
 export interface AuthenticatedRequest extends IncomingMessage {
   principal?: AuthPrincipal;
+  requestId?: string;
   params?: Record<string, string>;
 }
 

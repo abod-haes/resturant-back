@@ -115,8 +115,8 @@ export class AuthService {
     await this.throttle.assertAllowed(username);
     const user = await this.findUserByUsername(username);
     // Perform an expensive password hash even when the account does not exist, to reduce enumeration timing.
-    const correct = user ? await verifyPassword(password, user.password_hash) :
-      (await hashPassword("UnknownAccountPlaceholderPassword!")).length === 0;
+    if (!user) await hashPassword("UnknownAccountPlaceholderPassword!");
+    const correct = user ? await verifyPassword(password, user.password_hash) : false;
     if (!correct || !user || !this.isActive(user)) {
       await this.throttle.recordFailure(username);
       throw new UnauthorizedException("Invalid credentials");
@@ -168,8 +168,8 @@ export class AuthService {
     const nextToken = this.createRefreshToken();
     const expiresAt = new Date(Date.now() + REFRESH_DAYS * 86400 * 1000);
 
-    return this.database.db.transaction().execute(async (trx) => {
-      const updated = await trx.updateTable("auth_sessions")
+    const updated = await this.database.db.transaction().execute(async (trx) => {
+      const session = await trx.updateTable("auth_sessions")
         .set({ refresh_hash: this.hashToken(nextToken), previous_refresh_hash: oldHash,
           rotated_at: new Date(), expires_at: expiresAt })
         .where("refresh_hash", "=", oldHash)
@@ -178,40 +178,55 @@ export class AuthService {
         .returning(["id", "user_id"])
         .executeTakeFirst();
 
-      if (!updated) {
-        const replayed = await trx.selectFrom("auth_sessions")
-          .select("id").where("previous_refresh_hash", "=", oldHash).executeTakeFirst();
-        if (replayed) {
-          await trx.updateTable("auth_sessions").set({ revoked_at: new Date() })
-            .where("id", "=", replayed.id).where("revoked_at", "is", null).execute();
+      if (!session) {
+        const used = await trx.selectFrom("auth_refresh_history").select("session_id")
+          .where("refresh_hash", "=", oldHash).executeTakeFirst();
+        if (used) {
+          await trx.updateTable("auth_sessions")
+            .set({ revoked_at: new Date() })
+            .where("id", "=", used.session_id)
+            .where("revoked_at", "is", null)
+            .execute();
         }
-        throw new UnauthorizedException("Invalid refresh credential");
+        return null;
       }
 
-      const user = await this.findUserById(updated.user_id);
-      if (!user || !this.isActive(user)) {
-        throw new UnauthorizedException("Invalid refresh credential");
-      }
-      const access = await this.signAccess(user.id, updated.id);
-      return { accessToken: access.token, expiresAt: access.expiresAt,
-        refreshToken: nextToken, user: this.toPublicUser(user) };
+      await trx.insertInto("auth_refresh_history")
+        .values({ session_id: session.id, refresh_hash: oldHash }).execute();
+      return session;
     });
+
+    if (!updated) throw new UnauthorizedException("Invalid refresh credential");
+    const user = await this.findUserById(updated.user_id);
+    if (!user || !this.isActive(user)) {
+      await this.database.db.updateTable("auth_sessions")
+        .set({ revoked_at: new Date() })
+        .where("id", "=", updated.id).execute();
+      throw new UnauthorizedException("Invalid refresh credential");
+    }
+    const access = await this.signAccess(user.id, updated.id);
+    return { accessToken: access.token, expiresAt: access.expiresAt,
+      refreshToken: nextToken, user: this.toPublicUser(user) };
   }
 
   async logout(refreshToken: string): Promise<void> {
     if (!isRefreshToken(refreshToken)) throw new UnauthorizedException("Invalid refresh credential");
     const digest = this.hashToken(refreshToken);
+    const history = await this.database.db.selectFrom("auth_refresh_history")
+      .select("session_id").where("refresh_hash", "=", digest).executeTakeFirst();
+    if (history) {
+      await this.database.db.updateTable("auth_sessions").set({ revoked_at: new Date() })
+        .where("id", "=", history.session_id).where("revoked_at", "is", null).execute();
+      return;
+    }
     await this.database.db.updateTable("auth_sessions")
       .set({ revoked_at: new Date() })
-      .where((eb) => eb.or([
-        eb("refresh_hash", "=", digest),
-        eb("previous_refresh_hash", "=", digest),
-      ]))
+      .where("refresh_hash", "=", digest)
       .where("revoked_at", "is", null)
       .execute();
   }
 
-  async changePassword(principal: AuthPrincipal, currentPassword: string, newPassword: string): Promise<void> {
+  async changePassword(principal: AuthPrincipal, currentPassword: string, newPassword: string, requestId?: string): Promise<void> {
     if (currentPassword === newPassword) {
       throw new BadRequestException("New password must be different");
     }
@@ -229,6 +244,15 @@ export class AuthService {
       if (!changed) throw new UnauthorizedException("Password has already changed");
       await trx.updateTable("auth_sessions").set({ revoked_at: new Date() })
         .where("user_id", "=", principal.id).where("revoked_at", "is", null).execute();
+      await trx.insertInto("audit_logs").values({
+        actor_user_id: principal.id,
+        restaurant_id: principal.restaurantId,
+        action: "auth.password_changed",
+        entity_type: "user",
+        entity_id: principal.id,
+        request_id: requestId ?? null,
+        metadata: {},
+      }).execute();
     });
   }
 }

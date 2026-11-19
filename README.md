@@ -3,25 +3,24 @@
 NestJS + PostgreSQL multi-tenant restaurant QR menu and staff-call platform.
 
 ## Repository status
-Phase 0 foundation and core relational schema under active development. No real authentication, tenant CRUD, QR calls, outbox or push delivery are implemented yet. The versioned YAML under `openapi/` is a **draft**; generated Swagger currently reflects only implemented controllers.
+Core database schema and Auth/RBAC vertical slice. Business CRUD, QR, calls, push, onboarding and subscription enforcement are future milestones. `openapi/restaurant.v1.yaml` is a draft that includes unimplemented operations; **generated** `/api/docs-json` reflects actually implemented endpoints.
 
 ## Start locally
-1. Use Node.js 20 and a local PostgreSQL 17 instance.
-2. `cp .env.example .env` and replace the example credentials for your local environment.
-3. `docker compose -f docker-compose.dev.yml up -d` starts local Postgres with example credentials; these credentials must never be used in production.
-4. `npm install` and `npm run db:migrate` to initialize the schema. Run `npm run db:migrate:check` to validate checksums/state.
-5. `npm run start:dev` starts the API. Environment is loaded from `.env` via Nest ConfigModule; migration CLI uses dotenv.
-6. `GET /api/v1/health/live` reports process liveness; `GET /api/v1/health/ready` reports live PostgreSQL readiness (503 on failure).
+1. Use Node 20 and PostgreSQL 17. `cp .env.example .env`, set local database credentials and generate a random `AUTH_ACCESS_SECRET` (at least 32 UTF-8 bytes): `node -e "console.log(require('node:crypto').randomBytes(32).toString('base64url'))"`.
+2. `docker compose -f docker-compose.dev.yml up -d` starts a local database.
+3. `npm install`, `npm run db:migrate`, `npm run start:dev`. Migrations must run before startup.
+4. `npm run build` then configure **temporary one-time** environment values `PRIMARY_ADMIN_USERNAME` and `PRIMARY_ADMIN_PASSWORD` (12+ characters), and run `npm run auth:bootstrap:primary`. Remove one-time credentials from environment immediately after. Provisioning refuses if a primary admin exists; password change is mandatory on first login.
+5. Read `docs/AUTH_DASHBOARD_HANDOFF.md` for browser cookie and mobile SecureStore integration.
 
 ## Quality gates
-`npm run check:architecture`, `npm run typecheck`, `npm run lint`, `npm run test:unit`, `npm run test:integration` (requires test PostgreSQL **with migrations applied**), and `npm run build`.
+Run `npm run check:architecture`, `npm run typecheck`, `npm run lint`, `npm run test:unit`, `npm run test:integration` and `npm run build`. Integration tests require a dedicated migrated PostgreSQL database (do not point tests at production).
 
 ## API consumers
-- `retuarant-dash`: monorepo with separate `apps/admin` and `apps/restaurant` Vite apps sharing packages.
-- `resturant-customer`: standalone customer QR frontend.
+- `retuarant-dash`: two Vite apps in a workspace, `apps/admin` and `apps/restaurant`.
+- `resturant-customer`: public QR frontend.
 - `resturant-mobile`: Expo employee app.
 
-## Production
-Run migrations with the deployment `DATABASE_URL` before deploying the API, after confirming backups. Never run destructive schema synchronization or check production credentials into Git. Production seed creation and auth remain future features.
+## Production gates
+Use Dokploy environment secrets, HTTPS reverse proxy, exact browser origin allowlist, PostgreSQL backups, and load balancer/IP rate limits. Session cleanup, secret rotation and full staging smoke tests are required before production. Never commit passwords, JWT secrets or production DB credentials.
 
-See `docs/ADR-003-DATABASE-PERSISTENCE.md`, `docs/PRD.md` and `docs/PARALLEL_DEVELOPMENT.md` for architecture and contract ownership.
+See `docs/ADR-003-DATABASE-PERSISTENCE.md` and `docs/ADR-004-AUTH-SESSION-SECURITY.md` for boundaries.

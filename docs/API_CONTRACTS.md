@@ -1,11 +1,15 @@
 # API Contract — v1 (Draft)
 Base path: `/api/v1`. JSON envelope: `{data,meta?}`; errors: `{error:{code,message,details?},requestId}`. All IDs UUID strings, dates ISO-8601 UTC, money integer minor units plus currency. Tenant authorization is enforced server-side.
 
-## Authentication
-- POST /auth/login {username,password} -> {accessToken,user,expiresAt}; refresh token secure rotating credential
-- POST /auth/refresh -> refreshed session; POST /auth/logout
-- GET /auth/me -> {id,role,restaurantId?,branchId?}
-- Employee account is assigned one branch and department; owner one restaurant.
+## Authentication — implemented slice v1.3.0
+- POST /auth/login {username,password,client?:"web"|"mobile"} -> {data:{accessToken,expiresAt,user,refreshToken?}}; defaults to web mode, with refresh credential only in HttpOnly cookie. Mobile receives refreshToken in JSON for OS secure storage. Access JWT 15m, rotating refresh session up to 30d.
+- POST /auth/refresh accepts optional {refreshToken} for mobile or HttpOnly cookie + trusted Origin for web; invalid/replayed credentials return 401 (replay revokes active session). Both rotate refresh credential.
+- POST /auth/logout accepts same refresh credentials; revokes corresponding session and access token immediately.
+- GET /auth/me uses bearer JWT -> {data:{id,role,restaurantId,branchId,department,mustChangePassword}}.
+- POST /auth/change-password {currentPassword,newPassword} uses bearer; new password 12–128 chars; response {data:{changed:true}} and **all sessions revoked**, client must log in again.
+- Errors maintain {error:{code,message,details?},requestId}. 401 invalid/missing auth; 403 PASSWORD_CHANGE_REQUIRED; 429 RATE_LIMITED. Initial password change is mandatory before access to business endpoints.
+- All endpoints are deny-by-default unless explicitly @Public or protected with roles / authenticated policy. Resource scope checked server-side, never from client-submitted tenant fields.
+- Browser cookie mode assumes a trusted same-site deployment and explicit CORS_ORIGINS entry; cookie refresh/logout requires an Origin matching CORS_ORIGINS. Mobile mode never persists credentials in AsyncStorage/localStorage.
 
 ## Platform
 - GET/POST /admin/restaurants; GET/PATCH /admin/restaurants/:id
