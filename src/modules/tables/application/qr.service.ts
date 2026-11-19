@@ -5,8 +5,10 @@ import { RUNTIME_CONFIG, type RuntimeConfig } from "../../../common/config/runti
 import type { AuthPrincipal } from "../../../common/auth/principal";
 import { requireOperationalEntitlements } from "../../../common/subscription/operational-entitlement";
 import { DatabaseService } from "../../../database/database.service";
+import { requireActiveTableQr } from "../../../common/qr/active-table";
+import { effectiveCallSettings, callIsAvailable } from "../../../common/calls/call-settings";
 import {
-  customerQrUrl, decryptQrToken, encryptQrToken, generateQrToken, hashQrToken, isValidQrToken,
+  customerQrUrl, decryptQrToken, encryptQrToken, generateQrToken, hashQrToken,
 } from "../domain/qr-credential";
 import type { PublicTableContextDto, QrCodeDataDto } from "../presentation/tables.dto";
 import { lockRestaurant, ownerBranch, requireQrConfig } from "./table-access";
@@ -94,39 +96,17 @@ export class QrService {
   }
 
   async resolvePublic(token: string): Promise<PublicTableContextDto> {
-    if (!isValidQrToken(token)) throw new NotFoundException("QR not found");
-    const hash = hashQrToken(token);
-    const row = await this.database.db.selectFrom("qr_credentials")
-      .innerJoin("restaurant_tables", "restaurant_tables.id", "qr_credentials.table_id")
-      .innerJoin("areas", "areas.id", "restaurant_tables.area_id")
-      .innerJoin("floors", "floors.id", "areas.floor_id")
-      .innerJoin("branches", "branches.id", "restaurant_tables.branch_id")
-      .innerJoin("restaurants", "restaurants.id", "restaurant_tables.restaurant_id")
-      .select([
-        "qr_credentials.version", "restaurant_tables.id as table_id",
-        "restaurant_tables.label as table_label", "restaurant_tables.qr_version",
-        "restaurant_tables.is_active as table_active", "restaurant_tables.qr_enabled",
-        "restaurant_tables.archived_at as table_archived",
-        "areas.is_active as area_active", "areas.archived_at as area_archived",
-        "floors.is_active as floor_active", "floors.archived_at as floor_archived",
-        "branches.is_active as branch_active", "branches.name as branch_name", "branches.slug",
-        "restaurants.is_active as restaurant_active", "restaurants.id as restaurant_id",
-        "restaurants.name as restaurant_name",
-      ])
-      .where("qr_credentials.token_hash", "=", hash)
-      .where("qr_credentials.revoked_at", "is", null).executeTakeFirst();
-    if (!row || row.version !== row.qr_version || !row.table_active || !row.qr_enabled
-      || row.table_archived || !row.area_active || row.area_archived || !row.floor_active
-      || row.floor_archived || !row.branch_active || !row.restaurant_active) {
-      throw new NotFoundException({ code: "QR_REVOKED", message: "QR is unavailable" });
-    }
-    await requireOperationalEntitlements(this.database.db, row.restaurant_id, "menu");
+    const row = await requireActiveTableQr(this.database.db, token);
+    const entitlements = await requireOperationalEntitlements(this.database.db, row.restaurant_id, "menu");
+    const settings = await effectiveCallSettings(this.database.db, row.restaurant_id, row.branch_id);
+    const callsAvailable = callIsAvailable("waiter", row.calls_enabled, settings, entitlements)
+      || callIsAvailable("hookah", row.calls_enabled, settings, entitlements);
     return {
       restaurant: { name: row.restaurant_name },
       branch: { name: row.branch_name, slug: row.slug },
       table: { id: row.table_id, label: row.table_label },
       menuPath: "/api/v1/public/menu/" + row.slug,
-      callsAvailable: false,
+      callsAvailable,
     };
   }
 

@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Restaurant Platform API
-  version: 0.7.0-draft
+  version: 0.8.0-draft
   description: "Initial executable contract slice. Remaining endpoints documented in docs/OPENAPI_IMPLEMENTATION.md; do not treat this file as complete."
 servers:
   - url: /api/v1
@@ -226,13 +226,198 @@ components:
         meta: { $ref: '#/components/schemas/PageMeta' }
     ServiceCall:
       type: object
-      required: [id, createdAt, deliveryState, ownerAlerted]
+      required: [id, type, createdAt, deliveryState, recipientsCount, ownerAlerted, firstCallNeedsConfirmation]
       properties:
         id: { type: string, format: uuid }
+        type: { type: string, enum: [waiter, hookah] }
         createdAt: { type: string, format: date-time }
         deliveryState: { type: string, enum: [queued, no_staff] }
+        recipientsCount: { type: integer, minimum: 0 }
         ownerAlerted: { type: boolean }
+        firstCallNeedsConfirmation: { type: boolean }
+    VisitCreated:
+      type: object
+      required: [sessionToken, expiresAt, firstCallNeedsConfirmation, availableCallTypes]
+      properties:
+        sessionToken: { type: string, writeOnly: true }
+        expiresAt: { type: string, format: date-time }
+        firstCallNeedsConfirmation: { type: boolean }
+        availableCallTypes: { type: array, items: { type: string, enum: [waiter, hookah] } }
+    Employee:
+      type: object
+      required: [id, username, name, branchId, department, isActive, mustChangePassword, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        username: { type: string }
+        name: { type: string }
+        branchId: { type: string, format: uuid }
+        department: { type: string, enum: [waiter, hookah] }
+        isActive: { type: boolean }
+        mustChangePassword: { type: boolean }
+        createdAt: { type: string, format: date-time }
+    Shift:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        userId: { type: string, format: uuid }
+        branchId: { type: string, format: uuid }
+        department: { type: string, enum: [waiter, hookah] }
+        startedAt: { type: string, format: date-time }
+        autoEndAt: { type: string, format: date-time }
+        endedAt: { type: [string, "null"], format: date-time }
+
 paths:
+  /owner/employees:
+    get:
+      operationId: listOwnerEmployees
+      tags: [Owner employees]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Paginated scoped employee list }
+    post:
+      operationId: createOwnerEmployee
+      tags: [Owner employees]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, name, initialPassword, branchId, department]
+              properties:
+                username: { type: string, minLength: 3, maxLength: 64 }
+                name: { type: string, maxLength: 200 }
+                initialPassword: { type: string, minLength: 12, writeOnly: true }
+                branchId: { type: string, format: uuid }
+                department: { type: string, enum: [waiter, hookah] }
+      responses:
+        '201':
+          description: Employee created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Employee' }
+        '403': { description: PLAN_LIMIT_REACHED }
+        '409': { description: EMPLOYEE_USERNAME_TAKEN }
+  /owner/employees/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: string, format: uuid }
+    patch:
+      operationId: patchOwnerEmployee
+      tags: [Owner employees]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Employee updated }
+        '409': { description: SHIFT_ACTIVE }
+    delete:
+      operationId: archiveOwnerEmployee
+      tags: [Owner employees]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Employee archived, auth revoked, quota released }
+  /owner/employees/{id}/reset-password:
+    post:
+      operationId: resetEmployeePassword
+      tags: [Owner employees]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Password reset, sessions revoked }
+  /owner/employees/{id}/end-shift:
+    post:
+      operationId: ownerForceEndShift
+      tags: [Owner employees]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Employee shift force-ended }
+        '409': { description: SHIFT_NOT_ACTIVE }
+  /employee/shifts/start:
+    post:
+      operationId: startEmployeeShift
+      tags: [Employee shifts]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '201':
+          description: Shift started
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Shift' }
+        '409': { description: SHIFT_ALREADY_ACTIVE }
+  /employee/shifts/current:
+    get:
+      operationId: currentEmployeeShift
+      tags: [Employee shifts]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Current shift or null }
+  /employee/shifts/end:
+    post:
+      operationId: endEmployeeShift
+      tags: [Employee shifts]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Shift ended }
+        '409': { description: SHIFT_NOT_ACTIVE }
+  /employee/calls:
+    get:
+      operationId: listEmployeeAssignedCalls
+      tags: [Employee calls]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Only calls with employee as outbox recipient }
+  /owner/calls:
+    get:
+      operationId: listOwnerCalls
+      tags: [Owner calls]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Restaurant-scoped paginated call history }
+  /owner/alerts:
+    get:
+      operationId: listOwnerAlerts
+      tags: [Owner alerts]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Persisted no-staff dashboard alerts }
+  /owner/call-settings:
+    get:
+      operationId: getRestaurantCallSettings
+      tags: [Owner call settings]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Effective restaurant call defaults }
+    patch:
+      operationId: patchRestaurantCallSettings
+      tags: [Owner call settings]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Updated restaurant settings }
+  /owner/branches/{branchId}/call-settings:
+    parameters:
+      - in: path
+        name: branchId
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: getBranchCallSettings
+      tags: [Owner call settings]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Effective inherited branch settings }
+    patch:
+      operationId: patchBranchCallSettings
+      tags: [Owner call settings]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Updated branch overrides }
   /admin/restaurants:
     post:
       operationId: createRestaurant
@@ -937,7 +1122,7 @@ paths:
     get:
       operationId: resolvePublicTableQr
       tags: [Public table QR]
-      description: Read-only active table context, without visit session or staff-call capability.
+      description: Active table context with dynamic callsAvailable and no visit token.
       parameters:
         - in: path
           name: qrToken
@@ -945,7 +1130,7 @@ paths:
           schema: { type: string, minLength: 43, maxLength: 43 }
       responses:
         '200':
-          description: Restaurant, branch, table, menuPath and callsAvailable=false
+          description: Restaurant, branch, table, menuPath and settings-derived callsAvailable
         '403': { description: SUBSCRIPTION_INACTIVE or PLAN_FEATURE_DISABLED }
         '404': { description: QR_REVOKED, disabled or unavailable }
   /owner/branches:
@@ -953,30 +1138,13 @@ paths:
       operationId: listOwnerBranches
       tags: [Owner branches]
       security: [{ bearerAuth: [] }]
-      parameters:
-        - in: query
-          name: limit
-          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
-        - in: query
-          name: cursor
-          schema: { type: string }
       responses:
-        '200':
-          description: Tenant-scoped paginated branch list
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  data: { type: array, items: { $ref: '#/components/schemas/Branch' } }
-                  meta: { $ref: '#/components/schemas/PageMeta' }
-        '401': { description: Unauthorized }
-        '403': { description: Subscription inactive or wrong role }
+        '200': { description: Paginated owner branch list }
+        '403': { description: Subscription inactive }
     post:
       operationId: createOwnerBranch
       tags: [Owner branches]
       security: [{ bearerAuth: [] }]
-      description: Transactionally enforces plan maxBranches including disabled branches.
       requestBody:
         required: true
         content:
@@ -986,7 +1154,12 @@ paths:
               required: [name]
               properties:
                 name: { type: string, maxLength: 200 }
-                currency: { type: string, pattern: '^[A-Z]{3}
+                currency: { type: string, pattern: "^[A-Z]{3}$" }
+      responses:
+        '201': { description: Branch created }
+        '400': { description: Validation error }
+        '403': { description: PLAN_LIMIT_REACHED }
+  /auth/login:
     post:
       operationId: authLogin
       tags: [Authentication]
@@ -1064,32 +1237,41 @@ paths:
   /public/t/{qrToken}/sessions:
     post:
       operationId: createTableSession
+      tags: [Public visit]
+      description: Create a 4h-idle QR-bound visit session (token SHA256 stored).
       parameters:
         - in: path
           name: qrToken
           required: true
-          schema: { type: string }
+          schema: { type: string, minLength: 43, maxLength: 43 }
       responses:
-        '201':
-          description: Visit session
-          content:
-            application/json:
-              schema:
-                type: object
-                required: [data]
-                properties:
-                  data:
-                    type: object
-                    required: [sessionToken, expiresAt, firstCallNeedsConfirmation]
-                    properties:
-                      sessionToken: { type: string }
-                      expiresAt: { type: integer, format: int64, description: Unix timestamp in milliseconds }
-                      firstCallNeedsConfirmation: { type: boolean }
-        '410': { description: QR revoked }
-        '403': { description: Subscription inactive }
+        '201': { description: sessionToken, ISO expiresAt, firstCallNeedsConfirmation, availableCallTypes }
+        '403': { description: SUBSCRIPTION_INACTIVE }
+        '404': { description: QR_REVOKED }
+        '429': { description: SESSION_CAP_REACHED }
+  /public/sessions/status:
+    post:
+      operationId: refreshVisitStatus
+      tags: [Public visit]
+      description: Validates visit and extends 4h inactivity expiry.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [sessionToken]
+              properties:
+                sessionToken: { type: string, minLength: 43, maxLength: 43, writeOnly: true }
+      responses:
+        '200': { description: expiresAt, firstCallNeedsConfirmation, availableCallTypes }
+        '401': { description: SESSION_EXPIRED }
+        '404': { description: QR_REVOKED }
   /public/calls:
     post:
       operationId: createServiceCall
+      tags: [Public calls]
+      description: First call confirmed, per-table/type 10s cooldown, session-scoped idempotency.
       requestBody:
         required: true
         content:
@@ -1098,28 +1280,24 @@ paths:
               type: object
               required: [sessionToken, type, idempotencyKey]
               properties:
-                sessionToken: { type: string }
+                sessionToken: { type: string, minLength: 43, maxLength: 43, writeOnly: true }
                 type: { type: string, enum: [waiter, hookah] }
-                idempotencyKey: { type: string }
+                idempotencyKey: { type: string, format: uuid }
+                confirmFirstCall: { type: boolean }
       responses:
         '201':
-          description: Call recorded; not necessarily delivered
+          description: Persisted call, NOT proof of push delivery
           content:
             application/json:
               schema:
                 type: object
-                required: [data]
                 properties:
-                  data:
-                    $ref: '#/components/schemas/ServiceCall'
-        '429': { description: Cooldown active; retryAfterSeconds in error details }
-        '403': { description: Calls disabled }
-        '401': { description: Session expired }
- }
-      responses:
-        '201': { description: Branch created }
-        '400': { description: Validation error }
-        '403': { description: Subscription inactive or PLAN_LIMIT_REACHED }
+                  data: { $ref: '#/components/schemas/ServiceCall' }
+        '401': { description: SESSION_EXPIRED }
+        '403': { description: CALLS_DISABLED / CALL_TYPE_DISABLED / SUBSCRIPTION_INACTIVE }
+        '404': { description: QR_REVOKED }
+        '409': { description: FIRST_CALL_CONFIRMATION_REQUIRED / IDEMPOTENCY_KEY_REUSED }
+        '429': { description: COOLDOWN_ACTIVE, details.retryAfterSeconds }
   /owner/branches/{branchId}:
     parameters:
       - in: path
@@ -1131,8 +1309,8 @@ paths:
       tags: [Owner branches]
       security: [{ bearerAuth: [] }]
       responses:
-        '200': { description: Branch }
-        '404': { description: Branch not found in tenant }
+        '200': { description: Branch metadata }
+        '404': { description: Branch not in tenant }
     patch:
       operationId: updateOwnerBranch
       tags: [Owner branches]
@@ -1143,142 +1321,14 @@ paths:
           application/json:
             schema:
               type: object
+              minProperties: 1
               properties:
                 name: { type: string, maxLength: 200 }
-                currency: { type: string, pattern: '^[A-Z]{3}
-    post:
-      operationId: authLogin
-      tags: [Authentication]
-      description: Browser receives an HttpOnly refresh cookie; mobile receives refreshToken in JSON. Access token lasts 15 minutes.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [username, password]
-              properties:
-                username: { type: string, minLength: 3, maxLength: 64 }
-                password: { type: string, minLength: 1, maxLength: 128, writeOnly: true }
-                client: { type: string, enum: [web, mobile], default: web }
-      responses:
-        '200': { description: Session issued }
-        '400': { description: Validation failure }
-        '401': { description: Invalid username, password or inactive user }
-        '429': { description: Login throttled }
-  /auth/refresh:
-    post:
-      operationId: authRefresh
-      tags: [Authentication]
-      description: Refreshes and atomically rotates opaque credential. Body refreshToken is for mobile clients; web uses HttpOnly cookie and trusted Origin.
-      requestBody:
-        required: false
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                refreshToken: { type: string, description: Mobile clients only }
-      responses:
-        '200': { description: Rotated session }
-        '401': { description: Invalid or replayed refresh credential }
-  /auth/logout:
-    post:
-      operationId: authLogout
-      tags: [Authentication]
-      description: Revoke the credential's session, including its access token.
-      responses:
-        '200': { description: Session revoked }
-        '401': { description: Invalid credential }
-  /auth/me:
-    get:
-      operationId: authMe
-      tags: [Authentication]
-      security: [{ bearerAuth: [] }]
-      responses:
-        '200': { description: Current user scope and password-change state }
-        '401': { description: Missing or revoked session }
-  /auth/change-password:
-    post:
-      operationId: authChangePassword
-      tags: [Authentication]
-      security: [{ bearerAuth: [] }]
-      description: Sets a new password, clears the initial-change flag and revokes all sessions. Client must log in again.
-      responses:
-        '200': { description: Password changed }
-        '400': { description: Invalid password }
-        '401': { description: Missing or revoked session }
-        '403': { description: Current password incorrect }
-  /health/live:
-    get:
-      operationId: healthLive
-      responses:
-        '200': { description: Process is live }
-  /health/ready:
-    get:
-      operationId: healthReady
-      responses:
-        '200': { description: Database is reachable }
-        '503': { description: Database unavailable }
-  /public/t/{qrToken}/sessions:
-    post:
-      operationId: createTableSession
-      parameters:
-        - in: path
-          name: qrToken
-          required: true
-          schema: { type: string }
-      responses:
-        '201':
-          description: Visit session
-          content:
-            application/json:
-              schema:
-                type: object
-                required: [data]
-                properties:
-                  data:
-                    type: object
-                    required: [sessionToken, expiresAt, firstCallNeedsConfirmation]
-                    properties:
-                      sessionToken: { type: string }
-                      expiresAt: { type: integer, format: int64, description: Unix timestamp in milliseconds }
-                      firstCallNeedsConfirmation: { type: boolean }
-        '410': { description: QR revoked }
-        '403': { description: Subscription inactive }
-  /public/calls:
-    post:
-      operationId: createServiceCall
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [sessionToken, type, idempotencyKey]
-              properties:
-                sessionToken: { type: string }
-                type: { type: string, enum: [waiter, hookah] }
-                idempotencyKey: { type: string }
-      responses:
-        '201':
-          description: Call recorded; not necessarily delivered
-          content:
-            application/json:
-              schema:
-                type: object
-                required: [data]
-                properties:
-                  data:
-                    $ref: '#/components/schemas/ServiceCall'
-        '429': { description: Cooldown active; retryAfterSeconds in error details }
-        '403': { description: Calls disabled }
-        '401': { description: Session expired }
- }
+                currency: { type: string, pattern: "^[A-Z]{3}$" }
                 isActive: { type: boolean }
       responses:
         '200': { description: Updated branch }
-        '400': { description: Validation error }
+        '400': { description: Invalid patch }
         '404': { description: Branch not found }
         '409': { description: BRANCH_CURRENCY_IN_USE }
   /owner/branches/{branchId}/categories:
