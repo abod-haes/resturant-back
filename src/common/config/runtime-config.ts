@@ -8,6 +8,8 @@ export interface RuntimeConfig {
   readonly databaseConnectTimeoutMs: number;
   readonly corsOrigins: readonly string[];
   readonly mediaAllowedOrigins: readonly string[];
+  readonly qrEncryptionKey: string | null;
+  readonly customerAppOrigin: string | null;
   readonly authAccessSecret: string;
 }
 
@@ -65,6 +67,22 @@ export function parseRuntimeConfig(env: NodeJS.ProcessEnv): RuntimeConfig {
     }
   }
 
+  const qrEncryptionKey = env.QR_TOKEN_ENCRYPTION_KEY?.trim() || null;
+  if (qrEncryptionKey !== null && !/^[0-9a-fA-F]{64}$/.test(qrEncryptionKey)) {
+    throw new Error("QR_TOKEN_ENCRYPTION_KEY must be a 32-byte (64 hex character) secret");
+  }
+  const customerAppOrigin = env.CUSTOMER_APP_ORIGIN?.trim() || null;
+  if (customerAppOrigin) {
+    let url: URL;
+    try { url = new URL(customerAppOrigin); } catch {
+      throw new Error("CUSTOMER_APP_ORIGIN must be a valid HTTPS origin");
+    }
+    if (url.protocol !== "https:" || url.origin !== customerAppOrigin
+      || url.username || url.password) {
+      throw new Error("CUSTOMER_APP_ORIGIN must be a single HTTPS origin without path");
+    }
+  }
+
   const authAccessSecret = env.AUTH_ACCESS_SECRET ?? "";
   if (Buffer.byteLength(authAccessSecret, "utf8") < 32) {
     throw new Error("AUTH_ACCESS_SECRET must contain at least 32 bytes of secret entropy");
@@ -77,6 +95,8 @@ export function parseRuntimeConfig(env: NodeJS.ProcessEnv): RuntimeConfig {
     databaseConnectTimeoutMs: positiveInteger(env.DB_CONNECT_TIMEOUT_MS ?? "2000", "DB_CONNECT_TIMEOUT_MS", 60000),
     corsOrigins: Object.freeze(corsOrigins),
     mediaAllowedOrigins: Object.freeze(mediaAllowedOrigins),
+    qrEncryptionKey,
+    customerAppOrigin,
     authAccessSecret,
   });
 }
