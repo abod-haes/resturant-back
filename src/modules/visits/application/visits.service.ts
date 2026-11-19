@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, TooManyRequestsException, UnauthorizedException } from "@nestjs/common";
+import { HttpException, HttpStatus, Injectable, NotFoundException, UnauthorizedException } from "@nestjs/common";
 import { sql } from "kysely";
 import { DatabaseService } from "../../../database/database.service";
 import { generateOpaqueToken, hashOpaqueToken, isOpaqueToken } from "../../../common/crypto/opaque-token";
@@ -46,8 +46,8 @@ export class VisitsService {
         .where("created_at", ">=", new Date(now.getTime() - 60_000))
         .executeTakeFirstOrThrow();
       if (recent.total >= MAX_VISITS_PER_TABLE_PER_MINUTE) {
-        throw new TooManyRequestsException({ code: "SESSION_RATE_LIMITED",
-          message: "Too many QR visits started for this table" });
+        throw new HttpException({ code: "SESSION_RATE_LIMITED",
+          message: "Too many QR visits started for this table" }, HttpStatus.TOO_MANY_REQUESTS);
       }
       const token = generateOpaqueToken();
       const expiresAt = visitExpiresAt(now);

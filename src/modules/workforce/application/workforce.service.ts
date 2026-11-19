@@ -26,33 +26,34 @@ export class WorkforceService {
   constructor(private readonly database: DatabaseService) {}
 
   async createEmployee(principal: AuthPrincipal, branchId: string, input: CreateEmployeeDto, requestId?: string): Promise<EmployeeDto> {
-    if (!principal.restaurantId) throw new ForbiddenException("Restaurant scope required");
+    const restaurantId = principal.restaurantId;
+    if (!restaurantId) throw new ForbiddenException("Restaurant scope required");
     // Hash credentials before acquiring the tenant lock to avoid holding it during scrypt.
     const passwordHash = await hashPassword(input.initialPassword);
     try {
       return await this.database.db.transaction().execute(async (trx) => {
         const restaurant = await trx.selectFrom("restaurants")
-          .select("id").where("id", "=", principal.restaurantId)
+          .select("id").where("id", "=", restaurantId)
           .forUpdate().executeTakeFirst();
         if (!restaurant) throw new NotFoundException("Restaurant not found");
         const branch = await trx.selectFrom("branches").select("id")
-          .where("id", "=", branchId).where("restaurant_id", "=", principal.restaurantId)
+          .where("id", "=", branchId).where("restaurant_id", "=", restaurantId)
           .where("is_active", "=", true).executeTakeFirst();
         if (!branch) throw new NotFoundException("Branch not found");
-        const entitlements = await requireOperationalEntitlements(trx, principal.restaurantId);
+        const entitlements = await requireOperationalEntitlements(trx, restaurantId);
         const count = await trx.selectFrom("users").select(sql<number>`count(*)::int`.as("count"))
-          .where("restaurant_id", "=", principal.restaurantId)
+          .where("restaurant_id", "=", restaurantId)
           .where("role", "=", "EMPLOYEE").executeTakeFirstOrThrow();
         if (count.count >= entitlements.maxEmployees) {
           throw new ForbiddenException({ code: "PLAN_LIMIT_REACHED", message: "Employee limit reached" });
         }
         const row = await trx.insertInto("users").values({
           username: input.username, display_name: input.displayName.trim(), password_hash: passwordHash,
-          role: "EMPLOYEE", restaurant_id: principal.restaurantId, branch_id: branchId,
+          role: "EMPLOYEE", restaurant_id: restaurantId, branch_id: branchId,
           department: input.department, must_change_password: true, is_active: true,
         }).returning(["id","username","display_name","department","branch_id","is_active"]).executeTakeFirstOrThrow();
         await trx.insertInto("audit_logs").values({
-          actor_user_id: principal.id, restaurant_id: principal.restaurantId,
+          actor_user_id: principal.id, restaurant_id: restaurantId,
           action: "employee.created", entity_type: "employee", entity_id: row.id,
           request_id: requestId ?? null, metadata: { branchId, department: input.department },
         }).execute();
@@ -83,17 +84,19 @@ export class WorkforceService {
   }
 
   async startShift(principal: AuthPrincipal): Promise<ShiftDto> {
-    if (!principal.restaurantId || !principal.branchId) throw new ForbiddenException("Employee branch required");
+    const restaurantId = principal.restaurantId;
+    const employeeBranchId = principal.branchId;
+    if (!restaurantId || !employeeBranchId) throw new ForbiddenException("Employee branch required");
     return this.database.db.transaction().execute(async (trx) => {
       const employee = await trx.selectFrom("users").select(["id","is_active","branch_id"])
         .where("id", "=", principal.id).where("role", "=", "EMPLOYEE")
         .forUpdate().executeTakeFirst();
-      if (!employee?.is_active || employee.branch_id !== principal.branchId) {
+      if (!employee?.is_active || employee.branch_id !== employeeBranchId) {
         throw new ForbiddenException("Employee not active");
       }
-      await requireOperationalEntitlements(trx, principal.restaurantId);
+      await requireOperationalEntitlements(trx, restaurantId);
       const branch = await trx.selectFrom("branches").select("id")
-        .where("id", "=", principal.branchId).where("is_active", "=", true).executeTakeFirst();
+        .where("id", "=", employeeBranchId).where("is_active", "=", true).executeTakeFirst();
       if (!branch) throw new NotFoundException("Branch not found");
       const now = new Date();
       const existing = await trx.selectFrom("employee_shifts").selectAll()
@@ -105,18 +108,18 @@ export class WorkforceService {
       if (existing) await trx.updateTable("employee_shifts")
         .set({ ended_at: existing.planned_ends_at }).where("id", "=", existing.id).execute();
       const settings = await trx.selectFrom("branch_call_settings").select("shift_max_minutes")
-        .where("branch_id", "=", principal.branchId).executeTakeFirst();
+        .where("branch_id", "=", employeeBranchId).executeTakeFirst();
       const minutes = settings?.shift_max_minutes ?? 720;
       const row = await trx.insertInto("employee_shifts").values({
-        employee_user_id: principal.id, restaurant_id: principal.restaurantId,
-        branch_id: principal.branchId,
+        employee_user_id: principal.id, restaurant_id: restaurantId,
+        branch_id: employeeBranchId,
         started_at: now, planned_ends_at: new Date(now.getTime() + minutes * 60_000),
         ended_at: null, ended_by_user_id: null,
       }).returningAll().executeTakeFirstOrThrow();
       await trx.insertInto("audit_logs").values({
-        actor_user_id: principal.id, restaurant_id: principal.restaurantId,
+        actor_user_id: principal.id, restaurant_id: restaurantId,
         action: "employee.shift.started", entity_type: "employee_shift", entity_id: row.id,
-        metadata: { branchId: principal.branchId },
+        metadata: { branchId: employeeBranchId },
         request_id: null,
       }).execute();
       return shiftDto(row, now);

@@ -1,6 +1,6 @@
 import {
-  ConflictException, ForbiddenException, Injectable, NotFoundException,
-  TooManyRequestsException, UnauthorizedException,
+  ConflictException, ForbiddenException, HttpException, HttpStatus, Injectable, NotFoundException,
+  UnauthorizedException,
 } from "@nestjs/common";
 import { sql, type Selectable } from "kysely";
 import type { AuthPrincipal } from "../../../common/auth/principal";
@@ -79,8 +79,8 @@ export class CallsService {
       if (last) {
         const retryAfterSeconds = cooldownSeconds(last.created_at, now);
         if (retryAfterSeconds > 0) {
-          throw new TooManyRequestsException({ code: "COOLDOWN_ACTIVE",
-            message: "Please retry after the cooldown", details: { retryAfterSeconds } });
+          throw new HttpException({ code: "COOLDOWN_ACTIVE",
+            message: "Please retry after the cooldown", details: { retryAfterSeconds } }, HttpStatus.TOO_MANY_REQUESTS);
         }
       }
 
