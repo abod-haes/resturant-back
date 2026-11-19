@@ -1,0 +1,60 @@
+{
+  "schemaVersion": "1.8.0",
+  "session": {
+    "data": {
+      "sessionToken": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+      "expiresAt": "2026-11-20T00:00:00.000Z",
+      "firstCallNeedsConfirmation": true,
+      "availableCallTypes": [
+        "waiter",
+        "hookah"
+      ]
+    }
+  },
+  "heartbeat": {
+    "data": {
+      "expiresAt": "2026-11-20T00:30:00.000Z",
+      "firstCallNeedsConfirmation": false,
+      "availableCallTypes": [
+        "waiter"
+      ]
+    }
+  },
+  "callQueued": {
+    "data": {
+      "id": "3a96ab50-9d19-44d5-8ad4-1b0f2236e51a",
+      "tableId": "42d04f5b-1acc-427b-a19a-3326b9cf7042",
+      "type": "waiter",
+      "createdAt": "2026-11-19T20:00:00.000Z",
+      "deliveryState": "queued",
+      "ownerAlerted": false
+    }
+  },
+  "callNoStaff": {
+    "data": {
+      "id": "c7c1408c-c2fb-4ba2-9b1a-7c28bd0d73bc",
+      "tableId": "42d04f5b-1acc-427b-a19a-3326b9cf7042",
+      "type": "hookah",
+      "createdAt": "2026-11-19T20:00:20.000Z",
+      "deliveryState": "no_staff",
+      "ownerAlerted": true
+    }
+  },
+  "cooldown": {
+    "error": {
+      "code": "COOLDOWN_ACTIVE",
+      "message": "Please retry after the cooldown",
+      "details": {
+        "retryAfterSeconds": 7
+      }
+    },
+    "requestId": "example-request-id"
+  },
+  "routing": {
+    "data": {
+      "routingMode": null,
+      "effectiveRoutingMode": "department",
+      "shiftMaxMinutes": 720
+    }
+  }
+}

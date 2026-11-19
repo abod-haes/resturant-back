@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Restaurant Platform API
-  version: 0.7.0-draft
+  version: 0.8.0-draft
   description: "Initial executable contract slice. Remaining endpoints documented in docs/OPENAPI_IMPLEMENTATION.md; do not treat this file as complete."
 servers:
   - url: /api/v1
@@ -224,11 +224,23 @@ components:
           type: array
           items: { $ref: '#/components/schemas/RestaurantTable' }
         meta: { $ref: '#/components/schemas/PageMeta' }
+    VisitSession:
+      type: object
+      required: [sessionToken, expiresAt, firstCallNeedsConfirmation, availableCallTypes]
+      properties:
+        sessionToken: { type: string, minLength: 43, maxLength: 43, writeOnly: true }
+        expiresAt: { type: string, format: date-time }
+        firstCallNeedsConfirmation: { type: boolean }
+        availableCallTypes:
+          type: array
+          items: { type: string, enum: [waiter,hookah] }
     ServiceCall:
       type: object
-      required: [id, createdAt, deliveryState, ownerAlerted]
+      required: [id,tableId,type,createdAt,deliveryState,ownerAlerted]
       properties:
         id: { type: string, format: uuid }
+        tableId: { type: string, format: uuid }
+        type: { type: string, enum: [waiter,hookah] }
         createdAt: { type: string, format: date-time }
         deliveryState: { type: string, enum: [queued, no_staff] }
         ownerAlerted: { type: boolean }
@@ -937,7 +949,7 @@ paths:
     get:
       operationId: resolvePublicTableQr
       tags: [Public table QR]
-      description: Read-only active table context, without visit session or staff-call capability.
+      description: Active QR table/menu context and feature-enabled call types; visit session is separate.
       parameters:
         - in: path
           name: qrToken
@@ -945,7 +957,7 @@ paths:
           schema: { type: string, minLength: 43, maxLength: 43 }
       responses:
         '200':
-          description: Restaurant, branch, table, menuPath and callsAvailable=false
+          description: Restaurant, branch, table, menuPath, callsAvailable and availableCallTypes
         '403': { description: SUBSCRIPTION_INACTIVE or PLAN_FEATURE_DISABLED }
         '404': { description: QR_REVOKED, disabled or unavailable }
   /owner/branches:
@@ -1064,62 +1076,230 @@ paths:
   /public/t/{qrToken}/sessions:
     post:
       operationId: createTableSession
+      tags: [Public QR visits]
+      description: Issue 4h idle session for active table QR; rate limit 30 sessions per table per minute.
       parameters:
         - in: path
           name: qrToken
           required: true
-          schema: { type: string }
+          schema: { type: string, minLength: 43, maxLength: 43 }
       responses:
         '201':
-          description: Visit session
+          description: Opaque 256-bit visit session
           content:
             application/json:
               schema:
                 type: object
-                required: [data]
                 properties:
-                  data:
-                    type: object
-                    required: [sessionToken, expiresAt, firstCallNeedsConfirmation]
-                    properties:
-                      sessionToken: { type: string }
-                      expiresAt: { type: integer, format: int64, description: Unix timestamp in milliseconds }
-                      firstCallNeedsConfirmation: { type: boolean }
-        '410': { description: QR revoked }
+                  data: { $ref: '#/components/schemas/VisitSession' }
         '403': { description: Subscription inactive }
-  /public/calls:
+        '404': { description: QR_REVOKED }
+        '429': { description: SESSION_RATE_LIMITED }
+  /public/sessions/heartbeat:
     post:
-      operationId: createServiceCall
+      operationId: heartbeatVisitSession
+      tags: [Public QR visits]
+      description: Slides 4h idle expiry for active QR; body token is never placed in URL.
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [sessionToken, type, idempotencyKey]
+              required: [sessionToken]
               properties:
-                sessionToken: { type: string }
-                type: { type: string, enum: [waiter, hookah] }
-                idempotencyKey: { type: string }
+                sessionToken: { type: string, minLength: 43, maxLength: 43 }
       responses:
-        '201':
-          description: Call recorded; not necessarily delivered
+        '200': { description: Updated session expiry, confirmation state and permitted call types }
+        '401': { description: SESSION_EXPIRED }
+        '404': { description: QR_REVOKED }
+  /public/calls:
+    post:
+      operationId: createServiceCall
+      tags: [Public service calls]
+      description: Idempotent notification-only record; 10s cooldown by table and type; never claims push delivery.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [sessionToken,type,idempotencyKey]
+              properties:
+                sessionToken: { type: string, minLength: 43, maxLength: 43 }
+                type: { type: string, enum: [waiter,hookah] }
+                idempotencyKey: { type: string, format: uuid }
+                firstCallConfirmed: { type: boolean }
+      responses:
+        '200':
+          description: Persisted call; queued or no_staff is NOT device-delivered
           content:
             application/json:
               schema:
                 type: object
-                required: [data]
                 properties:
-                  data:
-                    $ref: '#/components/schemas/ServiceCall'
-        '429': { description: Cooldown active; retryAfterSeconds in error details }
-        '403': { description: Calls disabled }
-        '401': { description: Session expired }
- }
+                  data: { $ref: '#/components/schemas/ServiceCall' }
+        '401': { description: SESSION_EXPIRED }
+        '403': { description: CALLS_DISABLED, PLAN_FEATURE_DISABLED or SUBSCRIPTION_INACTIVE }
+        '404': { description: QR_REVOKED }
+        '409': { description: FIRST_CALL_CONFIRMATION_REQUIRED or IDEMPOTENCY_KEY_REUSED }
+        '429': { description: COOLDOWN_ACTIVE with error.details.retryAfterSeconds }
+  /owner/branches/{branchId}/employees:
+    parameters:
+      - in: path
+        name: branchId
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: listOwnerEmployees
+      tags: [Owner employees]
+      security: [{ bearerAuth: [] }]
       responses:
-        '201': { description: Branch created }
-        '400': { description: Validation error }
-        '403': { description: Subscription inactive or PLAN_LIMIT_REACHED }
+        '200': { description: Owner tenant branch employees, max 100 }
+        '404': { description: Branch not in restaurant }
+    post:
+      operationId: createOwnerEmployee
+      tags: [Owner employees]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username,displayName,initialPassword,department]
+              additionalProperties: false
+              properties:
+                username: { type: string, minLength: 3, maxLength: 64 }
+                displayName: { type: string, maxLength: 200 }
+                initialPassword: { type: string, minLength: 12, maxLength: 128, writeOnly: true }
+                department: { type: string, enum: [waiter,hookah] }
+      responses:
+        '201': { description: Employee created without password in response }
+        '403': { description: PLAN_LIMIT_REACHED }
+        '404': { description: Branch not in tenant }
+        '409': { description: EMPLOYEE_USERNAME_TAKEN }
+  /employee/shifts/start:
+    post:
+      operationId: startEmployeeShift
+      tags: [Employee shifts]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '201': { description: Employee shift started, planned end based on branch duration }
+        '403': { description: Employee role or subscription required }
+        '409': { description: SHIFT_ALREADY_ACTIVE }
+  /employee/shifts/end:
+    post:
+      operationId: endEmployeeShift
+      tags: [Employee shifts]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Employee shift ended }
+        '404': { description: No open shift }
+  /employee/shifts/current:
+    get:
+      operationId: getCurrentShift
+      tags: [Employee shifts]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Current/last shift with isOnShift reflecting planned expiry }
+  /owner/shifts/{id}/force-end:
+    post:
+      operationId: forceEndEmployeeShift
+      tags: [Owner shifts]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: Own restaurant employee shift ended }
+        '404': { description: Shift not in owner tenant }
+  /owner/call-routing:
+    get:
+      operationId: getRestaurantRouting
+      tags: [Owner routing]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Restaurant routing default }
+    patch:
+      operationId: patchRestaurantRouting
+      tags: [Owner routing]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [routingMode]
+              properties:
+                routingMode: { type: string, enum: [department,all] }
+      responses:
+        '200': { description: Restaurant routing updated }
+  /owner/branches/{branchId}/call-routing:
+    parameters:
+      - in: path
+        name: branchId
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: getBranchRouting
+      tags: [Owner routing]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Branch effective routing and shift duration }
+    patch:
+      operationId: patchBranchRouting
+      tags: [Owner routing]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                routingMode: { type: [string,"null"], enum: [department,all,null] }
+                shiftMaxMinutes: { type: integer, minimum: 60, maximum: 1440 }
+      responses:
+        '200': { description: Branch routing override updated }
+  /owner/calls:
+    get:
+      operationId: listOwnerCalls
+      tags: [Owner calls]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Cursor-paginated tenant call history }
+  /employee/calls:
+    get:
+      operationId: listEmployeeCalls
+      tags: [Employee calls]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Cursor-paginated calls targeted to this employee }
+  /owner/alerts:
+    get:
+      operationId: listOwnerAlerts
+      tags: [Owner alerts]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Persisted owner dashboard alerts for no-staff calls }
+  /owner/alerts/{id}/read:
+    post:
+      operationId: readOwnerAlert
+      tags: [Owner alerts]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: Alert marked read for owner tenant only }
+        '404': { description: Alert not in tenant }
   /owner/branches/{branchId}:
     parameters:
       - in: path

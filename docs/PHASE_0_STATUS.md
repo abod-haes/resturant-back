@@ -43,3 +43,10 @@ PR #4 runs DB migrations twice, checksum gate, architecture, typecheck, lint, Je
 - A4 PDF QR sticker generation with maximum 100 labels per request; print currently uses an ID fallback for Arabic text due to built-in Helvetica glyph limitations.
 - Requires secure Dokploy environment QR_TOKEN_ENCRYPTION_KEY and CUSTOMER_APP_ORIGIN for issuing, rotating, and printing QR codes. Backend does not need them for other modules.
 - Dashboard/client/staging end-to-end handshake and server deployment NOT YET VERIFIED.
+
+## QR visits, calls, workforce v1.8.0 — PR #10
+- 256-bit opaque QR visit session, SHA-256 storage, 4-hour sliding idle expiry, heartbeat, per-table admission rate limit and revocation on QR rotation.
+- First-call confirmation, per-table/type cooldown 10 seconds, atomic idempotent receipt and correct queued/no_staff semantics.
+- Owner-scoped employee creation with quota, employee shifts and timed end, configurable department/all routing, owner shift force-end, staff/owner call histories.
+- Persisted owner alert and pending delivery outbox. **No actual push or realtime dispatcher is running yet.**
+- Frontend/Expo adapters, staging smoke test and production deployment NOT VERIFIED.

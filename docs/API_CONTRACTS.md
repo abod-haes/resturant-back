@@ -48,32 +48,32 @@ Base path: `/api/v1`. JSON envelope: `{data,meta?}`; errors: `{error:{code,messa
 - QR tokens are random 256-bit base64url, looked up by SHA-256 digest and stored encrypted with AES-256-GCM; raw token never in listings, audit logs or DB plaintext. Requires `QR_TOKEN_ENCRYPTION_KEY` (64 hex) and `CUSTOMER_APP_ORIGIN` (HTTPS origin) set on server before issuing/printing QR. Existing backend without keys still starts, but QR creation/rotation/printing returns 503 `QR_NOT_CONFIGURED`.
 - Owner-only endpoints require RESTAURANT_OWNER and tenant/branch scope, plus operational subscription. Tables require the plan's menu feature at creation. Area and floor activation/archival are respected by public QR. Documented errors: PLAN_LIMIT_REACHED (403), QR_NOT_CONFIGURED (503), QR_REVOKED (404 public /409 owner read), TABLE_LABEL_TAKEN, AREA_NAME_TAKEN, FLOOR_NAME_TAKEN, FLOOR_NOT_EMPTY, AREA_NOT_EMPTY, DUPLICATE_TABLE_LABELS; cross-tenant resource always 404.
 
-- GET/POST/PATCH /owner/employees; POST /owner/employees/:id/reset-password; POST /owner/employees/:id/end-shift
-- GET /owner/calls?branchId=&type=&from=&to=&cursor=&limit=
-- GET /owner/call-analytics; GET /owner/alerts
-- PATCH /owner/branches/:branchId/call-settings {enabled,waiterEnabled,hookahEnabled,routingMode?}
+## Owner employees and routing — implemented v1.8.0
+- GET/POST /owner/branches/:branchId/employees. Create {username,displayName,initialPassword,department:"waiter"|"hookah"} -> 201 {data:Employee}, listing {data:Employee[]} (capped 100). No passwords returned. Employee quota counts all employee accounts under restaurant lock; initial password change mandatory.
+- POST /owner/shifts/:id/force-end -> 200 {data:Shift}, only own tenant's shift.
+- GET/PATCH /owner/call-routing with {routingMode:"all"|"department"}. Default department.
+- GET/PATCH /owner/branches/:branchId/call-routing with {routingMode?:"all"|"department"|null,shiftMaxMinutes?:60..1440}. Null inherits restaurant default; shift duration defaults 720min.
+- GET /owner/calls?limit=20&cursor= -> {data:Call[],meta:PageMeta}; GET /owner/alerts?limit=20 -> {data:OwnerAlert[]}; POST /owner/alerts/:id/read -> {data:OwnerAlert}. Owner alert means stored dashboard record, not external delivery.
+- Owner password reset, employee deletion, call analytics and external owner messaging remain PLANNED, NOT implemented.
 - GET /owner/subscription (implemented v1.5.0 as above)
 
 ## Public
 - GET /public/menu/:slug?limit=20&cursor=&search= -> {data:{restaurant:{name},branch:{name,slug,currency|null},products:Product[],categories:Category[]},meta:PageMeta}. Public products are limited to published/nonarchived products in active categories; sold-out products remain visible with isSoldOut=true, hidden/archived are excluded. categories contains only categories for that product page.
 - GET /public/menu/:slug/categories?limit=20&cursor=&search= -> paginated active categories so the UI can fetch its complete category index independently.
 - No session token, QR credential, staff-call buttons or location validation in public catalog responses; subscription must be operational with menu feature. Read-only endpoint is separate from future table QR flow.
-- GET /public/t/:qrToken -> {data:{restaurant:{name},branch:{name,slug},table:{id,label},menuPath,callsAvailable:false}}. Implemented v1.7 as **read-only** active QR lookup. A revoked/disabled QR, disabled table/area/floor/branch or malformed credential yields 404; subscription/menu feature not operational -> 403. Does not create visit sessions or enable calls. The general menu remains a separate read-only endpoint.
-- POST /public/t/:qrToken/sessions -> {sessionToken,expiresAt,firstCallNeedsConfirmation} (PLANNED v1.8, NOT implemented)
-- POST /public/calls {sessionToken,type,idempotencyKey} -> {id,createdAt,deliveryState,ownerAlerted} (PLANNED v1.8, NOT implemented)
-  - Server validates subscription, table, QR, session, branch, enabled buttons, 10-second cooldown per table/type.
-  - `deliveryState` indicates queued/no-staff, not actual employee acknowledgement.
-  - No GPS in V1. A static QR/session is not proof of physical presence.
+- GET /public/t/:qrToken -> {data:{restaurant,branch,table,menuPath,callsAvailable:boolean,availableCallTypes:("waiter"|"hookah")[]}}. Only active QR with permitted features; no visit secret in the read response. General public menu has no calls.
+- POST /public/t/:qrToken/sessions -> 201 {data:{sessionToken,expiresAt,firstCallNeedsConfirmation:true,availableCallTypes}}. Session token is 256-bit random, SHA-256 at rest, 4h idle expiry; 30 new sessions/table/minute cap (429). No QR proof of physical location.
+- POST /public/sessions/heartbeat {sessionToken} -> 200 {data:{expiresAt,firstCallNeedsConfirmation,availableCallTypes}}; slides idle expiry only for active session/current QR. Expired 401 SESSION_EXPIRED; revoked 404 QR_REVOKED.
+- POST /public/calls {sessionToken,type:"waiter"|"hookah",idempotencyKey:UUIDv4,firstCallConfirmed?:true} -> 200 {data:{id,tableId,type,createdAt,deliveryState:"queued"|"no_staff",ownerAlerted}}. First call needs explicit confirmation (409). Same session+key/type replay returns original receipt; key reused for different type -> 409 IDEMPOTENCY_KEY_REUSED. Atomic 10s per-table/type cooldown across sessions -> 429 COOLDOWN_ACTIVE with details.retryAfterSeconds. Expired/disabled plan, table, branch or button rejected.
+- "queued" means recipients and pending outbox stored; NOT pushed or delivered. "no_staff" means call stored and owner DASHBOARD alert persisted; NOT externally notified. No device registration, realtime worker or push in v1.8.
 
-## Employee
-- POST /employee/shifts/start; POST /employee/shifts/end; GET /employee/shifts/current
-- GET /employee/calls?cursor=&limit=
-- POST /employee/devices {expoPushToken,platform}
-- DELETE /employee/devices/:id
+## Employee — implemented v1.8.0
+- POST /employee/shifts/start -> 201 {data:Shift}, one active shift and timed effective expiration based on shiftMaxMinutes. POST /employee/shifts/end -> 200 {data:Shift}. GET /employee/shifts/current -> {data:Shift|null} with isOnShift derived from time and endedAt. Password change required.
+- GET /employee/calls?limit=20&cursor= -> {data:Call[],meta:PageMeta} scoped to individual recipients/branch; no accept/complete in V1.
+- POST /employee/devices and DELETE /employee/devices/:id remain PLANNED; no active push integration.
 
 ## Events
-- Realtime `call.created`, `owner.alert.created`, `shift.updated`, `menu.updated`
-- Event envelope {eventId,eventType,occurredAt,branchId,payload}; reconnect uses paginated GET as source of truth.
+- call_delivery_outbox pending rows are persisted in the same call transaction. There is no active worker or realtime/push delivery. Owner and employee paginated call history are current read sources; socket events remain planned.
 
 ## Shared errors
 UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, SUBSCRIPTION_INACTIVE, QR_REVOKED, TABLE_DISABLED, CALLS_DISABLED, CALL_TYPE_DISABLED, SESSION_EXPIRED, COOLDOWN_ACTIVE (retryAfterSeconds), RATE_LIMITED, NO_STAFF_AVAILABLE (call may still be recorded), INTERNAL_ERROR.
