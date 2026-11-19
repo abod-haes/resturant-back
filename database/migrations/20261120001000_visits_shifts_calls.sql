@@ -14,6 +14,8 @@ CREATE TABLE visit_sessions (
   last_activity_at timestamptz NOT NULL DEFAULT now(),
   expires_at timestamptz NOT NULL,
   created_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT visit_sessions_branch_tenant_fk FOREIGN KEY (branch_id,restaurant_id)
+    REFERENCES branches (id,restaurant_id) ON DELETE RESTRICT,
   CONSTRAINT visit_sessions_table_branch_fk FOREIGN KEY (table_id,branch_id)
     REFERENCES restaurant_tables (id,branch_id) ON DELETE RESTRICT,
   CONSTRAINT visit_sessions_credential_table_fk FOREIGN KEY (qr_credential_id,table_id)
@@ -47,6 +49,8 @@ CREATE TABLE employee_shifts (
   ended_at timestamptz,
   ended_by_user_id uuid REFERENCES users(id) ON DELETE RESTRICT,
   created_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT employee_shifts_branch_tenant_fk FOREIGN KEY (branch_id,restaurant_id)
+    REFERENCES branches (id,restaurant_id) ON DELETE RESTRICT,
   CONSTRAINT employee_shifts_interval_check CHECK (
     planned_ends_at > started_at AND (ended_at IS NULL OR ended_at >= started_at)
   )
@@ -67,6 +71,8 @@ CREATE TABLE service_calls (
   delivery_state varchar(12) NOT NULL CHECK (delivery_state IN ('queued','no_staff')),
   owner_alerted boolean NOT NULL DEFAULT false,
   created_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT service_calls_branch_tenant_fk FOREIGN KEY (branch_id,restaurant_id)
+    REFERENCES branches (id,restaurant_id) ON DELETE RESTRICT,
   CONSTRAINT service_calls_table_branch_fk FOREIGN KEY (table_id,branch_id)
     REFERENCES restaurant_tables (id,branch_id) ON DELETE RESTRICT,
   CONSTRAINT service_calls_session_table_fk FOREIGN KEY (session_id,table_id)

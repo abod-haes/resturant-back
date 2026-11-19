@@ -6,7 +6,7 @@ import { activeQrTable } from "../../../common/qr/active-table";
 import { requireOperationalEntitlements } from "../../../common/subscription/operational-entitlement";
 import {
   MAX_VISITS_PER_TABLE_PER_MINUTE, visitExpiresAt,
-} from "../domain/visit-policy";
+} from "../../../common/visits/visit-policy";
 import type { VisitSessionDto, VisitStateDto } from "../presentation/visit.dto";
 
 export function availableCalls(flags: { waiter_calls: boolean; hookah_calls: boolean },

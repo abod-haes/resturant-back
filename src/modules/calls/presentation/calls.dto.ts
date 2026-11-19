@@ -1,11 +1,11 @@
 import { Type } from "class-transformer";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { IsBoolean, IsIn, IsInt, IsOptional, IsString, IsUUID, Max, Min } from "class-validator";
+import { IsBoolean, IsIn, IsInt, IsOptional, IsString, IsUUID, Matches, Max, Min } from "class-validator";
 import type { CallDeliveryState, CallKind, CallRoutingMode } from "../../../database/database.types";
 
 export class CreateCallDto {
   @ApiProperty({ description: "Opaque 43-character session bearer token" })
-  @IsString() sessionToken!: string;
+  @IsString() @Matches(/^[A-Za-z0-9_-]{43}$/) sessionToken!: string;
   @ApiProperty({ enum: ["waiter", "hookah"] }) @IsIn(["waiter", "hookah"]) type!: CallKind;
   @ApiProperty({ format: "uuid" }) @IsUUID("4") idempotencyKey!: string;
   @ApiPropertyOptional({ description: "Must be true for the first accepted call in a session" })
