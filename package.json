@@ -11,7 +11,9 @@
     "test:unit": "jest --config jest.config.cjs --runInBand test/unit",
     "test:integration": "jest --config jest.config.cjs --runInBand test/integration",
     "lint": "eslint src test --max-warnings=0",
-    "check:architecture": "node scripts/check-boundaries.mjs"
+    "check:architecture": "node scripts/check-boundaries.mjs",
+    "db:migrate": "node scripts/migrate.mjs",
+    "db:migrate:check": "node scripts/migrate.mjs --check"
   },
   "dependencies": {
     "@nestjs/common": "^11.1.0",
@@ -23,7 +25,9 @@
     "class-validator": "^0.14.2",
     "pg": "^8.16.0",
     "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.2"
+    "rxjs": "^7.8.2",
+    "kysely": "^0.28.8",
+    "dotenv": "^16.6.1"
   },
   "devDependencies": {
     "@nestjs/cli": "^11.0.0",

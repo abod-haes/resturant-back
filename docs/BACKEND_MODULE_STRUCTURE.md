@@ -13,9 +13,8 @@ src/
     auth/                         # cross-cutting authentication guards/decorators (later)
   database/
     database.module.ts
-    database.service.ts           # PostgreSQL connection/readiness foundation
-    migrations/                   # planned, not implemented yet
-    seeds/                        # planned, not implemented yet
+    database.service.ts           # pooled, typed Kysely query client
+    database.types.ts             # relational query/table types
   integrations/                   # storage/push/realtime adapters when implemented
   modules/
     health/
@@ -31,6 +30,10 @@ src/
     notifications/
     analytics/
     audit/
+database/
+  migrations/                     # ordered, checksummed SQL migrations
+scripts/
+  migrate.mjs                     # transactional advisory-locked SQL runner
 test/
   unit/
   integration/
@@ -48,4 +51,4 @@ test/
 7. Feature completion requires architectural checks, strict TS, lint, tests, build, access control and failure-state review; see `FEATURE_COMPLETION_CHECKLIST.md`.
 
 ## Foundation limitations
-The current database service only supplies a connection-health probe. It is **not** a migration implementation, authorization boundary, or data access layer for production features. Introduce concrete schema/migrations/transactions with the first persistent business slice; document choice in a dedicated ADR first. Do not enable ORM auto-synchronize.
+Core relational tables and type-safe query client are introduced; they do **not** implement tenant-scoped repositories or business APIs. Next auth and onboarding features must use scoped query methods and verified access guards. See `ADR-003-DATABASE-PERSISTENCE.md`.
