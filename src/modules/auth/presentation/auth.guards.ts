@@ -5,7 +5,7 @@ import { DatabaseService } from "../../../database/database.service";
 import type { PlatformRole } from "../../../database/database.types";
 import type { AuthPrincipal } from "../domain/auth.types";
 import { AuthService } from "../application/auth.service";
-import { ALLOW_PASSWORD_CHANGE_KEY, AUTHENTICATED_KEY, PUBLIC_KEY, RESOURCE_SCOPE_KEY, ROLES_KEY, type ResourceScope } from "./auth.decorators";
+import { ALLOW_PASSWORD_CHANGE_KEY, AUTHENTICATED_KEY, PUBLIC_KEY, RESOURCE_SCOPE_KEY, ROLES_KEY, type ResourceScope } from "../../../common/auth/policy.decorators";
 
 export interface AuthenticatedRequest extends IncomingMessage {
   principal?: AuthPrincipal;
@@ -67,6 +67,9 @@ export class ScopeGuard implements CanActivate {
     const principal = request.principal;
     const requestedId = request.params?.[scope.parameter];
     if (!principal || !requestedId) throw new ForbiddenException("Resource scope required");
+    if (!/^[a-f\\d]{8}-[a-f\\d]{4}-[1-8][a-f\\d]{3}-[89ab][a-f\\d]{3}-[a-f\\d]{12}$/i.test(requestedId)) {
+      throw new NotFoundException("Resource not found");
+    }
 
     if (scope.kind === "restaurant") {
       if (!principal.restaurantId || principal.restaurantId !== requestedId) {

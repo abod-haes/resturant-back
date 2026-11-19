@@ -1,6 +1,6 @@
 import { Controller, Get, ServiceUnavailableException } from "@nestjs/common";
 import { ApiOperation, ApiResponse, ApiTags } from "@nestjs/swagger";
-import { Public } from "../../auth/presentation/auth.decorators";
+import { Public } from "../../../common/auth/policy.decorators";
 import { DatabaseService } from "../../../database/database.service";
 
 @Public()

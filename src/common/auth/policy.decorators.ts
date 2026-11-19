@@ -1,5 +1,5 @@
 import { SetMetadata } from "@nestjs/common";
-import type { PlatformRole } from "../../../database/database.types";
+import type { PlatformRole } from "../../database/database.types";
 
 export const PUBLIC_KEY = "auth:isPublic";
 export const AUTHENTICATED_KEY = "auth:authenticated";

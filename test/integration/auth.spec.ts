@@ -5,7 +5,7 @@ import { Pool } from "pg";
 import request from "supertest";
 import { AppModule } from "../../src/app.module";
 import { configureHttpApp } from "../../src/bootstrap";
-import { BranchScope, Roles } from "../../src/modules/auth/presentation/auth.decorators";
+import { BranchScope, Roles } from "../../src/common/auth/policy.decorators";
 import { hashPassword } from "../../src/modules/auth/domain/password";
 
 @Controller("__auth_policy_probe")
@@ -141,6 +141,7 @@ describe("Authentication and RBAC against PostgreSQL", () => {
     const ownerBearer = "Bearer " + signedOwner.body.data.accessToken;
     expect((await request(app.getHttpServer()).get("/api/v1/__auth_policy_probe/owner/" + branchA).set("Authorization",ownerBearer)).status).toBe(200);
     expect((await request(app.getHttpServer()).get("/api/v1/__auth_policy_probe/owner/" + branchB).set("Authorization",ownerBearer)).status).toBe(404);
+    expect((await request(app.getHttpServer()).get("/api/v1/__auth_policy_probe/owner/not-a-uuid").set("Authorization",ownerBearer)).status).toBe(404);
     expect((await request(app.getHttpServer()).get("/api/v1/__auth_policy_probe/admin").set("Authorization",ownerBearer)).status).toBe(403);
     expect((await request(app.getHttpServer()).get("/api/v1/__auth_policy_probe/unconfigured").set("Authorization",ownerBearer)).status).toBe(403);
 

@@ -5,7 +5,7 @@ import { Inject } from "@nestjs/common";
 import { RUNTIME_CONFIG, type RuntimeConfig } from "../../../common/config/runtime-config";
 import { AuthService, type IssuedSession } from "../application/auth.service";
 import type { AuthenticatedRequest } from "./auth.guards";
-import { AllowAuthenticated, AllowInitialPassword, Public } from "./auth.decorators";
+import { AllowAuthenticated, AllowInitialPassword, Public } from "../../../common/auth/policy.decorators";
 import { ChangePasswordDto, ChangedResponseDto, LoginDto, LoginResponseDto, MeResponseDto, RefreshDto } from "./auth.dto";
 
 const COOKIE_NAME = "restaurant_refresh";
