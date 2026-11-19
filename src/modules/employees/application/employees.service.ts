@@ -1,6 +1,7 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { sql, type Selectable } from "kysely";
 import { randomUUID } from "node:crypto";
+import { appendRealtimeEvents } from "../../../common/realtime/realtime-outbox";
 import { DatabaseService } from "../../../database/database.service";
 import type { AuthPrincipal } from "../../../common/auth/principal";
 import { hashPassword } from "../../../common/crypto/password";
@@ -215,6 +216,14 @@ export class EmployeesService {
         auto_end_at: new Date(now.getTime() + settings.shiftAutoEndMinutes * 60_000),
         ended_at: null, ended_by_user_id: null,
       }).returningAll().executeTakeFirstOrThrow();
+      await appendRealtimeEvents(trx, shift.restaurant_id, [
+        { branchId: shift.branch_id, recipientUserId: null, type: "shift.updated",
+          payload: { shiftId: shift.id, employeeId: shift.user_id,
+            branchId: shift.branch_id, state: "started" } },
+        { branchId: shift.branch_id, recipientUserId: shift.user_id, type: "shift.updated",
+          payload: { shiftId: shift.id, employeeId: shift.user_id,
+            branchId: shift.branch_id, state: "started" } },
+      ]);
       return toShift(shift);
     });
   }
@@ -238,6 +247,14 @@ export class EmployeesService {
         .where("user_id", "=", principal.id).where("ended_at", "is", null)
         .returningAll().executeTakeFirst();
       if (!row) throw new ConflictException({ code: "SHIFT_NOT_ACTIVE", message: "No active shift" });
+      await appendRealtimeEvents(trx, row.restaurant_id, [
+        { branchId: row.branch_id, recipientUserId: null, type: "shift.updated",
+          payload: { shiftId: row.id, employeeId: row.user_id,
+            branchId: row.branch_id, state: "ended" } },
+        { branchId: row.branch_id, recipientUserId: row.user_id, type: "shift.updated",
+          payload: { shiftId: row.id, employeeId: row.user_id,
+            branchId: row.branch_id, state: "ended" } },
+      ]);
       return toShift(row);
     });
   }
@@ -255,6 +272,14 @@ export class EmployeesService {
         .where("user_id", "=", employeeId).where("ended_at", "is", null)
         .returningAll().executeTakeFirst();
       if (!row) throw new ConflictException({ code: "SHIFT_NOT_ACTIVE", message: "No open shift" });
+      await appendRealtimeEvents(trx, row.restaurant_id, [
+        { branchId: row.branch_id, recipientUserId: null, type: "shift.updated",
+          payload: { shiftId: row.id, employeeId: row.user_id,
+            branchId: row.branch_id, state: "ended" } },
+        { branchId: row.branch_id, recipientUserId: row.user_id, type: "shift.updated",
+          payload: { shiftId: row.id, employeeId: row.user_id,
+            branchId: row.branch_id, state: "ended" } },
+      ]);
       await trx.insertInto("audit_logs").values({
         actor_user_id: principal.id, restaurant_id: restaurantId, action: "employee.shift.force_ended",
         entity_type: "employee_shift", entity_id: row.id, request_id: requestId ?? null,

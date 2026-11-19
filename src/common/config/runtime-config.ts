@@ -11,6 +11,9 @@ export interface RuntimeConfig {
   readonly qrEncryptionKey: string | null;
   readonly customerAppOrigin: string | null;
   readonly authAccessSecret: string;
+  readonly pushTokenEncryptionKey: string | null;
+  readonly pushDispatchEnabled: boolean;
+  readonly expoPushAccessToken: string | null;
 }
 
 export const RUNTIME_CONFIG = Symbol("RUNTIME_CONFIG");
@@ -87,6 +90,20 @@ export function parseRuntimeConfig(env: NodeJS.ProcessEnv): RuntimeConfig {
     }
   }
 
+  const pushTokenEncryptionKey = env.PUSH_TOKEN_ENCRYPTION_KEY?.trim() || null;
+  if (pushTokenEncryptionKey && !/^[0-9a-fA-F]{64}$/.test(pushTokenEncryptionKey)) {
+    throw new Error("PUSH_TOKEN_ENCRYPTION_KEY must be 32 bytes (64 hex characters)");
+  }
+  const pushDispatchFlag = env.PUSH_DISPATCH_ENABLED?.trim() || "false";
+  if (!["true", "false"].includes(pushDispatchFlag)) {
+    throw new Error("PUSH_DISPATCH_ENABLED must be true or false");
+  }
+  const pushDispatchEnabled = pushDispatchFlag === "true";
+  if (pushDispatchEnabled && !pushTokenEncryptionKey) {
+    throw new Error("PUSH_TOKEN_ENCRYPTION_KEY is required when push worker is enabled");
+  }
+  const expoPushAccessToken = env.EXPO_PUSH_ACCESS_TOKEN?.trim() || null;
+
   const authAccessSecret = env.AUTH_ACCESS_SECRET ?? "";
   if (Buffer.byteLength(authAccessSecret, "utf8") < 32) {
     throw new Error("AUTH_ACCESS_SECRET must contain at least 32 bytes of secret entropy");
@@ -102,6 +119,9 @@ export function parseRuntimeConfig(env: NodeJS.ProcessEnv): RuntimeConfig {
     qrEncryptionKey,
     customerAppOrigin,
     authAccessSecret,
+    pushTokenEncryptionKey,
+    pushDispatchEnabled,
+    expoPushAccessToken,
   });
 }
 

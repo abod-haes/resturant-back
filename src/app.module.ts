@@ -9,10 +9,12 @@ import { MenuModule } from "./modules/menu/menu.module";
 import { TablesModule } from "./modules/tables/tables.module";
 import { EmployeesModule } from "./modules/employees/employees.module";
 import { CallsModule } from "./modules/calls/calls.module";
+import { RealtimeModule } from "./modules/realtime/realtime.module";
+import { PushModule } from "./modules/push/push.module";
 import { HealthController } from "./modules/health/presentation/health.controller";
 
 @Module({
-  imports: [RuntimeConfigModule, DatabaseModule, AuthModule, RestaurantAdminModule, SubscriptionsModule, BranchesModule, MenuModule, TablesModule, EmployeesModule, CallsModule],
+  imports: [RuntimeConfigModule, DatabaseModule, AuthModule, RestaurantAdminModule, SubscriptionsModule, BranchesModule, MenuModule, TablesModule, EmployeesModule, CallsModule, RealtimeModule, PushModule],
   controllers: [HealthController],
 })
 export class AppModule {}

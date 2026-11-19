@@ -6,6 +6,7 @@
     "start:dev": "nest start --watch",
     "build": "nest build",
     "start:prod": "node dist/main.js",
+    "push:worker": "node dist/push-worker.js",
     "typecheck": "tsc --noEmit",
     "test": "npm run test:unit && npm run test:integration",
     "test:unit": "jest --config jest.config.cjs --runInBand test/unit",
