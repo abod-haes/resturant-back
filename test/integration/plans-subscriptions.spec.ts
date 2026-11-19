@@ -191,6 +191,10 @@ describe("Manual plan subscriptions and tenant entitlements (PostgreSQL)", () =>
       graceDays: 7, canOperate: true,
       entitlements: { maxBranches: 2, maxTables: 50, maxEmployees: 10, features },
     });
+    const analyticsDenied = await request(app.getHttpServer()).get("/api/v1/owner/call-analytics")
+      .set("Authorization", "Bearer " + ownerToken);
+    expect(analyticsDenied.status).toBe(403);
+    expect(analyticsDenied.body.error.code).toBe("PLAN_FEATURE_DISABLED");
     const again = await request(app.getHttpServer()).post("/api/v1/admin/subscriptions/" + subscriptionId + "/activate")
       .set(admin()).send({ graceDays: 7 });
     expect(again.status).toBe(409);
@@ -231,6 +235,11 @@ describe("Manual plan subscriptions and tenant entitlements (PostgreSQL)", () =>
       effectiveStatus: "active", canOperate: true,
       graceDays: 5, entitlements: { maxTables: 80, features: { ...features, analytics: true } },
     });
+    const nowEnabled = await request(app.getHttpServer()).get("/api/v1/owner/call-analytics")
+      .set("Authorization", "Bearer " + ownerToken);
+    expect(nowEnabled.status).toBe(200);
+    expect(nowEnabled.body.data.summary.totalCalls).toBe(0);
+    expect(nowEnabled.body.data.daily).toHaveLength(30);
     expect(renewed.body.data.startsAt).toBe(oldStartsAt);
     expect(new Date(renewed.body.data.endsAt).getTime()).toBeGreaterThan(oldEndsAt);
     const terms = await pool.query(
