@@ -115,6 +115,19 @@ describe("core database constraints", () => {
     );
   });
 
+  it("rejects employees without a department", async () => {
+    const restaurantId = await createRestaurant();
+    const branchId = await createBranch(restaurantId);
+    await expectedError(
+      `INSERT INTO users (username, display_name, password_hash, role, restaurant_id, branch_id, department)
+       VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+      ["user_" + randomUUID().replaceAll("-", ""), "Incomplete employee",
+        "hash:not-a-production-secret-xxxxxxxxxxxxxxxxxxxxxxxx",
+        "EMPLOYEE", restaurantId, branchId, null],
+      "23514",
+    );
+  });
+
   it("requires a valid subscription interval and prevents two active subscriptions", async () => {
     const restaurantId = await createRestaurant();
     const plan = await client.query<{ id: string }>(

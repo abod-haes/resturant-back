@@ -41,7 +41,7 @@ CREATE TABLE users (
   CONSTRAINT users_role_scope_check CHECK (
     (role IN ('PRIMARY_ADMIN', 'PLATFORM_ADMIN') AND restaurant_id IS NULL AND branch_id IS NULL AND department IS NULL)
     OR (role = 'RESTAURANT_OWNER' AND restaurant_id IS NOT NULL AND branch_id IS NULL AND department IS NULL)
-    OR (role = 'EMPLOYEE' AND restaurant_id IS NOT NULL AND branch_id IS NOT NULL AND department IN ('waiter', 'hookah'))
+    OR (role = 'EMPLOYEE' AND restaurant_id IS NOT NULL AND branch_id IS NOT NULL AND department IS NOT NULL AND department IN ('waiter', 'hookah'))
   )
 );
 CREATE UNIQUE INDEX users_username_ci_unique ON users (lower(username));
