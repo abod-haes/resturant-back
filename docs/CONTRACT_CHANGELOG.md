@@ -1,5 +1,9 @@
 # Contract changelog
 
+## v1.6.0 — 2026-11-19 (Branch & Menu vertical slice)
+Owner branches CRUD with transactional plan quota, tenant isolation and configured per-branch currency. Nested category/product CRUD, search/cursor pagination, old price/sold-out/visibility/tags, soft archive and relational same-branch constraints. Images are URL metadata restricted to configured HTTPS CDN origins; upload/transformation deferred. Menu copy is additive only into empty destination branch with independent IDs; floor/table templates deferred. Public paginated catalog excludes hidden or archived content and never exposes QR/call credentials. Subscription feature and effective expiry apply on every operation. See docs/BRANCH_MENU_DASHBOARD_HANDOFF.md. No dashboard staging adapter handshake claimed.
+
+
 ## v1.5.0 — 2026-11-19 (Manual Plans & Subscriptions)
 Admin plan create/list/get/update; explicit feature flags and limit data, snapshot on activation/renewal. Pending restaurant subscription create, manual activate/renew (no payment), effective scheduled/active/grace/expired evaluation from UTC calendar dates, audited immutable term history. Configurable renewal contacts and owner read endpoint usable while expired. Contract handoff: docs/SUBSCRIPTION_DASHBOARD_HANDOFF.md. Branch/table/employee resource limit enforcement will be wired transactionally in their later feature slices; not claimed integrated now. Swagger generated from implemented controllers; OpenAPI YAML remains partly draft.
 

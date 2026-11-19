@@ -32,11 +32,13 @@ Base path: `/api/v1`. JSON envelope: `{data,meta?}`; errors: `{error:{code,messa
 - All admin endpoints require PRIMARY_ADMIN or PLATFORM_ADMIN; owner reads own restaurant only. Errors use standard envelope and may include PLAN_NAME_TAKEN, PLAN_UNAVAILABLE, SUBSCRIPTION_PENDING, SUBSCRIPTION_NOT_PENDING, SUBSCRIPTION_ALREADY_ACTIVE, SUBSCRIPTION_NOT_RENEWABLE, PLAN_FEATURE_DISABLED, SUBSCRIPTION_INACTIVE. No payment endpoints.
 - GET /admin/audit-logs (planned; not implemented)
 
-## Owner
-- GET/POST/PATCH /owner/branches; GET/PATCH /owner/settings
-- GET/POST/PATCH /owner/branches/:branchId/categories
-- GET/POST/PATCH /owner/branches/:branchId/products
-- POST /owner/branches/:branchId/menu/copy-from {sourceBranchId,includeTemplate}
+## Owner — Branches & Menu implemented slice v1.6.0
+- GET /owner/branches?limit=20&cursor= -> {data:Branch[],meta:{nextCursor,hasMore}}; POST /owner/branches {name,currency?:ISO4217} -> 201 {data:Branch}. GET /owner/branches/:branchId -> {data:Branch}. PATCH /owner/branches/:branchId {name?,currency?,isActive?} -> {data:Branch}. Branch={id,name,slug,currency|null,isActive,createdAt}. All reads/mutations need active subscription; branch create checks maxBranches under a restaurant row lock, counting disabled branches too. Initial onboarding branch currency is null until owner configures it. Currency changes are rejected when that branch already has products.
+- GET /owner/branches/:branchId/categories?limit=20&cursor=&search= -> {data:Category[],meta:PageMeta}; POST category {name,description?,sortOrder?,isActive?}; GET/PATCH /owner/branches/:branchId/categories/:id; DELETE /owner/branches/:branchId/categories/:id archives without deleting historical products.
+- GET /owner/branches/:branchId/products?limit=20&cursor=&search= -> {data:Product[],meta:PageMeta}; POST product {categoryId,name,description?,priceMinor,oldPriceMinor?,tags?,isVisible?,isSoldOut?,sortOrder?,images?:[{url,alt?}]}; GET/PATCH /owner/branches/:branchId/products/:id; DELETE archives product. Products require configured branch currency. priceMinor integer 0..2147483647, oldPriceMinor must exceed priceMinor, tags max 12, images max 8. Images are metadata references on approved HTTPS `MEDIA_ALLOWED_ORIGINS`, **not uploaded or optimized by this slice**. Empty allowlist rejects all image URLs.
+- POST /owner/branches/:branchId/menu/copy-from {sourceBranchId,includeTemplate?:false} -> 201 {data:{categoriesCopied,productsCopied}}. Only same-tenant active source/target, empty target; copies live categories/products and associated image metadata with new IDs. Changes to target never affect source. includeTemplate:true rejected as unsupported until floor/table feature. No overwrite of existing menu.
+- Category={id,branchId,name,description|null,sortOrder,isActive,createdAt}. Product={id,branchId,categoryId,name,description|null,priceMinor,oldPriceMinor|null,currency,tags,isVisible,isSoldOut,sortOrder,images:[{id,url,alt|null,sortOrder}],createdAt}.
+- All owner endpoints require RESTAURANT_OWNER + own restaurant/active branch, `menu` feature active/grace. No admins implicitly impersonate owners. Errors include SUBSCRIPTION_INACTIVE, PLAN_FEATURE_DISABLED, PLAN_LIMIT_REACHED, BRANCH_CURRENCY_REQUIRED, BRANCH_CURRENCY_IN_USE, CATEGORY_NAME_TAKEN, INVALID_OLD_PRICE, MEDIA_ORIGIN_NOT_ALLOWED, MENU_TARGET_NOT_EMPTY, MENU_CURRENCY_MISMATCH; UUID/validation errors 400, unauthorized 401, role/plan 403, cross-tenant ID 404, conflicts 409.
 - GET/POST/PATCH /owner/branches/:branchId/tables
 - POST /owner/tables/:tableId/qr/rotate; POST /owner/tables/:tableId/qr/disable; GET /owner/branches/:branchId/qr/print
 - GET/POST/PATCH /owner/employees; POST /owner/employees/:id/reset-password; POST /owner/employees/:id/end-shift
@@ -46,7 +48,9 @@ Base path: `/api/v1`. JSON envelope: `{data,meta?}`; errors: `{error:{code,messa
 - GET /owner/subscription (implemented v1.5.0 as above)
 
 ## Public
-- GET /public/menu/:slug -> public menu (NO call credentials)
+- GET /public/menu/:slug?limit=20&cursor=&search= -> {data:{restaurant:{name},branch:{name,slug,currency|null},products:Product[],categories:Category[]},meta:PageMeta}. Public products are limited to published/nonarchived products in active categories; sold-out products remain visible with isSoldOut=true, hidden/archived are excluded. categories contains only categories for that product page.
+- GET /public/menu/:slug/categories?limit=20&cursor=&search= -> paginated active categories so the UI can fetch its complete category index independently.
+- No session token, QR credential, staff-call buttons or location validation in public catalog responses; subscription must be operational with menu feature. Read-only endpoint is separate from future table QR flow.
 - GET /public/t/:qrToken -> {restaurant,branch,table,menu,callSettings}
 - POST /public/t/:qrToken/sessions -> {sessionToken,expiresAt,firstCallNeedsConfirmation}
 - POST /public/calls {sessionToken,type,idempotencyKey} -> {id,createdAt,deliveryState,ownerAlerted}

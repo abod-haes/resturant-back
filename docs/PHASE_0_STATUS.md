@@ -26,3 +26,11 @@ PR #4 runs DB migrations twice, checksum gate, architecture, typecheck, lint, Je
 - Owner: read current subscription and configured enabled renewal channels even when subscription is expired.
 - No payments, card billing or automatic renewal. New plan limits do not retroactively alter the current term.
 - The `SubscriptionsService.assertOperational` policy exists for future owner/employee/public operational routes, but branch/table/employee quota enforcement is **not integrated yet** because those CRUD routes do not exist. No production environment/staging client handshake claimed.
+
+## Branches & Menu v1.6.0 — PR #8
+- Owner branches list/create/detail/patch with tenant isolation and transactional maxBranches cap, including disabled branches.
+- Category/product list/create/detail/patch and soft archive, priceMinor+currency, oldPriceMinor, tags, sold-out/visibility; cross-branch relational integrity.
+- Secure CDN origin allowlist for HTTPS product-image references (no upload/transcode pipeline in this slice).
+- Independent menu copy into an empty branch in the same restaurant, preserving category/product properties but issuing new IDs. Template/table copy intentionally deferred to QR/tables slice.
+- Public menu and categories (paginated) show only published, in-scope records and expose no QR or staff-call credentials; subscription menu feature and grace checked server-side.
+- Explicit DTO/Swagger contract v1.6 and dashboard handoff. Independent frontend adapters and staging smoke test NOT VERIFIED.

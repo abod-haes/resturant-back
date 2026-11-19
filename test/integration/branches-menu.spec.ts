@@ -25,7 +25,6 @@ describe("Branches, categories, products and independent menu copy (PostgreSQL)"
   let extraBranch: string;
   let categoryA: string;
   let productA: string;
-  let planId: string;
   const restaurantIds: string[] = [];
   const branchIds: string[] = [];
   const userIds: string[] = [];
@@ -127,7 +126,7 @@ describe("Branches, categories, products and independent menu copy (PostgreSQL)"
     const b = await restaurantWithSubscription("Menu Test B");
     restaurantA = a.id; restaurantB = b.id;
     branchA = a.branchId; branchB = b.branchId;
-    ownerA = a.token; ownerB = b.token; planId = a.planId;
+    ownerA = a.token; ownerB = b.token;
   });
 
   it("blocks missing auth, impersonation and cross-tenant branch reads", async () => {

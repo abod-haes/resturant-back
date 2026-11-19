@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Restaurant Platform API
-  version: 0.5.0-draft
+  version: 0.6.0-draft
   description: "Initial executable contract slice. Remaining endpoints documented in docs/OPENAPI_IMPLEMENTATION.md; do not treat this file as complete."
 servers:
   - url: /api/v1
@@ -98,6 +98,85 @@ components:
         label: { type: string }
         value: { type: string }
         enabled: { type: boolean }
+    Branch:
+      type: object
+      required: [id, name, slug, currency, isActive, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        slug: { type: string }
+        currency: { type: [string, "null"], maxLength: 3 }
+        isActive: { type: boolean }
+        createdAt: { type: string, format: date-time }
+    Category:
+      type: object
+      required: [id, branchId, name, description, sortOrder, isActive, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        branchId: { type: string, format: uuid }
+        name: { type: string }
+        description: { type: [string, "null"] }
+        sortOrder: { type: integer }
+        isActive: { type: boolean }
+        createdAt: { type: string, format: date-time }
+    ProductImage:
+      type: object
+      required: [id, url, alt, sortOrder]
+      properties:
+        id: { type: string, format: uuid }
+        url: { type: string, format: uri, description: Approved HTTPS CDN origin only }
+        alt: { type: [string, "null"] }
+        sortOrder: { type: integer }
+    Product:
+      type: object
+      required: [id, branchId, categoryId, name, description, priceMinor, oldPriceMinor, currency, tags, isVisible, isSoldOut, sortOrder, images, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        branchId: { type: string, format: uuid }
+        categoryId: { type: string, format: uuid }
+        name: { type: string }
+        description: { type: [string, "null"] }
+        priceMinor: { type: integer, minimum: 0, maximum: 2147483647 }
+        oldPriceMinor: { type: [integer, "null"] }
+        currency: { type: string, minLength: 3, maxLength: 3 }
+        tags: { type: array, items: { type: string }, maxItems: 12 }
+        isVisible: { type: boolean }
+        isSoldOut: { type: boolean }
+        sortOrder: { type: integer }
+        images: { type: array, items: { $ref: '#/components/schemas/ProductImage' }, maxItems: 8 }
+        createdAt: { type: string, format: date-time }
+    CreateCategory:
+      type: object
+      additionalProperties: false
+      required: [name]
+      properties:
+        name: { type: string, maxLength: 160 }
+        description: { type: [string, "null"], maxLength: 1000 }
+        sortOrder: { type: integer, minimum: 0, maximum: 1000000 }
+        isActive: { type: boolean }
+    CreateProduct:
+      type: object
+      additionalProperties: false
+      required: [categoryId, name, priceMinor]
+      properties:
+        categoryId: { type: string, format: uuid }
+        name: { type: string, maxLength: 200 }
+        description: { type: [string, "null"], maxLength: 3000 }
+        priceMinor: { type: integer, minimum: 0, maximum: 2147483647 }
+        oldPriceMinor: { type: [integer, "null"], minimum: 1 }
+        tags: { type: array, maxItems: 12, uniqueItems: true, items: { type: string, maxLength: 32 } }
+        isVisible: { type: boolean }
+        isSoldOut: { type: boolean }
+        sortOrder: { type: integer, minimum: 0 }
+        images:
+          type: array
+          maxItems: 8
+          items:
+            type: object
+            required: [url]
+            properties:
+              url: { type: string, format: uri, description: Allowed HTTPS origin, no query/hash }
+              alt: { type: [string, "null"] }
     ServiceCall:
       type: object
       required: [id, createdAt, deliveryState, ownerAlerted]
@@ -440,6 +519,558 @@ paths:
                         items: { $ref: '#/components/schemas/RenewalContact' }
         '401': { description: Unauthorized }
         '403': { description: Not a restaurant owner }
+  /owner/branches:
+    get:
+      operationId: listOwnerBranches
+      tags: [Owner branches]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        - in: query
+          name: cursor
+          schema: { type: string }
+      responses:
+        '200':
+          description: Tenant-scoped paginated branch list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/Branch' } }
+                  meta: { $ref: '#/components/schemas/PageMeta' }
+        '401': { description: Unauthorized }
+        '403': { description: Subscription inactive or wrong role }
+    post:
+      operationId: createOwnerBranch
+      tags: [Owner branches]
+      security: [{ bearerAuth: [] }]
+      description: Transactionally enforces plan maxBranches including disabled branches.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string, maxLength: 200 }
+                currency: { type: string, pattern: '^[A-Z]{3}
+    post:
+      operationId: authLogin
+      tags: [Authentication]
+      description: Browser receives an HttpOnly refresh cookie; mobile receives refreshToken in JSON. Access token lasts 15 minutes.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, password]
+              properties:
+                username: { type: string, minLength: 3, maxLength: 64 }
+                password: { type: string, minLength: 1, maxLength: 128, writeOnly: true }
+                client: { type: string, enum: [web, mobile], default: web }
+      responses:
+        '200': { description: Session issued }
+        '400': { description: Validation failure }
+        '401': { description: Invalid username, password or inactive user }
+        '429': { description: Login throttled }
+  /auth/refresh:
+    post:
+      operationId: authRefresh
+      tags: [Authentication]
+      description: Refreshes and atomically rotates opaque credential. Body refreshToken is for mobile clients; web uses HttpOnly cookie and trusted Origin.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                refreshToken: { type: string, description: Mobile clients only }
+      responses:
+        '200': { description: Rotated session }
+        '401': { description: Invalid or replayed refresh credential }
+  /auth/logout:
+    post:
+      operationId: authLogout
+      tags: [Authentication]
+      description: Revoke the credential's session, including its access token.
+      responses:
+        '200': { description: Session revoked }
+        '401': { description: Invalid credential }
+  /auth/me:
+    get:
+      operationId: authMe
+      tags: [Authentication]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Current user scope and password-change state }
+        '401': { description: Missing or revoked session }
+  /auth/change-password:
+    post:
+      operationId: authChangePassword
+      tags: [Authentication]
+      security: [{ bearerAuth: [] }]
+      description: Sets a new password, clears the initial-change flag and revokes all sessions. Client must log in again.
+      responses:
+        '200': { description: Password changed }
+        '400': { description: Invalid password }
+        '401': { description: Missing or revoked session }
+        '403': { description: Current password incorrect }
+  /health/live:
+    get:
+      operationId: healthLive
+      responses:
+        '200': { description: Process is live }
+  /health/ready:
+    get:
+      operationId: healthReady
+      responses:
+        '200': { description: Database is reachable }
+        '503': { description: Database unavailable }
+  /public/t/{qrToken}/sessions:
+    post:
+      operationId: createTableSession
+      parameters:
+        - in: path
+          name: qrToken
+          required: true
+          schema: { type: string }
+      responses:
+        '201':
+          description: Visit session
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    required: [sessionToken, expiresAt, firstCallNeedsConfirmation]
+                    properties:
+                      sessionToken: { type: string }
+                      expiresAt: { type: integer, format: int64, description: Unix timestamp in milliseconds }
+                      firstCallNeedsConfirmation: { type: boolean }
+        '410': { description: QR revoked }
+        '403': { description: Subscription inactive }
+  /public/calls:
+    post:
+      operationId: createServiceCall
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [sessionToken, type, idempotencyKey]
+              properties:
+                sessionToken: { type: string }
+                type: { type: string, enum: [waiter, hookah] }
+                idempotencyKey: { type: string }
+      responses:
+        '201':
+          description: Call recorded; not necessarily delivered
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ServiceCall'
+        '429': { description: Cooldown active; retryAfterSeconds in error details }
+        '403': { description: Calls disabled }
+        '401': { description: Session expired }
+ }
+      responses:
+        '201': { description: Branch created }
+        '400': { description: Validation error }
+        '403': { description: Subscription inactive or PLAN_LIMIT_REACHED }
+  /owner/branches/{branchId}:
+    parameters:
+      - in: path
+        name: branchId
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: getOwnerBranch
+      tags: [Owner branches]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Branch }
+        '404': { description: Branch not found in tenant }
+    patch:
+      operationId: updateOwnerBranch
+      tags: [Owner branches]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string, maxLength: 200 }
+                currency: { type: string, pattern: '^[A-Z]{3}
+    post:
+      operationId: authLogin
+      tags: [Authentication]
+      description: Browser receives an HttpOnly refresh cookie; mobile receives refreshToken in JSON. Access token lasts 15 minutes.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, password]
+              properties:
+                username: { type: string, minLength: 3, maxLength: 64 }
+                password: { type: string, minLength: 1, maxLength: 128, writeOnly: true }
+                client: { type: string, enum: [web, mobile], default: web }
+      responses:
+        '200': { description: Session issued }
+        '400': { description: Validation failure }
+        '401': { description: Invalid username, password or inactive user }
+        '429': { description: Login throttled }
+  /auth/refresh:
+    post:
+      operationId: authRefresh
+      tags: [Authentication]
+      description: Refreshes and atomically rotates opaque credential. Body refreshToken is for mobile clients; web uses HttpOnly cookie and trusted Origin.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                refreshToken: { type: string, description: Mobile clients only }
+      responses:
+        '200': { description: Rotated session }
+        '401': { description: Invalid or replayed refresh credential }
+  /auth/logout:
+    post:
+      operationId: authLogout
+      tags: [Authentication]
+      description: Revoke the credential's session, including its access token.
+      responses:
+        '200': { description: Session revoked }
+        '401': { description: Invalid credential }
+  /auth/me:
+    get:
+      operationId: authMe
+      tags: [Authentication]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Current user scope and password-change state }
+        '401': { description: Missing or revoked session }
+  /auth/change-password:
+    post:
+      operationId: authChangePassword
+      tags: [Authentication]
+      security: [{ bearerAuth: [] }]
+      description: Sets a new password, clears the initial-change flag and revokes all sessions. Client must log in again.
+      responses:
+        '200': { description: Password changed }
+        '400': { description: Invalid password }
+        '401': { description: Missing or revoked session }
+        '403': { description: Current password incorrect }
+  /health/live:
+    get:
+      operationId: healthLive
+      responses:
+        '200': { description: Process is live }
+  /health/ready:
+    get:
+      operationId: healthReady
+      responses:
+        '200': { description: Database is reachable }
+        '503': { description: Database unavailable }
+  /public/t/{qrToken}/sessions:
+    post:
+      operationId: createTableSession
+      parameters:
+        - in: path
+          name: qrToken
+          required: true
+          schema: { type: string }
+      responses:
+        '201':
+          description: Visit session
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    required: [sessionToken, expiresAt, firstCallNeedsConfirmation]
+                    properties:
+                      sessionToken: { type: string }
+                      expiresAt: { type: integer, format: int64, description: Unix timestamp in milliseconds }
+                      firstCallNeedsConfirmation: { type: boolean }
+        '410': { description: QR revoked }
+        '403': { description: Subscription inactive }
+  /public/calls:
+    post:
+      operationId: createServiceCall
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [sessionToken, type, idempotencyKey]
+              properties:
+                sessionToken: { type: string }
+                type: { type: string, enum: [waiter, hookah] }
+                idempotencyKey: { type: string }
+      responses:
+        '201':
+          description: Call recorded; not necessarily delivered
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ServiceCall'
+        '429': { description: Cooldown active; retryAfterSeconds in error details }
+        '403': { description: Calls disabled }
+        '401': { description: Session expired }
+ }
+                isActive: { type: boolean }
+      responses:
+        '200': { description: Updated branch }
+        '400': { description: Validation error }
+        '404': { description: Branch not found }
+        '409': { description: BRANCH_CURRENCY_IN_USE }
+  /owner/branches/{branchId}/categories:
+    parameters:
+      - in: path
+        name: branchId
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: listOwnerCategories
+      tags: [Owner categories]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: query
+          name: limit
+          schema: { type: integer, default: 20, maximum: 100 }
+        - in: query
+          name: cursor
+          schema: { type: string }
+        - in: query
+          name: search
+          schema: { type: string, maxLength: 100 }
+      responses:
+        '200': { description: Paginated categories }
+        '403': { description: Subscription inactive or PLAN_FEATURE_DISABLED }
+        '404': { description: Tenant branch not found }
+    post:
+      operationId: createOwnerCategory
+      tags: [Owner categories]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateCategory' }
+      responses:
+        '201': { description: Category created }
+        '400': { description: Validation error }
+        '409': { description: CATEGORY_NAME_TAKEN }
+  /owner/branches/{branchId}/categories/{id}:
+    parameters:
+      - in: path
+        name: branchId
+        required: true
+        schema: { type: string, format: uuid }
+      - in: path
+        name: id
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: getOwnerCategory
+      tags: [Owner categories]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Category detail }
+        '404': { description: Category not found }
+    patch:
+      operationId: patchOwnerCategory
+      tags: [Owner categories]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateCategory' }
+      responses:
+        '200': { description: Updated category }
+        '400': { description: Invalid or empty patch }
+        '409': { description: CATEGORY_NAME_TAKEN }
+    delete:
+      operationId: archiveOwnerCategory
+      tags: [Owner categories]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Soft archived category }
+        '404': { description: Category not found }
+  /owner/branches/{branchId}/products:
+    parameters:
+      - in: path
+        name: branchId
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: listOwnerProducts
+      tags: [Owner products]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: query
+          name: limit
+          schema: { type: integer, default: 20, maximum: 100 }
+        - in: query
+          name: cursor
+          schema: { type: string }
+        - in: query
+          name: search
+          schema: { type: string, maxLength: 100 }
+      responses:
+        '200': { description: Paginated products }
+        '403': { description: Subscription inactive or PLAN_FEATURE_DISABLED }
+    post:
+      operationId: createOwnerProduct
+      tags: [Owner products]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateProduct' }
+      responses:
+        '201': { description: Product created }
+        '400': { description: Invalid prices/media }
+        '404': { description: Category not found in branch }
+        '409': { description: BRANCH_CURRENCY_REQUIRED }
+  /owner/branches/{branchId}/products/{id}:
+    parameters:
+      - in: path
+        name: branchId
+        required: true
+        schema: { type: string, format: uuid }
+      - in: path
+        name: id
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: getOwnerProduct
+      tags: [Owner products]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Product detail }
+        '404': { description: Product not found }
+    patch:
+      operationId: patchOwnerProduct
+      tags: [Owner products]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateProduct' }
+      responses:
+        '200': { description: Updated product, partial fields allowed }
+        '400': { description: Invalid price or media URL }
+        '404': { description: Product or category missing }
+    delete:
+      operationId: archiveOwnerProduct
+      tags: [Owner products]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Product soft archived }
+        '404': { description: Product not found }
+  /owner/branches/{branchId}/menu/copy-from:
+    post:
+      operationId: copyOwnerMenu
+      tags: [Owner menu copy]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: branchId
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [sourceBranchId]
+              properties:
+                sourceBranchId: { type: string, format: uuid }
+                includeTemplate: { type: boolean, default: false, description: 'true is not supported in v1.6' }
+      responses:
+        '201': { description: Independent menu copied into empty target }
+        '400': { description: Template copy unsupported or same branch }
+        '403': { description: No subscription/feature }
+        '404': { description: Source or target not within tenant }
+        '409': { description: MENU_TARGET_NOT_EMPTY, MENU_CURRENCY_MISMATCH }
+  /public/menu/{slug}:
+    get:
+      operationId: getPublicMenu
+      tags: [Public menu]
+      description: Anonymous paginated, published-only products; no QR/call/session credentials.
+      parameters:
+        - in: path
+          name: slug
+          required: true
+          schema: { type: string }
+        - in: query
+          name: limit
+          schema: { type: integer, default: 20, maximum: 100 }
+        - in: query
+          name: cursor
+          schema: { type: string }
+        - in: query
+          name: search
+          schema: { type: string, maxLength: 100 }
+      responses:
+        '200': { description: Restaurant, branch, page of products and associated page categories }
+        '403': { description: SUBSCRIPTION_INACTIVE or PLAN_FEATURE_DISABLED }
+        '404': { description: Menu not found }
+  /public/menu/{slug}/categories:
+    get:
+      operationId: listPublicCategories
+      tags: [Public menu]
+      description: Paginated category index without table/QR/session capability.
+      parameters:
+        - in: path
+          name: slug
+          required: true
+          schema: { type: string }
+        - in: query
+          name: limit
+          schema: { type: integer, default: 20, maximum: 100 }
+        - in: query
+          name: cursor
+          schema: { type: string }
+        - in: query
+          name: search
+          schema: { type: string, maxLength: 100 }
+      responses:
+        '200': { description: Published category page }
+        '403': { description: Subscription not operational }
   /auth/login:
     post:
       operationId: authLogin
