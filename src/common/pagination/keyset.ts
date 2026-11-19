@@ -21,3 +21,24 @@ export function decodeKeysetCursor(value: string): KeysetCursor {
 export function encodeKeysetCursor(cursor: KeysetCursor): string {
   return Buffer.from(JSON.stringify(cursor)).toString("base64url");
 }
+
+export interface DisplayCursor { sortOrder: number; id: string }
+export function decodeDisplayCursor(value: string): DisplayCursor {
+  try {
+    if (!/^[A-Za-z0-9_-]{1,500}$/.test(value)) throw new Error("Invalid cursor");
+    const decoded: unknown = JSON.parse(Buffer.from(value, "base64url").toString("utf8"));
+    if (typeof decoded !== "object" || !decoded || Array.isArray(decoded)
+      || !("sortOrder" in decoded) || !("id" in decoded)
+      || typeof decoded.sortOrder !== "number" || !Number.isInteger(decoded.sortOrder)
+      || decoded.sortOrder < 0 || decoded.sortOrder > 1000000
+      || typeof decoded.id !== "string" || !UUID_V4.test(decoded.id)) {
+      throw new Error("Invalid display cursor");
+    }
+    return { sortOrder: decoded.sortOrder, id: decoded.id };
+  } catch {
+    throw new BadRequestException("Invalid pagination cursor");
+  }
+}
+export function encodeDisplayCursor(value: DisplayCursor): string {
+  return Buffer.from(JSON.stringify(value)).toString("base64url");
+}

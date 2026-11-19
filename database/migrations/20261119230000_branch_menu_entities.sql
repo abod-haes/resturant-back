@@ -18,6 +18,7 @@ CREATE TABLE categories (
 CREATE UNIQUE INDEX categories_live_name_ci_unique
   ON categories(branch_id,lower(name)) WHERE archived_at IS NULL;
 CREATE INDEX categories_branch_listing_idx ON categories(branch_id,created_at DESC,id DESC);
+CREATE INDEX categories_branch_sort_idx ON categories(branch_id,sort_order,id) WHERE archived_at IS NULL;
 CREATE INDEX categories_branch_display_idx ON categories(branch_id,sort_order,id) WHERE archived_at IS NULL AND is_active;
 
 CREATE TABLE products (
@@ -44,6 +45,7 @@ CREATE TABLE products (
   CONSTRAINT products_id_branch_unique UNIQUE (id,branch_id)
 );
 CREATE INDEX products_branch_listing_idx ON products(branch_id,created_at DESC,id DESC);
+CREATE INDEX products_branch_display_idx ON products(branch_id,sort_order,id) WHERE archived_at IS NULL;
 CREATE INDEX products_category_display_idx ON products(category_id,sort_order,id)
   WHERE archived_at IS NULL AND is_visible;
 CREATE INDEX products_branch_category_idx ON products(branch_id,category_id);

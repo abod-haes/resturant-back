@@ -18,7 +18,7 @@ Backend `resturant-back`, canonical generated Swagger `/api/docs-json`, base `/a
 Branch: `{id,name,slug,currency|null,isActive,createdAt}`.
 Category: `{id,branchId,name,description|null,sortOrder,isActive,createdAt}`.
 Product: `{id,branchId,categoryId,name,description|null,priceMinor,oldPriceMinor|null,currency,tags:string[],isVisible,isSoldOut,sortOrder,images:[{id,url,alt|null,sortOrder}],createdAt}`.
-PageMeta: `{nextCursor:string|null,hasMore:boolean}`. Default 20, max 100, newest first; `search` is literal Unicode case-insensitive substring, not wildcard query.
+PageMeta: `{nextCursor:string|null,hasMore:boolean}`. Default 20, max 100. Branch list newest first; owner/public categories and products use `sortOrder ASC, id ASC` for consistent manually configured display ordering; `search` is literal Unicode case-insensitive substring, not wildcard query.
 
 **Important behaviors**
 - Owner needs active/grace subscription with `menu` feature. On expiration owner can still access `/owner/subscription` and renewal contacts; menu/branch routes return 403 `SUBSCRIPTION_INACTIVE`.

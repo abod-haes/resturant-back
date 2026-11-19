@@ -1,4 +1,4 @@
-import { decodeKeysetCursor, encodeKeysetCursor } from "../../src/common/pagination/keyset";
+import { decodeKeysetCursor, encodeKeysetCursor, decodeDisplayCursor, encodeDisplayCursor } from "../../src/common/pagination/keyset";
 import { verifyMediaUrls } from "../../src/modules/menu/application/menu-media.policy";
 import { parseRuntimeConfig } from "../../src/common/config/runtime-config";
 
@@ -12,6 +12,13 @@ describe("Branch menu boundary policies", () => {
   it("round-trips bounded opaque pagination cursors", () => {
     const value = { timestamp: "2026-11-19T19:00:00.000000Z", id: "9c5b5fb3-c17b-4c4a-aaf1-95959ebdcc29" };
     expect(decodeKeysetCursor(encodeKeysetCursor(value))).toEqual(value);
+  });
+  it("orders menu cursors by sortOrder and validates their shape", () => {
+    const cursor = { sortOrder: 45, id: "9c5b5fb3-c17b-4c4a-aaf1-95959ebdcc29" };
+    expect(decodeDisplayCursor(encodeDisplayCursor(cursor))).toEqual(cursor);
+    expect(() => decodeDisplayCursor(encodeKeysetCursor({
+      timestamp: "2026-11-19T19:00:00.000000Z", id: cursor.id,
+    }))).toThrow();
   });
   it.each(["invalid", "!!!", Buffer.from(JSON.stringify({ id: "wrong" })).toString("base64url")])
     ("rejects malformed cursors", (value) => {

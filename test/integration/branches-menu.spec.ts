@@ -313,6 +313,49 @@ describe("Branches, categories, products and independent menu copy (PostgreSQL)"
     expect(crossTenant.status).toBe(404);
   });
 
+  it("orders owner and public categories/products by sortOrder with stable cursor pages", async () => {
+    const secondCategory = await request(app.getHttpServer())
+      .post("/api/v1/owner/branches/" + branchA + "/categories").set(ownerAuth())
+      .send({ name: "إضافات", sortOrder: 90 });
+    expect(secondCategory.status).toBe(201);
+    const secondProduct = await request(app.getHttpServer())
+      .post("/api/v1/owner/branches/" + branchA + "/products").set(ownerAuth())
+      .send({ categoryId: categoryA, name: "Soup side", priceMinor: 2000, sortOrder: 20 });
+    expect(secondProduct.status).toBe(201);
+    const slug = (await pool.query("SELECT slug FROM branches WHERE id=$1", [branchA])).rows[0].slug;
+    for (const url of [
+      "/api/v1/owner/branches/" + branchA + "/products",
+      "/api/v1/public/menu/" + slug,
+    ]) {
+      const read = (u: string) => {
+        const req = request(app.getHttpServer()).get(u);
+        return url.includes("/owner/") ? req.set(ownerAuth()) : req;
+      };
+      const first = await read(url + "?limit=1");
+      expect(first.status).toBe(200);
+      const firstData = url.includes("/owner/") ? first.body.data : first.body.data.products;
+      expect(firstData[0].id).toBe(productA);
+      expect(first.body.meta.hasMore).toBe(true);
+      const next = await read(url + "?limit=1&cursor=" + encodeURIComponent(first.body.meta.nextCursor));
+      expect(next.status).toBe(200);
+      const nextData = url.includes("/owner/") ? next.body.data : next.body.data.products;
+      expect(nextData[0].id).toBe(secondProduct.body.data.id);
+    }
+    const categories = await request(app.getHttpServer())
+      .get("/api/v1/public/menu/" + slug + "/categories?limit=1");
+    expect(categories.status).toBe(200);
+    expect(categories.body.data[0].id).toBe(categoryA);
+    const categoriesNext = await request(app.getHttpServer())
+      .get("/api/v1/public/menu/" + slug + "/categories?limit=1&cursor=" +
+        encodeURIComponent(categories.body.meta.nextCursor));
+    expect(categoriesNext.status).toBe(200);
+    expect(categoriesNext.body.data[0].id).toBe(secondCategory.body.data.id);
+    const ownerCategories = await request(app.getHttpServer())
+      .get("/api/v1/owner/branches/" + branchA + "/categories?limit=1").set(ownerAuth());
+    expect(ownerCategories.status).toBe(200);
+    expect(ownerCategories.body.data[0].id).toBe(categoryA);
+  });
+
   it("enforces category archival and branch currency safeguards without deleting history", async () => {
     const currency = await request(app.getHttpServer()).patch("/api/v1/owner/branches/" + branchA)
       .set(ownerAuth()).send({ currency: "EUR" });

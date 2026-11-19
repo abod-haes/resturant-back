@@ -5,7 +5,7 @@ import { sql, type Selectable } from "kysely";
 import { DatabaseService } from "../../../database/database.service";
 import type { ProductsTable } from "../../../database/database.types";
 import type { AuthPrincipal } from "../../../common/auth/principal";
-import { decodeKeysetCursor, encodeKeysetCursor } from "../../../common/pagination/keyset";
+import { decodeDisplayCursor, encodeDisplayCursor } from "../../../common/pagination/keyset";
 import { RUNTIME_CONFIG, type RuntimeConfig } from "../../../common/config/runtime-config";
 import type {
   CreateProductDto, MenuPageDto, PatchProductDto, ProductDto, ProductImageDto, ProductImageInputDto,
@@ -63,14 +63,13 @@ export class ProductsService {
   async list(principal: AuthPrincipal, branchId: string, query: MenuPageDto) {
     await requireOwnerBranch(this.database.db, principal, branchId);
     let select = this.database.db.selectFrom("products").selectAll()
-      .select(sql<string>`to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`.as("cursor_timestamp"))
       .where("branch_id", "=", branchId).where("archived_at", "is", null);
     if (query.search) select = select.where(sql<boolean>`position(lower(${query.search}) in lower(name)) > 0`);
     if (query.cursor) {
-      const cursor = decodeKeysetCursor(query.cursor);
-      select = select.where(sql<boolean>`(created_at,id) < (${cursor.timestamp}::timestamptz,${cursor.id}::uuid)`);
+      const cursor = decodeDisplayCursor(query.cursor);
+      select = select.where(sql<boolean>`(sort_order,id) > (${cursor.sortOrder}::int,${cursor.id}::uuid)`);
     }
-    const result = await select.orderBy("created_at", "desc").orderBy("id", "desc")
+    const result = await select.orderBy("sort_order", "asc").orderBy("id", "asc")
       .limit(query.limit + 1).execute();
     const hasMore = result.length > query.limit;
     const page = result.slice(0, query.limit);
@@ -78,7 +77,7 @@ export class ProductsService {
     const last = page.at(-1);
     return { data: page.map((p) => productDto(p, images.get(p.id) ?? [])),
       meta: { hasMore, nextCursor: hasMore && last
-        ? encodeKeysetCursor({ timestamp: last.cursor_timestamp, id: last.id }) : null } };
+        ? encodeDisplayCursor({ sortOrder: last.sort_order, id: last.id }) : null } };
   }
 
   async get(principal: AuthPrincipal, branchId: string, productId: string): Promise<ProductDto> {
