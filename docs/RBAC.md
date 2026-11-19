@@ -1,12 +1,11 @@
-# RBAC & tenancy
-| Capability | Primary Admin | Admin | Owner | Employee | Public |
-|---|---|---|---|---|---|
-| Create platform admins | Yes | No | No | No | No |
-| Create restaurant/owner | Yes | Yes | No | No | No |
-| Manage plan/subscription | Yes | Yes | Read own | No | No |
-| Manage own branches/menu/tables/QR | Yes | Yes | Yes | No | No |
-| Manage own employees/shifts | Yes | Yes | Yes | Own shift | No |
-| Read call history | Yes | Yes | Own restaurant | Own branch permitted | No |
-| Create call | No | No | No | No | Valid table session |
-| View general menu | Yes | Yes | Yes | Yes | Yes |
-Backend must enforce every row; UI hiding is not authorization. Admin operations audited. No cross-restaurant access.
+# RBAC & tenant authorization — canonical policy
+
+The authoritative capability matrix is [RBAC_MATRIX.md](./RBAC_MATRIX.md). This file intentionally does not maintain a second conflicting copy.
+
+- `PRIMARY_ADMIN`: manages platform admins and platform operations.
+- `PLATFORM_ADMIN`: manages restaurants, owners, plans and manual subscriptions but **has no implicit owner-level restaurant data access**.
+- `RESTAURANT_OWNER`: manages only the restaurant and branches owned by the authenticated principal.
+- `EMPLOYEE`: one branch/department, own shift and permitted branch call history.
+- `PUBLIC`: published general menu or authenticated-by-QR table session and calls, subject to server policies.
+
+Platform support/impersonation access is **DENY by default** until separately approved and audited. Hiding a UI action is never authorization. Guard sequence: authenticate, role, tenant, branch, subscription/plan, resource policy, then rate/cooldown/idempotency as applicable.
