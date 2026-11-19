@@ -178,7 +178,7 @@ describe("Tables/QR: tenant, quota, rotation and printable PDF (PostgreSQL)", ()
     const publicRead = await request(app.getHttpServer()).get("/api/v1/public/t/" + firstToken);
     expect(publicRead.status).toBe(200);
     expect(publicRead.body.data).toMatchObject({
-      table: { id: tableId, label: "طاولة رقم 1" }, callsAvailable: false,
+      table: { id: tableId, label: "طاولة رقم 1" }, callsAvailable: true,
     });
     expect(publicRead.body.data).not.toHaveProperty("sessionToken");
     expect(publicRead.body.data).not.toHaveProperty("qrToken");
