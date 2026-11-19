@@ -11,8 +11,14 @@ Base path: `/api/v1`. JSON envelope: `{data,meta?}`; errors: `{error:{code,messa
 - All endpoints are deny-by-default unless explicitly @Public or protected with roles / authenticated policy. Resource scope checked server-side, never from client-submitted tenant fields.
 - Browser cookie mode assumes a trusted same-site deployment and explicit CORS_ORIGINS entry; cookie refresh/logout requires an Origin matching CORS_ORIGINS. Mobile mode never persists credentials in AsyncStorage/localStorage.
 
-## Platform
-- GET/POST /admin/restaurants; GET/PATCH /admin/restaurants/:id
+## Platform — restaurant onboarding implemented v1.4.0
+- POST /admin/restaurants request {name,owner:{name,username,initialPassword},initialBranch:{name}} -> 201 {data:{id,name,ownerId,branchId}}. Creates all records and audit in one database transaction. Owner must change the initial password on first sign-in. No plan/subscription auto-activation. Tenant slug generated server-side and remains stable.
+- GET /admin/restaurants?limit=20&cursor=&search= -> {data:[{id,name,slug,isActive,createdAt,owner:{id,name,username}|null}],meta:{nextCursor,hasMore}}. Limit 1–100; keyset sorted by createdAt DESC,id DESC. Search literal case-insensitive substring (no wildcard semantics).
+- GET /admin/restaurants/:id -> {data:{...summary,initialBranch:{id,name,slug,isActive}|null}}.
+- PATCH /admin/restaurants/:id accepts {name?,isActive?} with at least one field -> updated detail. When disabled, owner sessions become invalid on their next request.
+- Admin endpoints require bearer access token and role PRIMARY_ADMIN or PLATFORM_ADMIN; no owner or employee access. Client-supplied tenant identifiers are not accepted. Audit create/update with requestId; no passwords returned or logged.
+- Errors: 400 VALIDATION_ERROR (DTO/cursor), 401 UNAUTHORIZED, 403 FORBIDDEN or PASSWORD_CHANGE_REQUIRED, 404 NOT_FOUND, 409 OWNER_USERNAME_TAKEN for username collision; errors use {error:{code,message,details?},requestId}.
+- GET/POST/PATCH /admin/plans; POST /admin/subscriptions/:id/activate; POST /admin/subscriptions/:id/renew
 - GET/POST/PATCH /admin/plans; POST /admin/subscriptions/:id/activate; POST /admin/subscriptions/:id/renew
 - GET/PATCH /admin/contact-methods; GET /admin/audit-logs
 

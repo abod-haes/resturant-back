@@ -5,7 +5,7 @@ import { randomUUID } from "node:crypto";
 import { sql } from "kysely";
 import { DatabaseService } from "../../../database/database.service";
 import { hashPassword } from "../../../common/crypto/password";
-import type { AuthPrincipal } from "../../auth/domain/auth.types";
+import type { AuthPrincipal } from "../../../common/auth/principal";
 import type {
   CreateRestaurantDto, RestaurantListQueryDto, UpdateRestaurantDto,
   RestaurantDetailsDto, RestaurantSummaryDto,
@@ -27,10 +27,10 @@ function parseCursor(cursor: string): CursorValue {
     if (!/^[A-Za-z0-9_-]{1,500}$/.test(cursor)) throw new Error("Bad encoding");
     const decoded: unknown = JSON.parse(Buffer.from(cursor, "base64url").toString("utf8"));
     if (typeof decoded !== "object" || decoded === null || Array.isArray(decoded)) throw new Error("Bad cursor");
-    const record = Object.assign(Object.create(null) as Record<string, unknown>, decoded);
-    const timestamp = record.timestamp;
-    const id = record.id;
-    if (typeof timestamp !== "string" || !/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{1,6}[+-]\d{2}$/.test(timestamp) ||
+    if (!("timestamp" in decoded) || !("id" in decoded)) throw new Error("Missing cursor fields");
+    const timestamp = decoded.timestamp;
+    const id = decoded.id;
+    if (typeof timestamp !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z$/.test(timestamp) ||
       !Number.isFinite(Date.parse(timestamp)) || typeof id !== "string" || !UUID_RE.test(id)) {
       throw new Error("Bad cursor values");
     }
@@ -127,7 +127,7 @@ export class RestaurantAdminService {
   async list(query: RestaurantListQueryDto): Promise<ListPage> {
     const limit = query.limit;
     let select = this.selection()
-      .select(sql<string>`restaurants.created_at::text`.as("cursor_timestamp"));
+      .select(sql<string>`to_char(restaurants.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`.as("cursor_timestamp"));
     if (query.search) {
       // Parameters are bound; percent and underscore are treated as literal search characters.
       select = select.where(sql<boolean>`position(lower(${query.search}) in lower(${sql.ref("restaurants.name")})) > 0`);
