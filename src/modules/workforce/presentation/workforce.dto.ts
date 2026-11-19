@@ -19,7 +19,15 @@ export class EmployeeDto {
   @ApiProperty() isActive!: boolean;
 }
 export class EmployeeEnvelopeDto { @ApiProperty({ type: EmployeeDto }) data!: EmployeeDto; }
-export class EmployeeListEnvelopeDto { @ApiProperty({ type: [EmployeeDto] }) data!: EmployeeDto[]; }
+export class EmployeePageQueryDto {
+  @ApiPropertyOptional({ default: 20, minimum: 1, maximum: 100 })
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(100) limit = 20;
+  @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(500) cursor?: string;
+}
+export class EmployeeListEnvelopeDto {
+  @ApiProperty({ type: [EmployeeDto] }) data!: EmployeeDto[];
+  @ApiProperty() meta!: { nextCursor: string | null; hasMore: boolean };
+}
 
 export class ShiftDto {
   @ApiProperty() id!: string;

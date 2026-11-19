@@ -2,12 +2,13 @@ import {
   ConflictException, ForbiddenException, Injectable, NotFoundException,
 } from "@nestjs/common";
 import { sql, type Selectable } from "kysely";
+import { decodeKeysetCursor, encodeKeysetCursor } from "../../../common/pagination/keyset";
 import type { AuthPrincipal } from "../../../common/auth/principal";
 import { hashPassword } from "../../../common/crypto/password";
 import { requireOperationalEntitlements } from "../../../common/subscription/operational-entitlement";
 import { DatabaseService } from "../../../database/database.service";
 import type { EmployeeShiftsTable } from "../../../database/database.types";
-import type { CreateEmployeeDto, EmployeeDto, ShiftDto } from "../presentation/workforce.dto";
+import type { CreateEmployeeDto, EmployeeDto, EmployeePageQueryDto, ShiftDto } from "../presentation/workforce.dto";
 
 type ShiftRow = Selectable<EmployeeShiftsTable>;
 function shiftDto(row: ShiftRow, now = new Date()): ShiftDto {
@@ -68,19 +69,32 @@ export class WorkforceService {
     }
   }
 
-  async listEmployees(principal: AuthPrincipal, branchId: string): Promise<EmployeeDto[]> {
+  async listEmployees(principal: AuthPrincipal, branchId: string, query: EmployeePageQueryDto) {
     if (!principal.restaurantId) throw new ForbiddenException("Restaurant scope required");
     await requireOperationalEntitlements(this.database.db, principal.restaurantId);
     const branch = await this.database.db.selectFrom("branches").select("id")
       .where("id", "=", branchId).where("restaurant_id", "=", principal.restaurantId)
       .where("is_active", "=", true).executeTakeFirst();
     if (!branch) throw new NotFoundException("Branch not found");
-    const employees = await this.database.db.selectFrom("users")
+    let select = this.database.db.selectFrom("users")
       .select(["id","username","display_name","department","branch_id","is_active"])
-      .where("branch_id", "=", branchId).where("role", "=", "EMPLOYEE")
-      .orderBy("created_at", "desc").limit(100).execute();
-    return employees.map((row) => ({ id: row.id, branchId, username: row.username,
-      displayName: row.display_name, department: row.department ?? "waiter", isActive: row.is_active }));
+      .select(sql<string>`to_char(users.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`.as("cursor_timestamp"))
+      .where("branch_id", "=", branchId).where("role", "=", "EMPLOYEE");
+    if (query.cursor) {
+      const cursor = decodeKeysetCursor(query.cursor);
+      select = select.where(sql<boolean>`(users.created_at,users.id) < (${cursor.timestamp}::timestamptz,${cursor.id}::uuid)`);
+    }
+    const rows = await select.orderBy("created_at", "desc").orderBy("id", "desc")
+      .limit(query.limit + 1).execute();
+    const page = rows.slice(0, query.limit);
+    const last = page.at(-1);
+    const hasMore = rows.length > query.limit;
+    return {
+      data: page.map((row) => ({ id: row.id, branchId, username: row.username,
+        displayName: row.display_name, department: row.department ?? "waiter", isActive: row.is_active })),
+      meta: { hasMore, nextCursor: hasMore && last
+        ? encodeKeysetCursor({ timestamp: last.cursor_timestamp, id: last.id }) : null },
+    };
   }
 
   async startShift(principal: AuthPrincipal): Promise<ShiftDto> {

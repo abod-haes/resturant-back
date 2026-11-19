@@ -233,6 +233,16 @@ describe("QR visits, staff shifts, idempotent calls and owner fallback (PostgreS
     waiterId = a.body.data.id; hookahId = b.body.data.id;
     expect(a.body.data).not.toHaveProperty("initialPassword");
     expect(a.body.data).not.toHaveProperty("passwordHash");
+    const firstPage = await request(app.getHttpServer()).get(route("employees") + "?limit=1").set(owner());
+    expect(firstPage.status).toBe(200);
+    expect(firstPage.body.data).toHaveLength(1);
+    expect(firstPage.body.meta.hasMore).toBe(true);
+    const secondPage = await request(app.getHttpServer())
+      .get(route("employees") + "?limit=1&cursor=" + encodeURIComponent(firstPage.body.meta.nextCursor))
+      .set(owner());
+    expect(secondPage.status).toBe(200);
+    expect(secondPage.body.data[0].id).not.toBe(firstPage.body.data[0].id);
+    expect((await request(app.getHttpServer()).get(route("employees") + "?limit=101").set(owner())).status).toBe(400);
     const extra = await createEmployee(unique(), "waiter");
     expect(extra.status).toBe(403);
     expect(extra.body.error.code).toBe("PLAN_LIMIT_REACHED");

@@ -11,7 +11,7 @@ Backend: `resturant-back`, base `/api/v1`. Bearer authentication required for ow
 Never persist QR or session bearer credentials in URLs beyond the originally scanned QR, server logs, analytics or broad listing APIs. QR photos can be copied; the server does not attest location or a real physical visitor.
 
 ## Owner REST
-- `GET/POST /owner/branches/:branchId/employees`: POST `{username,displayName,initialPassword,department:"waiter"|"hookah"}` returns 201 employee info without password; maxEmployees is transactionally enforced restaurant-wide.
+- `GET/POST /owner/branches/:branchId/employees?limit=20&cursor=`: GET returns {data:Employee[],meta:PageMeta}; POST `{username,displayName,initialPassword,department:"waiter"|"hookah"}` returns 201 employee info without password; maxEmployees is transactionally enforced restaurant-wide.
 - `POST /owner/shifts/:id/force-end` closes only this restaurant's open shift.
 - `GET/PATCH /owner/call-routing`: PATCH `{routingMode:"department"|"all"}`; default department. Branch override: `GET/PATCH /owner/branches/:branchId/call-routing` PATCH `{routingMode?:"department"|"all"|null,shiftMaxMinutes?:60..1440}`. null inherits restaurant setting. Default 720-minute shift.
 - `GET /owner/calls?limit=20&cursor=`, `GET /owner/alerts?limit=20`, `POST /owner/alerts/:id/read` provide scoped history and persisted no-staff alerts.

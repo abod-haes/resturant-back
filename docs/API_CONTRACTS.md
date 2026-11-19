@@ -49,7 +49,7 @@ Base path: `/api/v1`. JSON envelope: `{data,meta?}`; errors: `{error:{code,messa
 - Owner-only endpoints require RESTAURANT_OWNER and tenant/branch scope, plus operational subscription. Tables require the plan's menu feature at creation. Area and floor activation/archival are respected by public QR. Documented errors: PLAN_LIMIT_REACHED (403), QR_NOT_CONFIGURED (503), QR_REVOKED (404 public /409 owner read), TABLE_LABEL_TAKEN, AREA_NAME_TAKEN, FLOOR_NAME_TAKEN, FLOOR_NOT_EMPTY, AREA_NOT_EMPTY, DUPLICATE_TABLE_LABELS; cross-tenant resource always 404.
 
 ## Owner employees and routing — implemented v1.8.0
-- GET/POST /owner/branches/:branchId/employees. Create {username,displayName,initialPassword,department:"waiter"|"hookah"} -> 201 {data:Employee}, listing {data:Employee[]} (capped 100). No passwords returned. Employee quota counts all employee accounts under restaurant lock; initial password change mandatory.
+- GET/POST /owner/branches/:branchId/employees?limit=20&cursor=. GET -> {data:Employee[],meta:PageMeta} (max 100). Create {username,displayName,initialPassword,department:"waiter"|"hookah"} -> 201 {data:Employee}, listing cursor pagination default 20 max 100. No passwords returned. Employee quota counts all employee accounts under restaurant lock; initial password change mandatory.
 - POST /owner/shifts/:id/force-end -> 200 {data:Shift}, only own tenant's shift.
 - GET/PATCH /owner/call-routing with {routingMode:"all"|"department"}. Default department.
 - GET/PATCH /owner/branches/:branchId/call-routing with {routingMode?:"all"|"department"|null,shiftMaxMinutes?:60..1440}. Null inherits restaurant default; shift duration defaults 720min.

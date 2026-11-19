@@ -1,10 +1,10 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, ParseUUIDPipe, Post, Req, UnauthorizedException } from "@nestjs/common";
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, ParseUUIDPipe, Post, Query, Req, UnauthorizedException } from "@nestjs/common";
 import { ApiBearerAuth, ApiCreatedResponse, ApiOkResponse, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { BranchScope, Roles } from "../../../common/auth/policy.decorators";
 import type { AuthenticatedRequest } from "../../../common/auth/authenticated-request";
 import { WorkforceService } from "../application/workforce.service";
 import {
-  CreateEmployeeDto, EmployeeEnvelopeDto, EmployeeListEnvelopeDto, ShiftEnvelopeDto,
+  CreateEmployeeDto, EmployeeEnvelopeDto, EmployeeListEnvelopeDto, EmployeePageQueryDto, ShiftEnvelopeDto,
 } from "./workforce.dto";
 
 function principal(req: AuthenticatedRequest) {
@@ -26,9 +26,9 @@ export class OwnerEmployeesController {
     return { data: await this.service.createEmployee(principal(req), branchId, body, req.requestId) };
   }
   @Get() @ApiOkResponse({ type: EmployeeListEnvelopeDto })
-  async list(@Param("branchId", uuid()) branchId: string,
+  async list(@Param("branchId", uuid()) branchId: string, @Query() query: EmployeePageQueryDto,
     @Req() req: AuthenticatedRequest): Promise<EmployeeListEnvelopeDto> {
-    return { data: await this.service.listEmployees(principal(req), branchId) };
+    return this.service.listEmployees(principal(req), branchId, query);
   }
 }
 
