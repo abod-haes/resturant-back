@@ -22,9 +22,9 @@ const NEW_STAFF = "CallIntegrationStaffChanged_2026!";
 describe("QR sessions and shift-aware calls (PostgreSQL)", () => {
   let app: INestApplication;
   let pool: Pool;
-  let adminToken = "", ownerToken = "", employeeToken = "";
+  let adminToken = "", ownerToken = "", employeeToken = "", platformToken = "";
   let restaurantId = "", branchId = "", tableId = "", qrToken = "", visitToken = "";
-  let employeeId = "";
+  let employeeId = "", otherBranchId = "";
   const gateway: PushGateway = {
     send: jest.fn(async () => ({ ok: true as const, id: "integration-expo-ticket" })),
     receipts: jest.fn(async (ids: readonly string[]) => Object.fromEntries(
@@ -67,6 +67,15 @@ describe("QR sessions and shift-aware calls (PostgreSQL)", () => {
     const login = await request(app.getHttpServer()).post("/api/v1/auth/login")
       .send({ username: adminName, password: ADMIN, client: "mobile" });
     expect(login.status).toBe(200); adminToken = login.body.data.accessToken;
+    const platformName = unique(), platformId = randomUUID();
+    users.push(platformId); names.push(platformName);
+    await pool.query(`INSERT INTO users (id,username,display_name,password_hash,role,must_change_password)
+      VALUES ($1,$2,'Call Platform Admin',$3,'PLATFORM_ADMIN',false)`,
+      [platformId, platformName, await hashPassword(ADMIN)]);
+    const platformLogin = await request(app.getHttpServer()).post("/api/v1/auth/login")
+      .send({ username: platformName, password: ADMIN, client: "mobile" });
+    expect(platformLogin.status).toBe(200);
+    platformToken = platformLogin.body.data.accessToken;
     const username = unique();
     const restaurant = await request(app.getHttpServer()).post("/api/v1/admin/restaurants").set(admin())
       .send({ name: "Call Test Restaurant", owner: { name: "Owner", username, initialPassword: INITIAL },
@@ -75,6 +84,16 @@ describe("QR sessions and shift-aware calls (PostgreSQL)", () => {
     restaurantId = restaurant.body.data.id; branchId = restaurant.body.data.branchId;
     restaurantIds.push(restaurantId); branchIds.push(branchId);
     users.push(restaurant.body.data.ownerId); names.push(username);
+    const otherUsername = unique();
+    const otherRestaurant = await request(app.getHttpServer()).post("/api/v1/admin/restaurants")
+      .set(admin()).send({ name: "Other Analytics Tenant",
+        owner: { name: "Other Owner", username: otherUsername, initialPassword: INITIAL },
+        initialBranch: { name: "Other Main" } });
+    expect(otherRestaurant.status).toBe(201);
+    otherBranchId = otherRestaurant.body.data.branchId;
+    restaurantIds.push(otherRestaurant.body.data.id);
+    branchIds.push(otherBranchId);
+    users.push(otherRestaurant.body.data.ownerId); names.push(otherUsername);
     const plan = await request(app.getHttpServer()).post("/api/v1/admin/plans").set(admin()).send({
       name: unique(), maxBranches: 2, maxTables: 10, maxEmployees: 1,
       features: { menu: true, waiter_calls: true, hookah_calls: true, analytics: true },
@@ -330,7 +349,7 @@ describe("QR sessions and shift-aware calls (PostgreSQL)", () => {
     expect(future.body.data.summary.totalCalls).toBe(0);
     expect(future.body.data.daily.map((x: { totalCalls: number }) => x.totalCalls)).toEqual([0,0]);
     const foreignBranch = await request(app.getHttpServer())
-      .get("/api/v1/owner/call-analytics?branchId=" + randomUUID()).set(owner());
+      .get("/api/v1/owner/call-analytics?branchId=" + otherBranchId).set(owner());
     expect(foreignBranch.status).toBe(404);
     const invalid = await request(app.getHttpServer())
       .get("/api/v1/owner/call-analytics?from=2026-02-30&to=2026-03-01").set(owner());
@@ -372,6 +391,7 @@ describe("QR sessions and shift-aware calls (PostgreSQL)", () => {
     expect((await request(app.getHttpServer()).get(query + "&limit=101").set(admin())).status).toBe(400);
     expect((await request(app.getHttpServer()).get(query + "&action=invalid%20action").set(admin())).status).toBe(400);
     expect((await request(app.getHttpServer()).get(query).set(owner())).status).toBe(403);
+    expect((await request(app.getHttpServer()).get(query).set(auth(platformToken))).status).toBe(403);
     expect((await request(app.getHttpServer()).get(query).set(auth(employeeToken))).status).toBe(403);
     expect((await request(app.getHttpServer()).get(query)).status).toBe(401);
   });
