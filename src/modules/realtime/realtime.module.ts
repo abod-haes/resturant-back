@@ -1,6 +1,6 @@
 import { Module } from "@nestjs/common";
 import { DatabaseModule } from "../../database/database.module";
-import { AuthModule } from "../auth/presentation/auth.module";
+import { AuthModule } from "../auth";
 import { RealtimeService } from "./application/realtime.service";
 import { RealtimeController } from "./presentation/realtime.controller";
 

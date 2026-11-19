@@ -1,5 +1,5 @@
 import { ForbiddenException, Injectable, UnauthorizedException, type MessageEvent } from "@nestjs/common";
-import { concatMap, defer, from, map, mergeMap, takeUntil, timer, type Observable } from "rxjs";
+import { concatMap, defer, from, mergeMap, takeUntil, timer, type Observable } from "rxjs";
 import { DatabaseService } from "../../../database/database.service";
 import type { AuthPrincipal } from "../../../common/auth/principal";
 import { requireOperationalEntitlements } from "../../../common/subscription/operational-entitlement";
