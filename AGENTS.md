@@ -5,6 +5,9 @@ Read `docs/ENGINEERING_PLAYBOOK.md` before every change. Run `npm run check:arch
 
 Read `docs/ARCHITECTURE.md`, `docs/API_CONTRACTS.md`, `docs/RBAC_MATRIX.md`, and `docs/TEST_STRATEGY.md` before editing. PRD and ADR-001 override old plans. Do not invent features or endpoints.
 
+## Parallel work mandatory: backend + dashboard
+Before writing a feature, read `docs/PARALLEL_DEVELOPMENT.md`. Work only in this repository. The backend owns API contract, auth/security, validation and data semantics. Dashboard consumes versioned contracts and may proceed with independent mocks; do not treat demo adapters as implemented production endpoints. At each endpoint handshake, check DTOs, response envelope, pagination, errors, role/tenant/branch scope and sample payloads. Never silently change a contract in one repository. Each feature must finish with explicit test/build verification and a cross-repo handoff note. If backend and dashboard disagree, mark integration BLOCKED rather than guessing.
+
 ## Non-negotiable rules
 1. Feature-first modules. Each module owns UI/application/domain/infrastructure as applicable. Imports follow dependency direction; no feature imports another feature's private files. Public barrels only.
 2. Strict TypeScript; no `any`, unsafe casts, untyped JSON, ignored TS errors, or silent catch. Validate external input at boundaries (Zod for clients, DTO validation for Nest).
