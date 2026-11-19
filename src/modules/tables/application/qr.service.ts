@@ -105,7 +105,7 @@ export class QrService {
       .select([
         "qr_credentials.version", "restaurant_tables.id as table_id",
         "restaurant_tables.label as table_label", "restaurant_tables.qr_version",
-        "restaurant_tables.is_active as table_active", "restaurant_tables.qr_enabled",
+        "restaurant_tables.is_active as table_active", "restaurant_tables.qr_enabled", "restaurant_tables.calls_enabled",
         "restaurant_tables.archived_at as table_archived",
         "areas.is_active as area_active", "areas.archived_at as area_archived",
         "floors.is_active as floor_active", "floors.archived_at as floor_archived",
@@ -120,13 +120,17 @@ export class QrService {
       || row.floor_archived || !row.branch_active || !row.restaurant_active) {
       throw new NotFoundException({ code: "QR_REVOKED", message: "QR is unavailable" });
     }
-    await requireOperationalEntitlements(this.database.db, row.restaurant_id, "menu");
+    const entitlement = await requireOperationalEntitlements(this.database.db, row.restaurant_id, "menu");
+    const availableCallTypes: ("waiter" | "hookah")[] = [];
+    if (row.calls_enabled && entitlement.features.waiter_calls) availableCallTypes.push("waiter");
+    if (row.calls_enabled && entitlement.features.hookah_calls) availableCallTypes.push("hookah");
     return {
       restaurant: { name: row.restaurant_name },
       branch: { name: row.branch_name, slug: row.slug },
       table: { id: row.table_id, label: row.table_label },
       menuPath: "/api/v1/public/menu/" + row.slug,
-      callsAvailable: false,
+      callsAvailable: availableCallTypes.length > 0,
+      availableCallTypes,
     };
   }
 

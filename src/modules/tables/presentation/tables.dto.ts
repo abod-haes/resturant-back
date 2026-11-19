@@ -116,6 +116,8 @@ export class PublicTableContextDto {
   @ApiProperty() table!: { id: string; label: string };
   @ApiProperty() menuPath!: string;
   @ApiProperty() callsAvailable!: boolean;
+  @ApiProperty({ enum: ["waiter", "hookah"], isArray: true })
+  availableCallTypes!: ("waiter" | "hookah")[];
 }
 export class PublicTableContextResponseDto { @ApiProperty({ type: PublicTableContextDto }) data!: PublicTableContextDto; }
 

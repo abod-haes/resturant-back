@@ -310,7 +310,7 @@ describe("QR visits, staff shifts, idempotent calls and owner fallback (PostgreS
   });
 
   it("excludes expired shifts from routing; owner can force-end without touching other tenant", async () => {
-    await pool.query("UPDATE employee_shifts SET planned_ends_at=now() - interval '1 second' WHERE id=$1",
+    await pool.query("UPDATE employee_shifts SET started_at=now() - interval '2 hours', planned_ends_at=now() - interval '1 hour' WHERE id=$1",
       [hookahShiftId]);
     await pool.query("UPDATE service_calls SET created_at=now() - interval '15 seconds' WHERE restaurant_id=$1", [restaurantId]);
     const newSession = await request(app.getHttpServer()).post("/api/v1/public/t/" + qrToken + "/sessions");
@@ -356,7 +356,7 @@ describe("QR visits, staff shifts, idempotent calls and owner fallback (PostgreS
     const prior = await request(app.getHttpServer()).post("/api/v1/public/t/" + qrToken + "/sessions");
     expect(prior.status).toBe(201);
     const sessionToken = prior.body.data.sessionToken;
-    await pool.query("UPDATE visit_sessions SET expires_at=now() - interval '1 second' WHERE token_hash=$1",
+    await pool.query("UPDATE visit_sessions SET created_at=now() - interval '5 hours', last_activity_at=now() - interval '5 hours', expires_at=now() - interval '1 hour' WHERE token_hash=$1",
       [hashOpaqueToken(sessionToken)]);
     expect((await request(app.getHttpServer()).post("/api/v1/public/sessions/heartbeat")
       .send({ sessionToken })).status).toBe(401);
