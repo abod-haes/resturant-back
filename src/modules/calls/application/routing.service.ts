@@ -80,7 +80,7 @@ export class RoutingService {
       const previous = await trx.selectFrom("branch_call_settings").selectAll()
         .where("branch_id", "=", branchId).executeTakeFirst();
       await trx.insertInto("branch_call_settings").values({
-        branch_id: branchId, routing_mode: patch.routingMode === undefined ? previous?.routing_mode ?? null : patch.routingMode,
+        branch_id: branchId, routing_mode: patch.routingMode ?? previous?.routing_mode ?? null,
         shift_max_minutes: patch.shiftMaxMinutes ?? previous?.shift_max_minutes ?? 720,
       }).onConflict((oc) => oc.column("branch_id").doUpdateSet({
         routing_mode: patch.routingMode === undefined ? previous?.routing_mode ?? null : patch.routingMode,

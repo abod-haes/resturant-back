@@ -10,7 +10,7 @@ import { decodeKeysetCursor, encodeKeysetCursor } from "../../../common/paginati
 import { requireOperationalEntitlements } from "../../../common/subscription/operational-entitlement";
 import { DatabaseService } from "../../../database/database.service";
 import type { ServiceCallsTable } from "../../../database/database.types";
-import { cooldownSeconds, visitExpiresAt } from "../../../common/visits/visit-policy";
+import { CALL_COOLDOWN_SECONDS, cooldownSeconds, visitExpiresAt } from "../../visits/domain/visit-policy";
 import type { CallDto, CreateCallDto, ListCallsQueryDto, OwnerAlertDto } from "../presentation/calls.dto";
 import { effectiveRouting } from "./routing.service";
 
