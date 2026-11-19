@@ -70,7 +70,7 @@ export class CallsService {
       if (last && now.getTime() - last.created_at.getTime() < CALL_COOLDOWN_MS) {
         const retryAfterSeconds = Math.ceil((CALL_COOLDOWN_MS - (now.getTime() - last.created_at.getTime())) / 1000);
         throw new HttpException({
-          code: "COOLDOWN_ACTIVE", message: "Please retry after cooldown", retryAfterSeconds,
+          code: "COOLDOWN_ACTIVE", message: "Please retry after cooldown", details: { retryAfterSeconds },
         }, 429);
       }
       const candidates = await trx.selectFrom("employee_shifts")
