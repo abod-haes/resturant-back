@@ -6,7 +6,7 @@ import {
   ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiTags,
 } from "@nestjs/swagger";
 import { Roles } from "../../../common/auth/policy.decorators";
-import type { AuthenticatedRequest } from "../../auth/presentation/auth.guards";
+import type { AuthenticatedRequest } from "../../../common/auth/authenticated-request";
 import { RestaurantAdminService } from "../application/restaurant-admin.service";
 import {
   CreateRestaurantDto, OnboardingResponseDto, RestaurantDetailsResponseDto,
