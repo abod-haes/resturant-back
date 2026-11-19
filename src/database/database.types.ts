@@ -34,6 +34,44 @@ export interface BranchesTable extends Timestamped {
   is_active: Generated<boolean>;
 }
 
+export interface CategoriesTable extends Timestamped {
+  id: Generated<string>;
+  restaurant_id: string;
+  branch_id: string;
+  name: string;
+  description: string | null;
+  sort_order: Generated<number>;
+  is_active: Generated<boolean>;
+  archived_at: Date | null;
+}
+
+export interface ProductsTable extends Timestamped {
+  id: Generated<string>;
+  restaurant_id: string;
+  branch_id: string;
+  category_id: string;
+  name: string;
+  description: string | null;
+  price_minor: number;
+  old_price_minor: number | null;
+  currency: string;
+  tags: ColumnType<string[], string[] | undefined, string[]>;
+  is_visible: Generated<boolean>;
+  is_sold_out: Generated<boolean>;
+  sort_order: Generated<number>;
+  archived_at: Date | null;
+}
+
+export interface ProductImagesTable {
+  id: Generated<string>;
+  product_id: string;
+  branch_id: string;
+  url: string;
+  alt: string | null;
+  sort_order: number;
+  created_at: Generated<Date>;
+}
+
 export interface UsersTable extends Timestamped {
   id: Generated<string>;
   username: string;
@@ -134,6 +172,9 @@ export interface AuthLoginAttemptsTable {
 export interface DatabaseTables {
   restaurants: RestaurantsTable;
   branches: BranchesTable;
+  categories: CategoriesTable;
+  products: ProductsTable;
+  product_images: ProductImagesTable;
   users: UsersTable;
   plans: PlansTable;
   subscriptions: SubscriptionsTable;

@@ -1,0 +1,89 @@
+import { Injectable, NotFoundException } from "@nestjs/common";
+import { sql } from "kysely";
+import { DatabaseService } from "../../../database/database.service";
+import { decodeKeysetCursor, encodeKeysetCursor } from "../../../common/pagination/keyset";
+import { requireOperationalEntitlements } from "../../../common/subscription/operational-entitlement";
+import type { CategoryDto, MenuPageDto, PublicMenuDto } from "../presentation/menu.dto";
+import { imagesForProducts, productDto } from "./products.service";
+
+@Injectable()
+export class PublicMenuService {
+  constructor(private readonly database: DatabaseService) {}
+
+  private async resolveBranch(slug: string) {
+    const branch = await this.database.db.selectFrom("branches")
+      .innerJoin("restaurants", "restaurants.id", "branches.restaurant_id")
+      .select([
+        "branches.id", "branches.name", "branches.slug", "branches.currency",
+        "branches.restaurant_id", "restaurants.name as restaurant_name",
+        "branches.is_active", "restaurants.is_active as restaurant_active",
+      ])
+      .where("branches.slug", "=", slug).executeTakeFirst();
+    if (!branch || !branch.is_active || !branch.restaurant_active) {
+      throw new NotFoundException("Menu not found");
+    }
+    await requireOperationalEntitlements(this.database.db, branch.restaurant_id, "menu");
+    return branch;
+  }
+
+  async categories(slug: string, query: MenuPageDto) {
+    const branch = await this.resolveBranch(slug);
+    let select = this.database.db.selectFrom("categories").selectAll()
+      .select(sql<string>`to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`.as("cursor_timestamp"))
+      .where("branch_id", "=", branch.id).where("archived_at", "is", null).where("is_active", "=", true);
+    if (query.search) select = select.where(sql<boolean>`position(lower(${query.search}) in lower(name)) > 0`);
+    if (query.cursor) {
+      const cursor = decodeKeysetCursor(query.cursor);
+      select = select.where(sql<boolean>`(created_at,id) < (${cursor.timestamp}::timestamptz,${cursor.id}::uuid)`);
+    }
+    const result = await select.orderBy("created_at", "desc").orderBy("id", "desc").limit(query.limit + 1).execute();
+    const hasMore = result.length > query.limit;
+    const rows = result.slice(0, query.limit);
+    const last = rows.at(-1);
+    const data: CategoryDto[] = rows.map((row) => ({
+      id: row.id, branchId: row.branch_id, name: row.name, description: row.description,
+      sortOrder: row.sort_order, isActive: row.is_active, createdAt: row.created_at.toISOString(),
+    }));
+    return { data, meta: { hasMore, nextCursor: hasMore && last
+      ? encodeKeysetCursor({ timestamp: last.cursor_timestamp, id: last.id }) : null } };
+  }
+
+  async list(slug: string, query: MenuPageDto): Promise<{ data: PublicMenuDto; meta: { hasMore: boolean; nextCursor: string | null } }> {
+    const branch = await this.resolveBranch(slug);
+    let select = this.database.db.selectFrom("products")
+      .innerJoin("categories", (join) => join.onRef("categories.id", "=", "products.category_id")
+        .onRef("categories.branch_id", "=", "products.branch_id"))
+      .selectAll("products")
+      .select(sql<string>`to_char(products.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`.as("cursor_timestamp"))
+      .where("products.branch_id", "=", branch.id).where("products.archived_at", "is", null)
+      .where("products.is_visible", "=", true)
+      .where("categories.archived_at", "is", null).where("categories.is_active", "=", true);
+    if (query.search) select = select.where(sql<boolean>`position(lower(${query.search}) in lower(products.name)) > 0`);
+    if (query.cursor) {
+      const cursor = decodeKeysetCursor(query.cursor);
+      select = select.where(sql<boolean>`(products.created_at,products.id) < (${cursor.timestamp}::timestamptz,${cursor.id}::uuid)`);
+    }
+    const result = await select.orderBy("products.created_at", "desc").orderBy("products.id", "desc")
+      .limit(query.limit + 1).execute();
+    const hasMore = result.length > query.limit;
+    const page = result.slice(0, query.limit);
+    const images = await imagesForProducts(this.database.db, page.map((row) => row.id));
+    const categoryIds = [...new Set(page.map((row) => row.category_id))];
+    const categories = categoryIds.length ? await this.database.db.selectFrom("categories").selectAll()
+      .where("id", "in", categoryIds).execute() : [];
+    const last = page.at(-1);
+    return {
+      data: {
+        restaurant: { name: branch.restaurant_name },
+        branch: { name: branch.name, slug: branch.slug, currency: branch.currency },
+        products: page.map((row) => productDto(row, images.get(row.id) ?? [])),
+        categories: categories.map((row) => ({
+          id: row.id, branchId: row.branch_id, name: row.name, description: row.description,
+          sortOrder: row.sort_order, isActive: row.is_active, createdAt: row.created_at.toISOString(),
+        })),
+      },
+      meta: { hasMore, nextCursor: hasMore && last
+        ? encodeKeysetCursor({ timestamp: last.cursor_timestamp, id: last.id }) : null },
+    };
+  }
+}

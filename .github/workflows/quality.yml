@@ -26,6 +26,7 @@ jobs:
       DB_CONNECT_TIMEOUT_MS: 2000
       PORT: 3000
       CORS_ORIGINS: http://localhost:5173
+      MEDIA_ALLOWED_ORIGINS: https://images.example.test
       AUTH_ACCESS_SECRET: ci-only-test-jwt-signing-key-2026-do-not-use-in-production
     steps:
       - uses: actions/checkout@v4
