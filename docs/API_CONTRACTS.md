@@ -18,9 +18,19 @@ Base path: `/api/v1`. JSON envelope: `{data,meta?}`; errors: `{error:{code,messa
 - PATCH /admin/restaurants/:id accepts {name?,isActive?} with at least one field -> updated detail. When disabled, owner sessions become invalid on their next request.
 - Admin endpoints require bearer access token and role PRIMARY_ADMIN or PLATFORM_ADMIN; no owner or employee access. Client-supplied tenant identifiers are not accepted. Audit create/update with requestId; no passwords returned or logged.
 - Errors: 400 VALIDATION_ERROR (DTO/cursor), 401 UNAUTHORIZED, 403 FORBIDDEN or PASSWORD_CHANGE_REQUIRED, 404 NOT_FOUND, 409 OWNER_USERNAME_TAKEN for username collision; errors use {error:{code,message,details?},requestId}.
-- GET/POST/PATCH /admin/plans; POST /admin/subscriptions/:id/activate; POST /admin/subscriptions/:id/renew
-- GET/POST/PATCH /admin/plans; POST /admin/subscriptions/:id/activate; POST /admin/subscriptions/:id/renew
-- GET/PATCH /admin/contact-methods; GET /admin/audit-logs
+## Plans & subscriptions — implemented slice v1.5.0
+- GET /admin/plans?limit=&cursor= -> {data:[Plan],meta:{nextCursor,hasMore}} (default 20 max 100, newest first); GET /admin/plans/:id -> {data:Plan}.
+- POST /admin/plans {name,maxBranches,maxTables,maxEmployees,features:{menu,waiter_calls,hookah_calls,analytics}} -> 201 {data:Plan}. All four feature flags are required booleans, limits integers; PATCH /admin/plans/:id accepts partial fields, feature flags merged. Existing active subscription snapshots do not change when a plan is edited. Disabling a plan blocks new activations/renewals, not currently granted rights.
+- POST /admin/restaurants/:restaurantId/subscriptions {planId,period:"monthly"|"yearly"} -> 201 {data:Subscription} with effectiveStatus=pending. One pending draft per restaurant.
+- GET /admin/restaurants/:restaurantId/subscription -> {data:Subscription|null}.
+- POST /admin/subscriptions/:id/activate {startsAt?:UTC ISO Z,graceDays:0..365} -> {data:Subscription}; only pending subscription. At most one active subscription per restaurant; an old expired record is archived atomically when a replacement is activated.
+- POST /admin/subscriptions/:id/renew {period?:monthly|yearly,graceDays:0..365} -> {data:Subscription}. Manual only; monthly/yearly UTC calendar clamping (Jan 31 -> Feb 28/29). Renews from the previous end while active or during grace; after grace starts from now. Preserves per-term history and keeps the original active window start on early renewal.
+- Subscription: {id,restaurantId,planId,period,effectiveStatus:pending|scheduled|active|grace|expired|cancelled,canOperate,startsAt,endsAt,graceEndsAt,graceDays,entitlements:{maxBranches,maxTables,maxEmployees,features}|null}. Effective status is derived at read time; grace allows operation until graceEndsAt (exclusive).
+- GET /admin/contact-methods -> {data:Contact[]}; PATCH /admin/contact-methods {contacts:[{type:whatsapp|phone|email,label,value,enabled}]} -> atomic replacement and audit, max 10.
+- GET /owner/subscription -> {data:{subscription:Subscription|null,canOperate,renewalContacts:enabledContacts[]}}. Allows owner to see renewal channels even after expiry, with no payment checkout/auto-renewal.
+- Server-side policy SubscriptionsService.assertOperational(restaurantId,feature?) is available; **future** owner/employee/customer operational routes must call it, and enforce plan quotas inside their own database transaction. This slice does NOT claim to enforce branch/table/employee limits on routes not yet implemented.
+- All admin endpoints require PRIMARY_ADMIN or PLATFORM_ADMIN; owner reads own restaurant only. Errors use standard envelope and may include PLAN_NAME_TAKEN, PLAN_UNAVAILABLE, SUBSCRIPTION_PENDING, SUBSCRIPTION_NOT_PENDING, SUBSCRIPTION_ALREADY_ACTIVE, SUBSCRIPTION_NOT_RENEWABLE, PLAN_FEATURE_DISABLED, SUBSCRIPTION_INACTIVE. No payment endpoints.
+- GET /admin/audit-logs (planned; not implemented)
 
 ## Owner
 - GET/POST/PATCH /owner/branches; GET/PATCH /owner/settings
@@ -33,7 +43,7 @@ Base path: `/api/v1`. JSON envelope: `{data,meta?}`; errors: `{error:{code,messa
 - GET /owner/calls?branchId=&type=&from=&to=&cursor=&limit=
 - GET /owner/call-analytics; GET /owner/alerts
 - PATCH /owner/branches/:branchId/call-settings {enabled,waiterEnabled,hookahEnabled,routingMode?}
-- GET /owner/subscription
+- GET /owner/subscription (implemented v1.5.0 as above)
 
 ## Public
 - GET /public/menu/:slug -> public menu (NO call credentials)

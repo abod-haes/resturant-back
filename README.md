@@ -3,7 +3,7 @@
 NestJS + PostgreSQL multi-tenant restaurant QR menu and staff-call platform.
 
 ## Repository status
-Core database schema, Auth/RBAC, and platform-admin restaurant onboarding (create/list/detail/update) are implemented. Further branch/menu CRUD, QR, calls, push, plan subscriptions, and subscription enforcement are future milestones. `openapi/restaurant.v1.yaml` is a draft that includes unimplemented operations; **generated** `/api/docs-json` reflects actually implemented endpoints.
+Core database schema, Auth/RBAC, and platform-admin restaurant onboarding (create/list/detail/update) are implemented. Manual plan and subscription administration, owner status and renewal contacts are implemented in the subscriptions slice. Branch/menu CRUD, QR, calls, push, and actual limits enforcement in those future modules remain pending. `openapi/restaurant.v1.yaml` is a draft that includes unimplemented operations; **generated** `/api/docs-json` reflects actually implemented endpoints.
 
 ## Start locally
 1. Use Node 20 and PostgreSQL 17. `cp .env.example .env`, set local database credentials and generate a random `AUTH_ACCESS_SECRET` (at least 32 UTF-8 bytes): `node -e "console.log(require('node:crypto').randomBytes(32).toString('base64url'))"`.

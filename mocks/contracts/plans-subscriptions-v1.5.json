@@ -1,0 +1,55 @@
+{
+  "schemaVersion": "1.5.0",
+  "plan": {
+    "id": "53e76f8b-ef49-4dab-b597-11e6edecb584",
+    "name": "Basic",
+    "maxBranches": 2,
+    "maxTables": 50,
+    "maxEmployees": 10,
+    "features": {
+      "menu": true,
+      "waiter_calls": true,
+      "hookah_calls": false,
+      "analytics": false
+    },
+    "isActive": true,
+    "createdAt": "2026-11-19T18:00:00.000Z"
+  },
+  "subscription": {
+    "id": "d6d1ce5e-b731-4fea-a6cb-ef44fc8e7e20",
+    "restaurantId": "5ab2f857-df32-467b-8af5-8e41a73ce5dc",
+    "planId": "53e76f8b-ef49-4dab-b597-11e6edecb584",
+    "period": "monthly",
+    "effectiveStatus": "active",
+    "canOperate": true,
+    "startsAt": "2026-11-19T18:00:00.000Z",
+    "endsAt": "2026-12-19T18:00:00.000Z",
+    "graceEndsAt": "2026-12-26T18:00:00.000Z",
+    "graceDays": 7,
+    "entitlements": {
+      "maxBranches": 2,
+      "maxTables": 50,
+      "maxEmployees": 10,
+      "features": {
+        "menu": true,
+        "waiter_calls": true,
+        "hookah_calls": false,
+        "analytics": false
+      }
+    }
+  },
+  "ownerResponse": {
+    "data": {
+      "subscription": null,
+      "canOperate": false,
+      "renewalContacts": [
+        {
+          "type": "whatsapp",
+          "label": "Renew subscription",
+          "value": "+15550001111",
+          "enabled": true
+        }
+      ]
+    }
+  }
+}
