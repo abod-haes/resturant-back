@@ -50,3 +50,9 @@ PR #4 runs DB migrations twice, checksum gate, architecture, typecheck, lint, Je
 - Owner creates/archives employee accounts with plan quota and password reset; employees start/end shift with configurable auto-end and owner force-end.
 - Restaurant-wide/branch-overridable call settings, shift-aware routing, pending durable call_outbox records and owner no-staff alerts, histories and tenant isolation.
 - **No push/realtime or external notification**; queued means pending DB record only, not delivered. Frontend and staging integration not verified.
+
+## Push & Realtime v1.9 — PR #13
+- Employee-owned encrypted Expo device register/list/unregister, 5-device quota and forbidden cross-user tokens.
+- Separate opt-in worker; durable per-device push delivery jobs, Expo tickets and receipt polling, bounded retries and stale call filtering. Tickets/receipts do not assert handset delivery.
+- Durable transactionally committed per-restaurant SSE event sequence, tenant owner and employee recipient scoping with auth rechecks.
+- Actual Expo/FCM/APNs network delivery and app-specific Android/iOS channel sounds not tested; customer/dashboard/Expo client integrations NOT COMPLETE.

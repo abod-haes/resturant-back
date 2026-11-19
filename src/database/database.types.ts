@@ -224,8 +224,51 @@ export interface BranchCallSettingsTable { branch_id: string; enabled: boolean |
 export interface EmployeeShiftsTable { id: Generated<string>; user_id: string; restaurant_id: string; branch_id: string; department: Department; started_at: Generated<Date>; auto_end_at: Date; ended_at: Date | null; ended_by_user_id: string | null; }
 export interface VisitSessionsTable { id: Generated<string>; restaurant_id: string; branch_id: string; table_id: string; credential_id: string; credential_version: number; token_hash: string; created_at: Generated<Date>; last_activity_at: Generated<Date>; expires_at: Date; first_call_confirmed: Generated<boolean>; revoked_at: Date | null; }
 export interface ServiceCallsTable { id: Generated<string>; restaurant_id: string; branch_id: string; table_id: string; session_id: string; type: CallType; idempotency_key: string; delivery_state: CallDeliveryState; recipients_count: number; owner_alerted: boolean; created_at: Generated<Date>; }
-export interface CallOutboxTable { id: Generated<string>; call_id: string; recipient_user_id: string; state: Generated<"pending" | "sent" | "failed">; attempts: Generated<number>; created_at: Generated<Date>; last_attempt_at: Date | null; }
+export interface CallOutboxTable { id: Generated<string>; call_id: string; recipient_user_id: string; state: Generated<"pending" | "sent" | "failed">; attempts: Generated<number>; created_at: Generated<Date>; last_attempt_at: Date | null; next_attempt_at: Generated<Date>; }
 export interface OwnerAlertsTable { id: Generated<string>; restaurant_id: string; branch_id: string; call_id: string; type: "no_staff"; created_at: Generated<Date>; viewed_at: Date | null; }
+export type RealtimeEventType = "call.created" | "owner.alert.created" | "shift.updated";
+export type PushDeliveryStatus = "pending" | "accepted" | "failed";
+export type PushReceiptStatus = "waiting" | "ok" | "error" | "expired";
+
+export interface EmployeePushDevicesTable {
+  id: Generated<string>;
+  user_id: string;
+  platform: "android" | "ios";
+  token_hash: string;
+  token_box: string;
+  is_active: Generated<boolean>;
+  last_seen_at: Generated<Date>;
+  created_at: Generated<Date>;
+}
+export interface PushDeliveriesTable {
+  id: Generated<string>;
+  outbox_id: string;
+  device_id: string;
+  state: Generated<PushDeliveryStatus>;
+  attempts: Generated<number>;
+  next_attempt_at: Generated<Date>;
+  lease_until: Date | null;
+  ticket_id: string | null;
+  receipt_status: Generated<PushReceiptStatus>;
+  receipt_checked_at: Date | null;
+  last_error_code: string | null;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+export interface RestaurantEventCountersTable {
+  restaurant_id: string;
+  next_sequence: number;
+}
+export interface RealtimeEventsTable {
+  id: Generated<string>;
+  restaurant_id: string;
+  sequence: number;
+  branch_id: string;
+  recipient_user_id: string | null;
+  event_type: RealtimeEventType;
+  payload: ColumnType<Record<string, unknown>, Record<string, unknown>, never>;
+  created_at: Generated<Date>;
+}
 export interface DatabaseTables {
   restaurants: RestaurantsTable;
   branches: BranchesTable;
@@ -252,4 +295,8 @@ export interface DatabaseTables {
   service_calls: ServiceCallsTable;
   call_outbox: CallOutboxTable;
   owner_alerts: OwnerAlertsTable;
+  employee_push_devices: EmployeePushDevicesTable;
+  push_deliveries: PushDeliveriesTable;
+  restaurant_event_counters: RestaurantEventCountersTable;
+  realtime_events: RealtimeEventsTable;
 }

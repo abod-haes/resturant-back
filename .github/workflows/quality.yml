@@ -28,6 +28,8 @@ jobs:
       CORS_ORIGINS: http://localhost:5173
       MEDIA_ALLOWED_ORIGINS: https://images.example.test
       QR_TOKEN_ENCRYPTION_KEY: 345618728b95fc72f82ca89322f4e1f673568be64736c395e1b27aae65a65df4
+      PUSH_TOKEN_ENCRYPTION_KEY: 67250bd87f9321cad5ae622c3e572ffc58926ae0b5d38e25a837819acb703e51
+      PUSH_DISPATCH_ENABLED: "false"
       CUSTOMER_APP_ORIGIN: https://customer.example.test
       AUTH_ACCESS_SECRET: ci-only-test-jwt-signing-key-2026-do-not-use-in-production
     steps:
@@ -40,6 +42,7 @@ jobs:
       - run: npm run db:migrate # idempotency: reapply is a no-op
       - run: npm run db:migrate:check
       - run: npm run check:architecture
+      - run: npm run check:contract
       - run: npm run typecheck
       - run: npm run lint
       - run: npm run test:unit

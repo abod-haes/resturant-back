@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Restaurant Platform API
-  version: 0.8.0-draft
+  version: 0.9.0-draft
   description: "Initial executable contract slice. Remaining endpoints documented in docs/OPENAPI_IMPLEMENTATION.md; do not treat this file as complete."
 servers:
   - url: /api/v1
@@ -266,7 +266,128 @@ components:
         autoEndAt: { type: string, format: date-time }
         endedAt: { type: [string, "null"], format: date-time }
 
+    PushDevice:
+      type: object
+      required: [id, platform, isActive, lastSeenAt, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        platform: { type: string, enum: [android, ios] }
+        isActive: { type: boolean }
+        lastSeenAt: { type: string, format: date-time }
+        createdAt: { type: string, format: date-time }
+    RealtimeEvent:
+      type: object
+      required: [eventId, eventType, occurredAt, branchId, payload]
+      properties:
+        eventId: { type: string, format: uuid }
+        eventType: { type: string, enum: [call.created, owner.alert.created, shift.updated] }
+        occurredAt: { type: string, format: date-time }
+        branchId: { type: string, format: uuid }
+        payload: { type: object, additionalProperties: true }
 paths:
+  /employee/devices:
+    get:
+      operationId: listEmployeePushDevices
+      tags: [Employee Push Devices]
+      security: [{ bearerAuth: [] }]
+      description: Employee-owned device metadata, never the Expo push token.
+      responses:
+        '200':
+          description: Own active devices, at most five
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/PushDevice' }
+        '403': { description: Role or subscription inactive }
+    post:
+      operationId: registerEmployeePushDevice
+      tags: [Employee Push Devices]
+      security: [{ bearerAuth: [] }]
+      description: Register encrypted Expo push token; idempotent for own token.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [expoPushToken, platform]
+              properties:
+                expoPushToken: { type: string, writeOnly: true, minLength: 25, maxLength: 300 }
+                platform: { type: string, enum: [android, ios] }
+      responses:
+        '201':
+          description: Device registered without echoing token
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/PushDevice' }
+        '400': { description: Invalid token or platform }
+        '401': { description: Missing bearer }
+        '403': { description: Not an employee or inactive subscription }
+        '409': { description: DEVICE_ALREADY_REGISTERED or DEVICE_LIMIT_REACHED }
+        '503': { description: PUSH_NOT_CONFIGURED }
+  /employee/devices/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: string, format: uuid }
+    delete:
+      operationId: unregisterEmployeePushDevice
+      tags: [Employee Push Devices]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Device unregistered in own account }
+        '404': { description: Device not in caller account }
+  /owner/events:
+    get:
+      operationId: streamOwnerRealtimeEvents
+      tags: [Realtime SSE]
+      security: [{ bearerAuth: [] }]
+      description: Authenticated owner tenant-scoped SSE stream with cursor replay.
+      parameters:
+        - in: query
+          name: after
+          schema: { type: integer, minimum: 0, default: 0 }
+        - in: header
+          name: Last-Event-ID
+          schema: { type: string }
+      responses:
+        '200':
+          description: SSE stream with five-minute reconnection and heartbeats
+          content:
+            text/event-stream:
+              schema: { type: string, description: Server-Sent Events carrying RealtimeEvent data }
+        '401': { description: Missing or expired bearer JWT }
+        '403': { description: Not owner or subscription inactive }
+  /employee/events:
+    get:
+      operationId: streamEmployeeRealtimeEvents
+      tags: [Realtime SSE]
+      security: [{ bearerAuth: [] }]
+      description: Recipient-scoped SSE with bearer in Authorization header, never query string.
+      parameters:
+        - in: query
+          name: after
+          schema: { type: integer, minimum: 0, default: 0 }
+        - in: header
+          name: Last-Event-ID
+          schema: { type: string }
+      responses:
+        '200':
+          description: Employee-assigned events, no cross-tenant payloads
+          content:
+            text/event-stream:
+              schema: { type: string, description: SSE JSON event stream }
+        '401': { description: Missing or expired bearer JWT }
+        '403': { description: Not employee or subscription inactive }
   /owner/employees:
     get:
       operationId: listOwnerEmployees
@@ -1100,10 +1221,10 @@ paths:
       tags: [Owner QR printing]
       security: [{ bearerAuth: [] }]
       parameters:
-      - in: path
-        name: branchId
-        required: true
-        schema: { type: string, format: uuid }
+        - in: path
+          name: branchId
+          required: true
+          schema: { type: string, format: uuid }
         - in: query
           name: tableIds
           schema: { type: string, maxLength: 3700 }
@@ -1580,132 +1701,3 @@ paths:
       responses:
         '200': { description: Published category page }
         '403': { description: Subscription not operational }
-  /auth/login:
-    post:
-      operationId: authLogin
-      tags: [Authentication]
-      description: Browser receives an HttpOnly refresh cookie; mobile receives refreshToken in JSON. Access token lasts 15 minutes.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [username, password]
-              properties:
-                username: { type: string, minLength: 3, maxLength: 64 }
-                password: { type: string, minLength: 1, maxLength: 128, writeOnly: true }
-                client: { type: string, enum: [web, mobile], default: web }
-      responses:
-        '200': { description: Session issued }
-        '400': { description: Validation failure }
-        '401': { description: Invalid username, password or inactive user }
-        '429': { description: Login throttled }
-  /auth/refresh:
-    post:
-      operationId: authRefresh
-      tags: [Authentication]
-      description: Refreshes and atomically rotates opaque credential. Body refreshToken is for mobile clients; web uses HttpOnly cookie and trusted Origin.
-      requestBody:
-        required: false
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                refreshToken: { type: string, description: Mobile clients only }
-      responses:
-        '200': { description: Rotated session }
-        '401': { description: Invalid or replayed refresh credential }
-  /auth/logout:
-    post:
-      operationId: authLogout
-      tags: [Authentication]
-      description: Revoke the credential's session, including its access token.
-      responses:
-        '200': { description: Session revoked }
-        '401': { description: Invalid credential }
-  /auth/me:
-    get:
-      operationId: authMe
-      tags: [Authentication]
-      security: [{ bearerAuth: [] }]
-      responses:
-        '200': { description: Current user scope and password-change state }
-        '401': { description: Missing or revoked session }
-  /auth/change-password:
-    post:
-      operationId: authChangePassword
-      tags: [Authentication]
-      security: [{ bearerAuth: [] }]
-      description: Sets a new password, clears the initial-change flag and revokes all sessions. Client must log in again.
-      responses:
-        '200': { description: Password changed }
-        '400': { description: Invalid password }
-        '401': { description: Missing or revoked session }
-        '403': { description: Current password incorrect }
-  /health/live:
-    get:
-      operationId: healthLive
-      responses:
-        '200': { description: Process is live }
-  /health/ready:
-    get:
-      operationId: healthReady
-      responses:
-        '200': { description: Database is reachable }
-        '503': { description: Database unavailable }
-  /public/t/{qrToken}/sessions:
-    post:
-      operationId: createTableSession
-      parameters:
-        - in: path
-          name: qrToken
-          required: true
-          schema: { type: string }
-      responses:
-        '201':
-          description: Visit session
-          content:
-            application/json:
-              schema:
-                type: object
-                required: [data]
-                properties:
-                  data:
-                    type: object
-                    required: [sessionToken, expiresAt, firstCallNeedsConfirmation]
-                    properties:
-                      sessionToken: { type: string }
-                      expiresAt: { type: integer, format: int64, description: Unix timestamp in milliseconds }
-                      firstCallNeedsConfirmation: { type: boolean }
-        '410': { description: QR revoked }
-        '403': { description: Subscription inactive }
-  /public/calls:
-    post:
-      operationId: createServiceCall
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [sessionToken, type, idempotencyKey]
-              properties:
-                sessionToken: { type: string }
-                type: { type: string, enum: [waiter, hookah] }
-                idempotencyKey: { type: string }
-      responses:
-        '201':
-          description: Call recorded; not necessarily delivered
-          content:
-            application/json:
-              schema:
-                type: object
-                required: [data]
-                properties:
-                  data:
-                    $ref: '#/components/schemas/ServiceCall'
-        '429': { description: Cooldown active; retryAfterSeconds in error details }
-        '403': { description: Calls disabled }
-        '401': { description: Session expired }

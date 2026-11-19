@@ -1,0 +1,58 @@
+{
+  "schemaVersion": "1.9.0",
+  "registered": {
+    "data": {
+      "id": "dda122e2-ff18-46a4-91b7-7e02a5d3df26",
+      "platform": "android",
+      "isActive": true,
+      "lastSeenAt": "2026-11-19T20:00:00.000Z",
+      "createdAt": "2026-11-19T20:00:00.000Z"
+    }
+  },
+  "devices": {
+    "data": [
+      {
+        "id": "dda122e2-ff18-46a4-91b7-7e02a5d3df26",
+        "platform": "android",
+        "isActive": true,
+        "lastSeenAt": "2026-11-19T20:00:00.000Z",
+        "createdAt": "2026-11-19T20:00:00.000Z"
+      }
+    ]
+  },
+  "unregister": {
+    "data": {
+      "unregistered": true
+    }
+  },
+  "ownerEvent": {
+    "id": "25",
+    "type": "call.created",
+    "data": {
+      "eventId": "e01814f6-4f45-47c5-8c45-5ba78f567b39",
+      "eventType": "call.created",
+      "occurredAt": "2026-11-19T20:30:00.000Z",
+      "branchId": "10fe64d5-cbf8-439c-b0fd-a6e78f18ebce",
+      "payload": {
+        "callId": "a3e65de4-38f2-4fe0-9f10-d403b3893777",
+        "branchId": "10fe64d5-cbf8-439c-b0fd-a6e78f18ebce",
+        "tableId": "86d1f6a7-b3de-4c82-925e-bb742bca82b1",
+        "type": "waiter",
+        "deliveryState": "queued",
+        "recipientsCount": 1,
+        "createdAt": "2026-11-19T20:30:00.000Z"
+      }
+    }
+  },
+  "heartbeat": {
+    "type": "heartbeat",
+    "data": {}
+  },
+  "deviceLimit": {
+    "error": {
+      "code": "DEVICE_LIMIT_REACHED",
+      "message": "At most five active devices per employee"
+    },
+    "requestId": "example-request-id"
+  }
+}

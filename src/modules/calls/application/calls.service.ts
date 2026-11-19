@@ -1,5 +1,6 @@
 import { ConflictException, ForbiddenException, HttpException, Injectable, NotFoundException, UnauthorizedException } from "@nestjs/common";
 import { sql, type Selectable } from "kysely";
+import { appendRealtimeEvents } from "../../../common/realtime/realtime-outbox";
 import { DatabaseService } from "../../../database/database.service";
 import type { AuthPrincipal } from "../../../common/auth/principal";
 import { callIsAvailable } from "../../../common/calls/call-settings";
@@ -104,6 +105,21 @@ export class CallsService {
           call_id: call.id, type: "no_staff", viewed_at: null,
         }).execute();
       }
+      const payload = { callId: call.id, branchId: call.branch_id, tableId: call.table_id,
+        type: call.type, deliveryState: call.delivery_state, recipientsCount: count,
+        createdAt: call.created_at.toISOString() };
+      await appendRealtimeEvents(trx, session.restaurant_id, [
+        { branchId: session.branch_id, recipientUserId: null, type: "call.created", payload },
+        ...candidates.map(employee => ({
+          branchId: session.branch_id, recipientUserId: employee.user_id,
+          type: "call.created" as const, payload,
+        })),
+        ...(count === 0 ? [{
+          branchId: session.branch_id, recipientUserId: null,
+          type: "owner.alert.created" as const,
+          payload: { callId: call.id, branchId: session.branch_id, type: "no_staff" },
+        }] : []),
+      ]);
       await trx.updateTable("visit_sessions").set({
         first_call_confirmed: true, last_activity_at: now,
         expires_at: new Date(now.getTime() + VISIT_IDLE_MS),
