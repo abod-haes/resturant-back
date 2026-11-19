@@ -1,5 +1,9 @@
 # Contract changelog
 
+## v1.8.0 — 2026-11-19 (Visits, employees, shifts, calls)
+4-hour idle QR-linked anonymous visit tokens hashed at rest; first-call confirmation, transactional per-table/type 10-second cooldown, session+UUID idempotency, and QR rotation/disable revocation. Owner employee accounts with scoped branch/department and maxEmployees quota, password reset and archiving; employee shifts with configurable 60..1440 minute automatic cutoff. Global call settings and nullable branch overrides; shift/department routing to durable per-recipient pending outbox. No-staff calls persist owner dashboard alerts. Owner/employee paginated call histories. Public QR callsAvailable reflects settings and entitlement. **Push, realtime, external delivery, employee device registration and analytics are not implemented**. See docs/VISITS_CALLS_HANDOFF.md and ADR-008.
+
+
 ## v1.7.0 — 2026-11-19 (Tables & QR)
 Tenant/branch-constrained floor, area and table management with soft archives, paginated owner CRUD, atomic bulk table creation (max 50/request), and transactionally enforced maxTables including disabled tables but excluding archived. Stable cryptographically random per-table QR credentials stored only as SHA-256 hashes + AES-256-GCM envelopes. QR issue on table creation; owner GET/rotate/disable; explicit QR re-enable via PATCH table. Public GET /public/t/:token returns read-only table/menu context and no session/call capability. Owner A4 printable QR PDF (up to 100 tables), with Arabic print-label fallback limitation documented. New deployment env QR_TOKEN_ENCRYPTION_KEY and CUSTOMER_APP_ORIGIN required for QR issuance/print. No client app integration, visit sessions, calls or production deployment claimed. See docs/TABLES_QR_DASHBOARD_HANDOFF.md.
 

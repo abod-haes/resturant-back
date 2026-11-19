@@ -43,3 +43,10 @@ PR #4 runs DB migrations twice, checksum gate, architecture, typecheck, lint, Je
 - A4 PDF QR sticker generation with maximum 100 labels per request; print currently uses an ID fallback for Arabic text due to built-in Helvetica glyph limitations.
 - Requires secure Dokploy environment QR_TOKEN_ENCRYPTION_KEY and CUSTOMER_APP_ORIGIN for issuing, rotating, and printing QR codes. Backend does not need them for other modules.
 - Dashboard/client/staging end-to-end handshake and server deployment NOT YET VERIFIED.
+
+## Customer Visits & Calls v1.8.0 — PR #11
+- QR-bound 4h idle visit session with only SHA256 lookup hash persisted, first-call explicit confirmation and typed active call options.
+- Serializing each table call ensures 10s waiter/hookah cooldown across devices, plus UUID idempotency per visit; prevents double-call on retried requests.
+- Owner creates/archives employee accounts with plan quota and password reset; employees start/end shift with configurable auto-end and owner force-end.
+- Restaurant-wide/branch-overridable call settings, shift-aware routing, pending durable call_outbox records and owner no-staff alerts, histories and tenant isolation.
+- **No push/realtime or external notification**; queued means pending DB record only, not delivered. Frontend and staging integration not verified.
