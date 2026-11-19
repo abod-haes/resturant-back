@@ -209,7 +209,7 @@ describe("QR sessions and shift-aware calls (PostgreSQL)", () => {
     const fresh = await request(app.getHttpServer()).post("/api/v1/public/t/" + qrToken + "/sessions");
     expect(fresh.status).toBe(201);
     visitToken = fresh.body.data.sessionToken;
-    await pool.query("UPDATE visit_sessions SET expires_at=now()-interval '1 second' WHERE token_hash=$1",
+    await pool.query("UPDATE visit_sessions SET created_at=now()-interval '5 hours', last_activity_at=now()-interval '5 hours', expires_at=now()-interval '1 second' WHERE token_hash=$1",
       [visitHash(visitToken)]);
     const expired = await publicCall(randomUUID(), true);
     expect(expired.status).toBe(401);
