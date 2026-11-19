@@ -11,7 +11,7 @@ if (spec.errors.length) {
 }
 const doc = spec.toJS();
 if (!doc || typeof doc !== "object" || doc.openapi !== "3.1.0" ||
-  doc.info?.version !== "0.10.0-draft" || !doc.paths || !doc.components?.schemas) {
+  doc.info?.version !== "0.11.0-draft" || !doc.paths || !doc.components?.schemas) {
   throw new Error("OpenAPI root, version or schemas missing");
 }
 const ops = new Set();
@@ -46,6 +46,12 @@ for (const [path, method] of [
   ["/owner/events","get"], ["/employee/events","get"],
   ["/public/calls","post"], ["/employee/shifts/start","post"],
   ["/owner/call-analytics","get"], ["/admin/audit-logs","get"],
+  ["/owner/branches/{branchId}/media/images","post"],
+  ["/owner/branches/{branchId}/media/documents","post"],
+  ["/owner/branches/{branchId}/media","get"],
+  ["/owner/branches/{branchId}/media/{id}","delete"],
+  ["/owner/branches/{branchId}/media/{id}/download","get"],
+  ["/owner/branches/{branchId}/products/{productId}/gallery","put"],
 ]) {
   if (!doc.paths[path]?.[method]) throw new Error("Missing contract: " + method + " " + path);
 }
@@ -66,5 +72,10 @@ if (reporting.schemaVersion !== "1.10.0" ||
   !Array.isArray(reporting.adminAudit?.data) ||
   reporting.adminAudit.data.some(row => "metadata" in row)) {
   throw new Error("v1.10 report/audit contract fixture invalid or leaking metadata");
+}
+const media = JSON.parse(readFileSync("mocks/contracts/media-v1.11.json","utf8"));
+if (media.schemaVersion !== "1.11.0" || media.document?.data?.url !== null ||
+  media.image?.data?.kind !== "image" || !Array.isArray(media.gallery?.data)) {
+  throw new Error("v1.11 media fixture missing or private PDF leaked");
 }
 console.log("OpenAPI and versioned fixtures OK (" + ops.size + " operations)");

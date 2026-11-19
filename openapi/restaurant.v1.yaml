@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Restaurant Platform API
-  version: 0.10.0-draft
+  version: 0.11.0-draft
   description: "Initial executable contract slice. Remaining endpoints documented in docs/OPENAPI_IMPLEMENTATION.md; do not treat this file as complete."
 servers:
   - url: /api/v1
@@ -329,7 +329,214 @@ components:
         entityId: { type: [string, "null"], format: uuid }
         requestId: { type: [string, "null"] }
         createdAt: { type: string, format: date-time }
+    ManagedMedia:
+      type: object
+      required: [id, branchId, kind, url, name, contentType, byteSize, width, height, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        branchId: { type: string, format: uuid }
+        kind: { type: string, enum: [image, document] }
+        url: { type: [string, "null"], description: Only images have an HTTPS public CDN URL }
+        name: { type: string, maxLength: 200 }
+        contentType: { type: string, enum: [image/webp, application/pdf] }
+        byteSize: { type: integer, minimum: 1 }
+        width: { type: [integer, "null"] }
+        height: { type: [integer, "null"] }
+        createdAt: { type: string, format: date-time }
+    ProductGalleryImage:
+      type: object
+      required: [id, mediaId, url, alt, sortOrder, isPrimary]
+      properties:
+        id: { type: string, format: uuid }
+        mediaId: { type: [string, "null"], format: uuid }
+        url: { type: string, format: uri }
+        alt: { type: [string, "null"], maxLength: 200 }
+        sortOrder: { type: integer, minimum: 0, maximum: 7 }
+        isPrimary: { type: boolean }
 paths:
+  /owner/branches/{branchId}/media:
+    parameters:
+      - in: path
+        name: branchId
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: listOwnerMediaLibrary
+      tags: [Owner media library]
+      security: [{ bearerAuth: [] }]
+      description: Branch-owned ready objects; no private object keys.
+      parameters:
+        - in: query
+          name: kind
+          schema: { type: string, enum: [image, document] }
+        - in: query
+          name: cursor
+          schema: { type: string }
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+      responses:
+        '200': { description: Keyset-paginated media metadata }
+        '403': { description: Missing menu entitlement or subscription }
+        '404': { description: Branch not owned by caller }
+  /owner/branches/{branchId}/media/images:
+    parameters:
+      - in: path
+        name: branchId
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      operationId: uploadOwnerImage
+      tags: [Owner media library]
+      security: [{ bearerAuth: [] }]
+      description: JPEG, PNG, WebP maximum 8 MiB converted to immutable WebP (2000px max).
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary }
+      responses:
+        '201':
+          description: Image uploaded; returns ready CDN metadata
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/ManagedMedia' }
+        '400': { description: Missing file }
+        '413': { description: MEDIA_TOO_LARGE }
+        '415': { description: MEDIA_UNSUPPORTED }
+        '409': { description: MEDIA_LIBRARY_LIMIT }
+        '503': { description: MEDIA_STORAGE_NOT_CONFIGURED or MEDIA_UPLOAD_FAILED }
+  /owner/branches/{branchId}/media/documents:
+    parameters:
+      - in: path
+        name: branchId
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      operationId: uploadOwnerPrivatePdf
+      tags: [Owner media library]
+      security: [{ bearerAuth: [] }]
+      description: Owner-only PDF upload maximum 10 MiB, private, never exposed in public menu.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary }
+      responses:
+        '201':
+          description: Ready private PDF metadata with url=null
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/ManagedMedia' }
+        '413': { description: MEDIA_TOO_LARGE }
+        '415': { description: MEDIA_UNSUPPORTED }
+        '503': { description: MEDIA_STORAGE_NOT_CONFIGURED or MEDIA_UPLOAD_FAILED }
+  /owner/branches/{branchId}/media/{id}:
+    parameters:
+      - in: path
+        name: branchId
+        required: true
+        schema: { type: string, format: uuid }
+      - in: path
+        name: id
+        required: true
+        schema: { type: string, format: uuid }
+    delete:
+      operationId: deleteOwnerMediaAsset
+      tags: [Owner media library]
+      security: [{ bearerAuth: [] }]
+      description: Deletes only unreferenced assets. S3 failures persist deletion for cleanup retry.
+      responses:
+        '200': { description: '{data:{deleted:true}}' }
+        '404': { description: Not in tenant/branch or already removed }
+        '409': { description: MEDIA_IN_USE }
+        '503': { description: MEDIA_DELETE_PENDING }
+  /owner/branches/{branchId}/media/{id}/download:
+    parameters:
+      - in: path
+        name: branchId
+        required: true
+        schema: { type: string, format: uuid }
+      - in: path
+        name: id
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: getOwnerPrivatePdfDownload
+      tags: [Owner media library]
+      security: [{ bearerAuth: [] }]
+      description: Authorized 60-second presigned attachment URL for private PDFs, Cache-Control no-store.
+      responses:
+        '200': { description: '{data:{url,expiresInSeconds:60}}' }
+        '404': { description: Not an owned ready private PDF }
+  /owner/branches/{branchId}/products/{productId}/gallery:
+    parameters:
+      - in: path
+        name: branchId
+        required: true
+        schema: { type: string, format: uuid }
+      - in: path
+        name: productId
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: getOwnerProductMediaGallery
+      tags: [Owner product galleries]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Ordered images, including legacy URLs with mediaId=null
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/ProductGalleryImage' }
+        '404': { description: Product not in tenant/branch }
+    put:
+      operationId: replaceOwnerProductMediaGallery
+      tags: [Owner product galleries]
+      security: [{ bearerAuth: [] }]
+      description: Atomic 0..8 ordered managed image references; first image primary.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [images]
+              properties:
+                images:
+                  type: array
+                  maxItems: 8
+                  items:
+                    type: object
+                    additionalProperties: false
+                    required: [mediaId]
+                    properties:
+                      mediaId: { type: string, format: uuid }
+                      alt: { type: [string, "null"], maxLength: 200 }
+      responses:
+        '200': { description: Updated ordered product gallery }
+        '400': { description: MEDIA_DUPLICATED or DTO validation }
+        '404': { description: Foreign/missing product or media ID }
   /owner/call-analytics:
     get:
       operationId: getOwnerCallAnalytics

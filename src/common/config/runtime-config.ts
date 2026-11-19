@@ -8,6 +8,15 @@ export interface RuntimeConfig {
   readonly databaseConnectTimeoutMs: number;
   readonly corsOrigins: readonly string[];
   readonly mediaAllowedOrigins: readonly string[];
+  readonly mediaStorage: Readonly<{
+    bucket: string;
+    region: string;
+    accessKeyId: string;
+    secretAccessKey: string;
+    endpoint: string | null;
+    forcePathStyle: boolean;
+    publicOrigin: string;
+  }> | null;
   readonly qrEncryptionKey: string | null;
   readonly customerAppOrigin: string | null;
   readonly authAccessSecret: string;
@@ -74,6 +83,48 @@ export function parseRuntimeConfig(env: NodeJS.ProcessEnv): RuntimeConfig {
     }
   }
 
+  const mediaKeys = [
+    env.MEDIA_S3_BUCKET?.trim() ?? "", env.MEDIA_S3_REGION?.trim() ?? "",
+    env.MEDIA_S3_ACCESS_KEY_ID?.trim() ?? "", env.MEDIA_S3_SECRET_ACCESS_KEY?.trim() ?? "",
+    env.MEDIA_PUBLIC_ORIGIN?.trim() ?? "",
+  ];
+  const configured = mediaKeys.some(Boolean) || Boolean(env.MEDIA_S3_ENDPOINT?.trim());
+  if (configured && mediaKeys.some(value => !value)) {
+    throw new Error("MEDIA_S3_BUCKET, MEDIA_S3_REGION, MEDIA_S3_ACCESS_KEY_ID, MEDIA_S3_SECRET_ACCESS_KEY and MEDIA_PUBLIC_ORIGIN must be configured together");
+  }
+  const mediaEndpoint = env.MEDIA_S3_ENDPOINT?.trim() || null;
+  if (mediaEndpoint) {
+    try {
+      const parsed = new URL(mediaEndpoint);
+      if (!["https:", "http:"].includes(parsed.protocol) || parsed.username || parsed.password || parsed.search
+        || parsed.hash || parsed.pathname !== "/" || parsed.origin !== mediaEndpoint.replace(/\/$/, "")) {
+        throw new Error("invalid S3 endpoint");
+      }
+    } catch { throw new Error("MEDIA_S3_ENDPOINT must be a valid HTTP(S) origin"); }
+    if (nodeEnv === "production" && !mediaEndpoint.startsWith("https://")) {
+      throw new Error("MEDIA_S3_ENDPOINT must use HTTPS in production");
+    }
+  }
+  const mediaPublicOrigin = mediaKeys[4];
+  if (mediaPublicOrigin) {
+    let url: URL;
+    try { url = new URL(mediaPublicOrigin); }
+    catch { throw new Error("MEDIA_PUBLIC_ORIGIN must be an HTTPS origin"); }
+    if (url.protocol !== "https:" || url.origin !== mediaPublicOrigin
+      || url.username || url.password || url.search || url.hash) {
+      throw new Error("MEDIA_PUBLIC_ORIGIN must be an exact HTTPS origin");
+    }
+  }
+  const forcePathStyle = (env.MEDIA_S3_FORCE_PATH_STYLE ?? "false").trim();
+  if (forcePathStyle !== "true" && forcePathStyle !== "false") {
+    throw new Error("MEDIA_S3_FORCE_PATH_STYLE must be true or false");
+  }
+  const mediaStorage = configured ? Object.freeze({
+    bucket: mediaKeys[0], region: mediaKeys[1], accessKeyId: mediaKeys[2],
+    secretAccessKey: mediaKeys[3], endpoint: mediaEndpoint,
+    forcePathStyle: forcePathStyle === "true", publicOrigin: mediaPublicOrigin,
+  }) : null;
+
   const qrEncryptionKey = env.QR_TOKEN_ENCRYPTION_KEY?.trim() || null;
   if (qrEncryptionKey !== null && !/^[0-9a-fA-F]{64}$/.test(qrEncryptionKey)) {
     throw new Error("QR_TOKEN_ENCRYPTION_KEY must be a 32-byte (64 hex character) secret");
@@ -116,6 +167,7 @@ export function parseRuntimeConfig(env: NodeJS.ProcessEnv): RuntimeConfig {
     databaseConnectTimeoutMs: positiveInteger(env.DB_CONNECT_TIMEOUT_MS ?? "2000", "DB_CONNECT_TIMEOUT_MS", 60000),
     corsOrigins: Object.freeze(corsOrigins),
     mediaAllowedOrigins: Object.freeze(mediaAllowedOrigins),
+    mediaStorage,
     qrEncryptionKey,
     customerAppOrigin,
     authAccessSecret,

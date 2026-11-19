@@ -31,3 +31,6 @@ PageMeta: `{nextCursor:string|null,hasMore:boolean}`. Default 20, max 100. Branc
 - Owner client should handle expired, forbidden, loading, empty list, next page and server errors. Use the same typed DTO schema for live and mock adapter; sample fixture at `mocks/contracts/branch-menu-v1.6.json`.
 
 **Integration status:** API implementation and PostgreSQL integration tests tracked on PR #8. Dashboard and customer repositories unchanged; staging end-to-end adapter check remains BLOCKED.
+
+## v1.11 Managed library
+The backend now has upload/list/delete + private document access routes and ordered product gallery GET/PUT. Old product images payloads remain supported. See `docs/MEDIA_DASHBOARD_HANDOFF.md`; consumer dashboards are NOT modified in PR #15.

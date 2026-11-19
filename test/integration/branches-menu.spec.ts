@@ -6,6 +6,9 @@ import request from "supertest";
 import { AppModule } from "../../src/app.module";
 import { configureHttpApp } from "../../src/bootstrap";
 import { hashPassword } from "../../src/common/crypto/password";
+import { MEDIA_STORAGE, type MediaStorageGateway } from "../../src/modules/media/infrastructure/media-storage.gateway";
+import { MediaService } from "../../src/modules/media/application/media.service";
+import sharp from "sharp";
 
 const ADMIN_PASSWORD = "BranchTestAdmin_2026!X";
 const OWNER_PASSWORD = "BranchTestOwner_2026!X";
@@ -31,6 +34,12 @@ describe("Branches, categories, products and independent menu copy (PostgreSQL)"
   const usernames: string[] = [];
   const planIds: string[] = [];
   const subscriptionIds: string[] = [];
+  const storedObjects = new Map<string, Buffer>();
+  const storage: MediaStorageGateway = {
+    put: async (key, body) => { storedObjects.set(key, body); },
+    delete: async key => { storedObjects.delete(key); },
+    privateDownloadUrl: async (key) => "https://storage.example.test/signed/" + encodeURIComponent(key),
+  };
 
   const unique = () => "menu_" + randomUUID().replaceAll("-", "");
   const ownerAuth = (token = ownerA) => ({ Authorization: "Bearer " + token });
@@ -84,6 +93,7 @@ describe("Branches, categories, products and independent menu copy (PostgreSQL)"
     if (app) await app.close();
     if (pool) {
       await pool.query("DELETE FROM product_images WHERE branch_id = ANY($1::uuid[])", [branchIds]);
+      await pool.query("DELETE FROM media_assets WHERE restaurant_id = ANY($1::uuid[])", [restaurantIds]);
       await pool.query("DELETE FROM products WHERE branch_id = ANY($1::uuid[])", [branchIds]);
       await pool.query("DELETE FROM categories WHERE branch_id = ANY($1::uuid[])", [branchIds]);
       await pool.query("DELETE FROM subscription_terms WHERE subscription_id = ANY($1::uuid[])", [subscriptionIds]);
@@ -106,7 +116,8 @@ describe("Branches, categories, products and independent menu copy (PostgreSQL)"
   beforeAll(async () => {
     if (process.env.NODE_ENV !== "test") throw new Error("Only isolated testing is allowed");
     pool = new Pool({ connectionString: process.env.DATABASE_URL });
-    const module = await Test.createTestingModule({ imports: [AppModule] }).compile();
+    const module = await Test.createTestingModule({ imports: [AppModule] })
+      .overrideProvider(MEDIA_STORAGE).useValue(storage).compile();
     app = module.createNestApplication();
     configureHttpApp(app);
     await app.init();
@@ -410,6 +421,115 @@ describe("Branches, categories, products and independent menu copy (PostgreSQL)"
         [subscriptionIds[0], previous.rows[0].starts_at, previous.rows[0].ends_at,
           previous.rows[0].grace_ends_at]);
     }
+  });
+
+  it("uploads optimized images and private PDFs, secures tenant galleries and reclaims unused files", async () => {
+    const media = "/api/v1/owner/branches/" + branchA + "/media";
+    const auth = ownerAuth();
+    const png = await sharp({ create: {
+      width: 32, height: 24, channels: 3, background: "#00ccaa",
+    } }).png().toBuffer();
+    const missingAuth = await request(app.getHttpServer()).post(media + "/images")
+      .attach("file", png, { filename: "photo.png", contentType: "image/png" });
+    expect(missingAuth.status).toBe(401);
+    const wrongTenant = await request(app.getHttpServer()).post(media + "/images")
+      .set(ownerAuth(ownerB)).attach("file", png, { filename: "photo.png", contentType: "image/png" });
+    expect(wrongTenant.status).toBe(404);
+    const spoofed = await request(app.getHttpServer()).post(media + "/images").set(auth)
+      .attach("file", Buffer.from("<svg>not an image</svg>"),
+        { filename: "spoof.png", contentType: "image/png" });
+    expect(spoofed.status).toBe(415);
+    const image = await request(app.getHttpServer()).post(media + "/images").set(auth)
+      .attach("file", png, { filename: "photo.png", contentType: "image/png" });
+    expect(image.status).toBe(201);
+    expect(image.body.data).toMatchObject({ kind: "image", contentType: "image/webp",
+      width: 32, height: 24 });
+    expect(image.body.data.url).toMatch(/^https:\/\/cdn\.example\.test\/r\//);
+    expect(JSON.stringify(image.body)).not.toContain("object_key");
+    const imageId = image.body.data.id as string;
+    const jpeg = await sharp(png).jpeg().toBuffer();
+    const other = await request(app.getHttpServer()).post(media + "/images").set(auth)
+      .attach("file", jpeg, { filename: "second.jpeg", contentType: "image/jpeg" });
+    expect(other.status).toBe(201);
+    const image2Id = other.body.data.id as string;
+    expect(storedObjects.size).toBeGreaterThanOrEqual(2);
+    const meta = await sharp([...storedObjects.values()][0]).metadata();
+    expect(meta.format).toBe("webp");
+    const pdf = Buffer.from("%PDF-1.4\n1 0 obj\n<<>>\nendobj\n%%EOF");
+    const document = await request(app.getHttpServer()).post(media + "/documents").set(auth)
+      .attach("file", pdf, { filename: "guide.pdf", contentType: "application/pdf" });
+    expect(document.status).toBe(201);
+    expect(document.body.data).toMatchObject({ kind: "document", contentType: "application/pdf", url: null });
+    const documentId = document.body.data.id as string;
+    const privateRead = await request(app.getHttpServer()).get(media + "/" + documentId + "/download").set(auth);
+    expect(privateRead.status).toBe(200);
+    expect(privateRead.headers["cache-control"]).toBe("no-store");
+    expect(privateRead.body.data.expiresInSeconds).toBe(60);
+    expect(privateRead.body.data.url).toContain("signed");
+    expect((await request(app.getHttpServer()).get(media + "/" + documentId + "/download")
+      .set(ownerAuth(ownerB))).status).toBe(404);
+    const allMedia = await request(app.getHttpServer()).get(media + "?limit=2").set(auth);
+    expect(allMedia.status).toBe(200);
+    expect(allMedia.body.data).toHaveLength(2);
+    expect(allMedia.body.meta.hasMore).toBe(true);
+    const nextPage = await request(app.getHttpServer())
+      .get(media + "?limit=2&cursor=" + encodeURIComponent(allMedia.body.meta.nextCursor)).set(auth);
+    expect(nextPage.status).toBe(200);
+    expect(nextPage.body.data).toHaveLength(1);
+
+    const category = await request(app.getHttpServer())
+      .post("/api/v1/owner/branches/" + branchA + "/categories")
+      .set(auth).send({ name: "Media Category" });
+    expect(category.status).toBe(201);
+    const product = await request(app.getHttpServer())
+      .post("/api/v1/owner/branches/" + branchA + "/products")
+      .set(auth).send({ categoryId: category.body.data.id, name: "Media Product", priceMinor: 2100 });
+    expect(product.status).toBe(201);
+    const productId = product.body.data.id as string;
+    const gallery = "/api/v1/owner/branches/" + branchA + "/products/" + productId + "/gallery";
+    const foreignMedia = await request(app.getHttpServer()).put(gallery).set(auth)
+      .send({ images: [{ mediaId: documentId }] });
+    expect(foreignMedia.status).toBe(404);
+    const duplicate = await request(app.getHttpServer()).put(gallery).set(auth)
+      .send({ images: [{ mediaId: imageId }, { mediaId: imageId }] });
+    expect(duplicate.status).toBe(400);
+    const reordered = await request(app.getHttpServer()).put(gallery).set(auth)
+      .send({ images: [{ mediaId: image2Id, alt: "main" }, { mediaId: imageId, alt: "second" }] });
+    expect(reordered.status).toBe(200);
+    expect(reordered.body.data).toMatchObject([
+      { mediaId: image2Id, sortOrder: 0, isPrimary: true, alt: "main" },
+      { mediaId: imageId, sortOrder: 1, isPrimary: false, alt: "second" },
+    ]);
+    const firstProduct = await request(app.getHttpServer()).get(
+      "/api/v1/owner/branches/" + branchA + "/products/" + productId).set(auth);
+    expect(firstProduct.body.data.images.map((x: { mediaId: string }) => x.mediaId))
+      .toEqual([image2Id, imageId]);
+    const slug = (await pool.query("SELECT slug FROM branches WHERE id=$1", [branchA])).rows[0].slug;
+    const publicMenu = await request(app.getHttpServer()).get("/api/v1/public/menu/" + slug);
+    expect(publicMenu.status).toBe(200);
+    const visible = publicMenu.body.data.products.find((p: { id: string }) => p.id === productId);
+    expect(visible.images[0].mediaId).toBe(image2Id);
+    expect((await request(app.getHttpServer()).delete(media + "/" + imageId).set(auth)).status).toBe(409);
+
+    const crossRestaurantGallery = "/api/v1/owner/branches/" + branchB + "/products/" + productId + "/gallery";
+    expect((await request(app.getHttpServer()).put(crossRestaurantGallery).set(ownerAuth(ownerB))
+      .send({ images: [{ mediaId: imageId }] })).status).toBe(404);
+    expect((await request(app.getHttpServer()).get(media + "/" + imageId + "/download").set(auth)).status).toBe(404);
+    const cleared = await request(app.getHttpServer()).put(gallery).set(auth).send({ images: [] });
+    expect(cleared.status).toBe(200);
+    expect(cleared.body.data).toEqual([]);
+    const removed = await request(app.getHttpServer()).delete(media + "/" + imageId).set(auth);
+    expect(removed.status).toBe(200);
+    expect(removed.body.data.deleted).toBe(true);
+    const stored = await pool.query("SELECT status FROM media_assets WHERE id=$1", [imageId]);
+    expect(stored.rows[0].status).toBe("deleted");
+    // After 7 days of no references, the bounded cleanup command removes the second image.
+    await pool.query("UPDATE media_assets SET created_at=now()-interval '8 days' WHERE id=$1", [image2Id]);
+    const result = await app.get(MediaService).cleanup();
+    expect(result.deleted).toBeGreaterThanOrEqual(1);
+    const deleted = await pool.query("SELECT status FROM media_assets WHERE id=$1", [image2Id]);
+    expect(deleted.rows[0].status).toBe("deleted");
+    expect((await request(app.getHttpServer()).delete(media + "/" + documentId).set(auth)).status).toBe(200);
   });
 
   it("documents all implemented branch/menu paths in generated Swagger", async () => {

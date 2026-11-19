@@ -28,11 +28,11 @@ export async function imagesForProducts(db: DatabaseService["db"], ids: string[]
   const byId = new Map<string, ProductImageDto[]>();
   if (!ids.length) return byId;
   const images = await db.selectFrom("product_images")
-    .select(["id", "product_id", "url", "alt", "sort_order"])
+    .select(["id", "product_id", "url", "alt", "sort_order", "media_asset_id"])
     .where("product_id", "in", ids).orderBy("sort_order", "asc").execute();
   for (const image of images) {
     const existing = byId.get(image.product_id) ?? [];
-    existing.push({ id: image.id, url: image.url, alt: image.alt, sortOrder: image.sort_order });
+    existing.push({ id: image.id, url: image.url, alt: image.alt, sortOrder: image.sort_order, ...(image.media_asset_id ? { mediaId: image.media_asset_id } : {}) });
     byId.set(image.product_id, existing);
   }
   return byId;
@@ -105,7 +105,7 @@ export class ProductsService {
         is_visible: input.isVisible ?? true, is_sold_out: input.isSoldOut ?? false,
         sort_order: input.sortOrder ?? 0, archived_at: null,
       }).returningAll().executeTakeFirstOrThrow();
-      await this.replaceImages(trx, created.id, branchId, input.images ?? []);
+      await this.replaceImages(trx, created.id, branchId, branch.restaurant_id, input.images ?? []);
       await trx.insertInto("audit_logs").values({
         actor_user_id: principal.id, restaurant_id: branch.restaurant_id,
         action: "menu.product.created", entity_type: "product", entity_id: created.id,
@@ -147,7 +147,7 @@ export class ProductsService {
       if (input.sortOrder !== undefined) patch.sort_order = input.sortOrder;
       const updated = Object.keys(patch).length ? await trx.updateTable("products").set(patch)
         .where("id", "=", productId).returningAll().executeTakeFirstOrThrow() : existing;
-      if (input.images !== undefined) await this.replaceImages(trx, productId, branchId, input.images);
+      if (input.images !== undefined) await this.replaceImages(trx, productId, branchId, branch.restaurant_id, input.images);
       await trx.insertInto("audit_logs").values({
         actor_user_id: principal.id, restaurant_id: branch.restaurant_id,
         action: "menu.product.updated", entity_type: "product", entity_id: productId,
@@ -176,12 +176,12 @@ export class ProductsService {
     });
   }
 
-  private async replaceImages(db: DatabaseService["db"], productId: string, branchId: string,
+  private async replaceImages(db: DatabaseService["db"], productId: string, branchId: string, restaurantId: string,
     images: readonly ProductImageInputDto[]): Promise<void> {
     await db.deleteFrom("product_images").where("product_id", "=", productId).execute();
     for (const [sortOrder, image] of images.entries()) {
       await db.insertInto("product_images").values({
-        product_id: productId, branch_id: branchId, url: image.url,
+        product_id: productId, branch_id: branchId, restaurant_id: restaurantId, media_asset_id: null, url: image.url,
         alt: image.alt ?? null, sort_order: sortOrder,
       }).execute();
     }

@@ -70,11 +70,12 @@ export class MenuCopyService {
           is_visible: product.is_visible, is_sold_out: product.is_sold_out,
           sort_order: product.sort_order, archived_at: null,
         }).returning("id").executeTakeFirstOrThrow();
-        const images = await trx.selectFrom("product_images").select(["url", "alt", "sort_order"])
+        const images = await trx.selectFrom("product_images").select(["url", "alt", "sort_order", "media_asset_id"])
           .where("product_id", "=", product.id).orderBy("sort_order", "asc").execute();
         if (images.length) await trx.insertInto("product_images")
           .values(images.map((image) => ({
-            product_id: created.id, branch_id: targetBranchId, url: image.url,
+            product_id: created.id, branch_id: targetBranchId, restaurant_id: target.restaurant_id,
+            media_asset_id: image.media_asset_id, url: image.url,
             alt: image.alt, sort_order: image.sort_order,
           }))).execute();
       }

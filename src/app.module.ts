@@ -13,10 +13,11 @@ import { RealtimeModule } from "./modules/realtime/realtime.module";
 import { PushModule } from "./modules/push/push.module";
 import { AnalyticsModule } from "./modules/analytics/analytics.module";
 import { AuditModule } from "./modules/audit/audit.module";
+import { MediaModule } from "./modules/media/media.module";
 import { HealthController } from "./modules/health/presentation/health.controller";
 
 @Module({
-  imports: [RuntimeConfigModule, DatabaseModule, AuthModule, RestaurantAdminModule, SubscriptionsModule, BranchesModule, MenuModule, TablesModule, EmployeesModule, CallsModule, RealtimeModule, PushModule, AnalyticsModule, AuditModule],
+  imports: [RuntimeConfigModule, DatabaseModule, AuthModule, RestaurantAdminModule, SubscriptionsModule, BranchesModule, MenuModule, TablesModule, EmployeesModule, CallsModule, RealtimeModule, PushModule, AnalyticsModule, AuditModule, MediaModule],
   controllers: [HealthController],
 })
 export class AppModule {}

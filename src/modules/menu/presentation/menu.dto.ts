@@ -83,6 +83,7 @@ export class PatchProductDto {
 }
 export class ProductImageDto {
   @ApiProperty({ format: "uuid" }) id!: string;
+  @ApiPropertyOptional({ format: "uuid", nullable: true }) mediaId?: string | null;
   @ApiProperty() url!: string;
   @ApiProperty({ nullable: true }) alt!: string | null;
   @ApiProperty() sortOrder!: number;

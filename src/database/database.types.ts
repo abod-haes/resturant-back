@@ -66,6 +66,8 @@ export interface ProductImagesTable {
   id: Generated<string>;
   product_id: string;
   branch_id: string;
+  restaurant_id: string;
+  media_asset_id: string | null;
   url: string;
   alt: string | null;
   sort_order: number;
@@ -269,12 +271,34 @@ export interface RealtimeEventsTable {
   payload: ColumnType<Record<string, unknown>, Record<string, unknown>, never>;
   created_at: Generated<Date>;
 }
+
+export type MediaKind = "image" | "document";
+export type MediaState = "uploading" | "ready" | "deleting" | "deleted";
+
+export interface MediaAssetsTable {
+  id: Generated<string>;
+  restaurant_id: string;
+  branch_id: string;
+  kind: MediaKind;
+  object_key: string;
+  public_url: string | null;
+  original_name: string;
+  content_type: "image/webp" | "application/pdf";
+  byte_size: number;
+  width: number | null;
+  height: number | null;
+  status: Generated<MediaState>;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
 export interface DatabaseTables {
   restaurants: RestaurantsTable;
   branches: BranchesTable;
   categories: CategoriesTable;
   products: ProductsTable;
   product_images: ProductImagesTable;
+  media_assets: MediaAssetsTable;
   floors: FloorsTable;
   areas: AreasTable;
   restaurant_tables: RestaurantTablesTable;
