@@ -50,7 +50,7 @@ export class ProductGalleryService {
       if (assets.length !== ids.length || assets.some(asset => asset.public_url === null)) {
         throw new NotFoundException("Media asset not found");
       }
-      const urls = new Map(assets.map(asset => [asset.id, asset.public_url]));
+      const urls = new Map(assets.map(asset => [asset.id, asset.public_url!]));
       await trx.deleteFrom("product_images").where("product_id", "=", productId).execute();
       if (ids.length) await trx.insertInto("product_images").values(body.images.map((image, order) => ({
         product_id: productId, branch_id: branchId, restaurant_id: tenant,
