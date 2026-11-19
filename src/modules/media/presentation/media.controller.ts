@@ -26,7 +26,7 @@ const upload = FileInterceptor("file", { limits: { fileSize: MAX_UPLOAD_BYTES, f
 const fileSchema = { schema: {
   type: "object", required: ["file"],
   properties: { file: { type: "string", format: "binary" } },
-} } as const;
+} };
 
 @ApiTags("Owner media library")
 @ApiBearerAuth()
