@@ -20,6 +20,10 @@ Run `npm run db:migrate:check`, `npm run check:architecture`, `npm run typecheck
 - `resturant-customer`: public QR frontend.
 - `resturant-mobile`: Expo employee app.
 
+## CORS deployment option
+
+Set `CORS_ORIGINS=*` to accept requests from any browser Origin, including localhost. Because browser credentialed requests cannot use a literal `Access-Control-Allow-Origin: *`, the HTTP CORS middleware reflects the requesting Origin and sends `Access-Control-Allow-Credentials: true`. This is broad cross-origin access: only use it when intentionally accepting requests from arbitrary websites. CORS is not authentication, authorization, or CSRF protection; existing refresh/logout trusted-Origin checks remain separate and may still reject origins not explicitly trusted. A fixed list of exact HTTPS origins is preferred in production.
+
 ## Production gates
 Use Dokploy environment secrets, HTTPS reverse proxy, exact browser origin allowlist, PostgreSQL backups, and load balancer/IP rate limits. Session cleanup, secret rotation and full staging smoke tests are required before production. Never commit passwords, JWT secrets or production DB credentials.
 
