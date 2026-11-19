@@ -1,3 +1,19 @@
-import "reflect-metadata";import {NestFactory} from "@nestjs/core";import {ValidationPipe} from "@nestjs/common";import {DocumentBuilder,SwaggerModule} from "@nestjs/swagger";import {AppModule} from "./app.module";
-async function bootstrap(){const app=await NestFactory.create(AppModule);app.setGlobalPrefix("api/v1");app.useGlobalPipes(new ValidationPipe({whitelist:true,forbidNonWhitelisted:true,transform:true}));const config=new DocumentBuilder().setTitle("Restaurant Platform API").setVersion("0.1.0").build();SwaggerModule.setup("api/docs",app,SwaggerModule.createDocument(app,config));const port=Number(process.env.PORT??3000);await app.listen(port,"0.0.0.0")}
-void bootstrap();
+import "reflect-metadata";
+import { NestFactory } from "@nestjs/core";
+import { AppModule } from "./app.module";
+import { configureHttpApp } from "./bootstrap";
+import { RUNTIME_CONFIG, type RuntimeConfig } from "./common/config/runtime-config";
+
+async function bootstrap(): Promise<void> {
+  const app = await NestFactory.create(AppModule);
+  configureHttpApp(app);
+  app.enableShutdownHooks();
+  const config = app.get<RuntimeConfig>(RUNTIME_CONFIG);
+  await app.listen(config.port, "0.0.0.0");
+}
+
+void bootstrap().catch((error: unknown) => {
+  // Configuration errors must fail startup without printing secrets.
+  console.error(error instanceof Error ? error.message : "Application bootstrap failed");
+  process.exitCode = 1;
+});
