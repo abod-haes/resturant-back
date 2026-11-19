@@ -135,9 +135,11 @@ export class SubscriptionsService {
       const inGraceOrActive = now < current.grace_ends_at;
       // During grace, backdate to original end so manual renewal cannot extend time for free.
       // After grace, start a new period today rather than charging the expired gap.
-      const startsAt = inGraceOrActive ? current.ends_at : now;
+      const termStartsAt = inGraceOrActive ? current.ends_at : now;
+      // The current subscription remains continuously active until its newly extended end.
+      const startsAt = inGraceOrActive ? current.starts_at : now;
       const period: SubscriptionPeriod = input.period ?? current.period;
-      const endsAt = addCalendarPeriod(startsAt, period);
+      const endsAt = addCalendarPeriod(termStartsAt, period);
       const graceEndsAt = addGraceDays(endsAt, input.graceDays);
       const snapshot = planEntitlements(plan);
       const latestTerm = await trx.selectFrom("subscription_terms").select("sequence")
@@ -151,7 +153,7 @@ export class SubscriptionsService {
         .where("id", "=", id).returningAll().executeTakeFirstOrThrow();
       await trx.insertInto("subscription_terms").values({
         subscription_id: id, sequence, plan_id: current.plan_id, period,
-        starts_at: startsAt, ends_at: endsAt, grace_ends_at: graceEndsAt,
+        starts_at: termStartsAt, ends_at: endsAt, grace_ends_at: graceEndsAt,
         entitlement_snapshot: snapshot, activated_by_user_id: actor.id,
       }).execute();
       await trx.insertInto("audit_logs").values({
@@ -159,7 +161,7 @@ export class SubscriptionsService {
         action: "subscription.renewed", entity_type: "subscription", entity_id: id,
         request_id: requestId ?? null, metadata: {
           sequence, planId: current.plan_id, period, graceDays: input.graceDays,
-          startsAt: startsAt.toISOString(), endsAt: endsAt.toISOString(),
+          startsAt: termStartsAt.toISOString(), endsAt: endsAt.toISOString(),
         },
       }).execute();
       return serialize(updated, now);
@@ -188,13 +190,4 @@ export class SubscriptionsService {
     }
   }
 
-  async assertCanCreateBranch(restaurantId: string): Promise<void> {
-    await this.assertOperational(restaurantId);
-    const current = await this.currentForRestaurant(restaurantId);
-    const quota = current?.entitlements?.maxBranches;
-    if (quota === undefined) throw new ForbiddenException({ code: "SUBSCRIPTION_INACTIVE", message: "Subscription not active" });
-    const result = await this.database.db.selectFrom("branches")
-      .select(sql<number>`count(*)::int`.as("count")).where("restaurant_id", "=", restaurantId).executeTakeFirstOrThrow();
-    if (result.count >= quota) throw new ForbiddenException({ code: "PLAN_LIMIT_REACHED", message: "Branch limit reached" });
-  }
 }

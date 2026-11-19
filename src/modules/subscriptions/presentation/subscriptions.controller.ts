@@ -12,7 +12,7 @@ import { RenewalContactsService } from "../application/renewal-contacts.service"
 import {
   ActivateSubscriptionDto, ContactsResponseDto, CreatePendingSubscriptionDto, CreatePlanDto,
   ListPlansQueryDto, OwnerSubscriptionResponseDto, PatchPlanDto, PlanListResponseDto,
-  PlanResponseDto, RenewSubscriptionDto, ReplaceContactsDto, SubscriptionResponseDto,
+  PlanResponseDto, RenewSubscriptionDto, ReplaceContactsDto, SubscriptionResponseDto, OptionalSubscriptionResponseDto,
 } from "./subscriptions.dto";
 
 function requirePrincipal(request: AuthenticatedRequest) {
@@ -71,8 +71,8 @@ export class SubscriptionsController {
   }
 
   @Get("restaurants/:restaurantId/subscription")
-  @ApiOkResponse({ type: SubscriptionResponseDto })
-  async current(@Param("restaurantId", new ParseUUIDPipe({ version: "4" })) restaurantId: string) {
+  @ApiOkResponse({ type: OptionalSubscriptionResponseDto })
+  async current(@Param("restaurantId", new ParseUUIDPipe({ version: "4" })) restaurantId: string): Promise<OptionalSubscriptionResponseDto> {
     return { data: await this.subscriptions.currentForRestaurant(restaurantId) };
   }
 

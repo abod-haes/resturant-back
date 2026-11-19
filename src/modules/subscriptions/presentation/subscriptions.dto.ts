@@ -94,6 +94,7 @@ export class SubscriptionDto {
   @ApiProperty({ nullable: true, type: Object }) entitlements!: EntitlementSnapshot | null;
 }
 export class SubscriptionResponseDto { @ApiProperty({ type: SubscriptionDto }) data!: SubscriptionDto; }
+export class OptionalSubscriptionResponseDto { @ApiProperty({ type: SubscriptionDto, nullable: true }) data!: SubscriptionDto | null; }
 
 export class ContactDto {
   @ApiProperty({ enum: ["whatsapp", "phone", "email"] }) type!: "whatsapp" | "phone" | "email";
