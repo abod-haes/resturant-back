@@ -52,5 +52,6 @@ jobs:
       - run: npm run lint
       - run: npm run test:unit
       - run: npm run test:integration
+      - run: npm run test:e2e
       - run: npm run build
       - run: node --test test/deployment/seed-demo.test.mjs
