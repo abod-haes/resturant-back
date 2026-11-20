@@ -23,7 +23,7 @@ export function configureHttpApp(app: INestApplication): void {
 
   const swaggerConfig = new DocumentBuilder()
     .setTitle("Restaurant Platform API")
-    .setVersion("0.11.0")
+    .setVersion("0.12.0")
     .addBearerAuth()
     .build();
   SwaggerModule.setup("api/docs", app, SwaggerModule.createDocument(app, swaggerConfig));

@@ -1,0 +1,45 @@
+{
+  "schemaVersion": "1.12.0",
+  "created": {
+    "data": {
+      "id": "22222222-2222-4222-8222-222222222222",
+      "username": "platform_operator",
+      "name": "Platform Operator",
+      "role": "PLATFORM_ADMIN",
+      "isActive": true,
+      "mustChangePassword": true,
+      "createdAt": "2026-11-20T10:00:00.000Z"
+    }
+  },
+  "list": {
+    "data": [
+      {
+        "id": "22222222-2222-4222-8222-222222222222",
+        "username": "platform_operator",
+        "name": "Platform Operator",
+        "role": "PLATFORM_ADMIN",
+        "isActive": true,
+        "mustChangePassword": true,
+        "createdAt": "2026-11-20T10:00:00.000Z"
+      }
+    ],
+    "meta": {
+      "nextCursor": null,
+      "hasMore": false
+    }
+  },
+  "reset": {
+    "data": {
+      "reset": true
+    }
+  },
+  "errors": {
+    "usernameTaken": {
+      "error": {
+        "code": "PLATFORM_ADMIN_USERNAME_TAKEN",
+        "message": "Username is already in use"
+      },
+      "requestId": "example"
+    }
+  }
+}
