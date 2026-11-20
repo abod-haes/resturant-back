@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Restaurant Platform API
-  version: 0.11.0-draft
+  version: 0.12.0-draft
   description: "Initial executable contract slice. Remaining endpoints documented in docs/OPENAPI_IMPLEMENTATION.md; do not treat this file as complete."
 servers:
   - url: /api/v1
@@ -353,6 +353,28 @@ components:
         alt: { type: [string, "null"], maxLength: 200 }
         sortOrder: { type: integer, minimum: 0, maximum: 7 }
         isPrimary: { type: boolean }
+    PlatformAdministrator:
+      type: object
+      required: [id, username, name, role, isActive, mustChangePassword, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        username: { type: string }
+        name: { type: string }
+        role: { type: string, enum: [PLATFORM_ADMIN] }
+        isActive: { type: boolean }
+        mustChangePassword: { type: boolean }
+        createdAt: { type: string, format: date-time }
+    PlatformAdministratorResponse:
+      type: object
+      required: [data]
+      properties:
+        data: { $ref: '#/components/schemas/PlatformAdministrator' }
+    PlatformAdministratorList:
+      type: object
+      required: [data, meta]
+      properties:
+        data: { type: array, items: { $ref: '#/components/schemas/PlatformAdministrator' } }
+        meta: { $ref: '#/components/schemas/PageMeta' }
 paths:
   /owner/branches/{branchId}/media:
     parameters:
@@ -2025,3 +2047,116 @@ paths:
       responses:
         '200': { description: Published category page }
         '403': { description: Subscription not operational }
+
+  /admin/platform-admins:
+    get:
+      operationId: listPlatformAdministrators
+      tags: [Platform administrators]
+      summary: Primary-only paginated administrator listing
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: query, name: limit, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+        - { in: query, name: cursor, schema: { type: string, maxLength: 500 } }
+        - { in: query, name: search, schema: { type: string, maxLength: 100 } }
+      responses:
+        '200':
+          description: Platform administrator page
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PlatformAdministratorList' }
+        '403': { description: PRIMARY_ADMIN only }
+    post:
+      operationId: createPlatformAdministrator
+      tags: [Platform administrators]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [name, username, initialPassword]
+              properties:
+                name: { type: string, maxLength: 200, minLength: 1 }
+                username: { type: string, pattern: '^[A-Za-z0-9._-]{3,64}$' }
+                initialPassword: { type: string, minLength: 12, maxLength: 128, writeOnly: true }
+      responses:
+        '201':
+          description: Platform administrator created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PlatformAdministratorResponse' }
+        '403': { description: PRIMARY_ADMIN only }
+        '409': { description: PLATFORM_ADMIN_USERNAME_TAKEN }
+  /admin/platform-admins/{id}:
+    parameters:
+      - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
+    get:
+      operationId: getPlatformAdministrator
+      tags: [Platform administrators]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Platform administrator details
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PlatformAdministratorResponse' }
+        '403': { description: PRIMARY_ADMIN only }
+        '404': { description: Account absent or not PLATFORM_ADMIN }
+    patch:
+      operationId: updatePlatformAdministrator
+      tags: [Platform administrators]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              minProperties: 1
+              additionalProperties: false
+              properties:
+                name: { type: string, maxLength: 200, minLength: 1 }
+                isActive: { type: boolean }
+      responses:
+        '200':
+          description: Updated administrator, disabled accounts lose all sessions
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PlatformAdministratorResponse' }
+        '403': { description: PRIMARY_ADMIN only }
+        '404': { description: Account absent or not PLATFORM_ADMIN }
+  /admin/platform-admins/{id}/reset-password:
+    parameters:
+      - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
+    post:
+      operationId: resetPlatformAdministratorPassword
+      tags: [Platform administrators]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [initialPassword]
+              properties:
+                initialPassword: { type: string, minLength: 12, maxLength: 128, writeOnly: true }
+      responses:
+        '200':
+          description: Reset accepted, sessions revoked and next login requires password change
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    required: [reset]
+                    properties:
+                      reset: { type: boolean }
+        '403': { description: PRIMARY_ADMIN only }
+        '404': { description: Account absent or not PLATFORM_ADMIN }
