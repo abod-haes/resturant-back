@@ -104,3 +104,10 @@ UNAUTHORIZED, FORBIDDEN, NOT_FOUND, VALIDATION_ERROR, SUBSCRIPTION_INACTIVE, QR_
 3. Update shared fixtures and MSW/Expo mock adapters in all consumer repos in same change set.
 4. Run schema and fixture validation, contract tests, then client CI.
 5. Notify all three client owners; never silently rename fields or alter semantics.
+
+## Global platform administrator management — implemented v1.12.0
+- POST /admin/platform-admins {name,username,initialPassword} -> 201 {data:PlatformAdmin}. PRIMARY_ADMIN only; role always PLATFORM_ADMIN, restaurant/branch scope null, mustChangePassword true. Username case-insensitively unique; duplicate -> 409 PLATFORM_ADMIN_USERNAME_TAKEN.
+- GET /admin/platform-admins?limit=20&cursor=&search= -> {data:PlatformAdmin[],meta:{nextCursor,hasMore}}; stable descending createdAt/id cursor, limit max 100, case-insensitive literal username/name search. GET /admin/platform-admins/:id -> {data:PlatformAdmin}.
+- PATCH /admin/platform-admins/:id {name?,isActive?} -> {data:PlatformAdmin}; nonempty body. Deactivation revokes all active sessions. Re-activation requires new login.
+- POST /admin/platform-admins/:id/reset-password {initialPassword} -> 200 {data:{reset:true}}; all sessions revoked, forced password change on subsequent login.
+- PlatformAdmin={id,username,name,role:"PLATFORM_ADMIN",isActive,mustChangePassword,createdAt}; no credentials, hashes or secret audit metadata returned. All writes audited with requestId; all routes reject non-primary; non-platform-admin IDs return 404; no PRIMARY_ADMIN creation or role escalation. See docs/PLATFORM_ADMINS_DASHBOARD_HANDOFF.md.
