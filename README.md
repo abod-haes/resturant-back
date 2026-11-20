@@ -13,7 +13,7 @@ Core database schema, Auth/RBAC, primary-only platform administrator lifecycle, 
 5. Read `docs/PLATFORM_ADMINS_DASHBOARD_HANDOFF.md` for primary-only platform administrator management. Read `docs/PUSH_REALTIME_HANDOFF.md` to configure a separate Dokploy push worker, mobile device registration and authenticated SSE. Read `docs/AUTH_DASHBOARD_HANDOFF.md` for browser cookie and mobile SecureStore integration. Read `docs/ANALYTICS_AUDIT_HANDOFF.md` for the analytics/audit dashboard API; read `docs/VISITS_CALLS_HANDOFF.md` for customer, owner and employee call flows. Read `docs/TABLES_QR_DASHBOARD_HANDOFF.md` for table/QR handoff and deployment configuration. Read `docs/BRANCH_MENU_DASHBOARD_HANDOFF.md` for owner dashboard/public catalog contracts. Read `docs/RESTAURANT_DASHBOARD_HANDOFF.md` for admin restaurant onboarding APIs; POST creates restaurant + owner + first branch with no active subscription.
 
 ## Quality gates
-Run `npm run db:migrate:check`, `npm run check:architecture`, `npm run typecheck`, `npm run lint`, `npm run test:unit`, `npm run test:integration` and `npm run build`. Integration tests require a dedicated migrated PostgreSQL database (do not point tests at production).
+Run `npm run db:migrate:check`, `npm run check:architecture`, `npm run typecheck`, `npm run lint`, `npm run test:unit`, `npm run test:integration`, `npm run test:e2e` and `npm run build`. Integration tests require a dedicated migrated PostgreSQL database (do not point tests at production).
 
 ## API consumers
 - `retuarant-dash`: two Vite apps in a workspace, `apps/admin` and `apps/restaurant`.
@@ -43,3 +43,6 @@ For a dedicated staging database, set `APP_ENV=staging` and provide temporary `D
 
 ## S3 media storage — v1.11
 Set `MEDIA_S3_BUCKET`, `MEDIA_S3_REGION`, `MEDIA_S3_ACCESS_KEY_ID`, `MEDIA_S3_SECRET_ACCESS_KEY`, `MEDIA_PUBLIC_ORIGIN` in Dokploy. Optional `MEDIA_S3_ENDPOINT` and `MEDIA_S3_FORCE_PATH_STYLE`. Keep bucket private, expose only image .webp paths through an HTTPS CDN, never PDFs. `npm run media:cleanup` is a separate bounded optional scheduled job, not an API worker. See `docs/MEDIA_DASHBOARD_HANDOFF.md`.
+
+## Restaurant journey acceptance check
+The CI job runs `npm run test:e2e` with a disposable PostgreSQL database ending in `_test`. It verifies the joined HTTP/DB flow from restaurant onboarding through published menu, table QR, no-staff alert, on-shift employee queue/push ticket simulation, cross-tenant isolation, QR revocation and expired subscription handling. Expo gateway is mocked; real handset delivery, reverse-proxy SSE, S3/CDN and client-app integration still need deployed staging/device tests. See `docs/TEST_STRATEGY.md`.
