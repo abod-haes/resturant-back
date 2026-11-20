@@ -54,4 +54,11 @@ jobs:
       - run: npm run test:integration
       - run: npm run test:e2e
       - run: npm run build
+      - run: npm run contract:export
+      - uses: actions/upload-artifact@v4
+        with:
+          name: restaurant-openapi-runtime
+          path: artifacts/restaurant.openapi.json
+          if-no-files-found: error
+          retention-days: 60
       - run: node --test test/deployment/seed-demo.test.mjs

@@ -2,7 +2,7 @@ openapi: 3.1.0
 info:
   title: Restaurant Platform API
   version: 0.12.0-draft
-  description: "Initial executable contract slice. Remaining endpoints documented in docs/OPENAPI_IMPLEMENTATION.md; do not treat this file as complete."
+  description: "Versioned reference with all 96 implemented HTTP path/method pairs, checked against executable Nest Swagger. Some response schemas are summary-only; for exact DTO types use runtime /api/docs-json or the generated CI OpenAPI artifact."
 servers:
   - url: /api/v1
 components:
