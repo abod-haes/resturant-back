@@ -11,7 +11,7 @@ if (spec.errors.length) {
 }
 const doc = spec.toJS();
 if (!doc || typeof doc !== "object" || doc.openapi !== "3.1.0" ||
-  doc.info?.version !== "0.11.0-draft" || !doc.paths || !doc.components?.schemas) {
+  doc.info?.version !== "0.12.0-draft" || !doc.paths || !doc.components?.schemas) {
   throw new Error("OpenAPI root, version or schemas missing");
 }
 const ops = new Set();
@@ -42,6 +42,9 @@ function walk(node) {
 }
 walk(doc);
 for (const [path, method] of [
+  ["/admin/platform-admins","post"], ["/admin/platform-admins","get"],
+  ["/admin/platform-admins/{id}","get"], ["/admin/platform-admins/{id}","patch"],
+  ["/admin/platform-admins/{id}/reset-password","post"],
   ["/employee/devices","post"], ["/employee/devices","get"], ["/employee/devices/{id}","delete"],
   ["/owner/events","get"], ["/employee/events","get"],
   ["/public/calls","post"], ["/employee/shifts/start","post"],
@@ -72,6 +75,14 @@ if (reporting.schemaVersion !== "1.10.0" ||
   !Array.isArray(reporting.adminAudit?.data) ||
   reporting.adminAudit.data.some(row => "metadata" in row)) {
   throw new Error("v1.10 report/audit contract fixture invalid or leaking metadata");
+}
+const platformAdmins = JSON.parse(readFileSync("mocks/contracts/platform-admins-v1.12.json","utf8"));
+if (platformAdmins.schemaVersion !== "1.12.0" ||
+  platformAdmins.created?.data?.role !== "PLATFORM_ADMIN" ||
+  platformAdmins.created?.data?.mustChangePassword !== true ||
+  platformAdmins.created?.data?.initialPassword !== undefined ||
+  !Array.isArray(platformAdmins.list?.data)) {
+  throw new Error("v1.12 platform administrator fixture invalid or secrets leaked");
 }
 const media = JSON.parse(readFileSync("mocks/contracts/media-v1.11.json","utf8"));
 if (media.schemaVersion !== "1.11.0" || media.document?.data?.url !== null ||
