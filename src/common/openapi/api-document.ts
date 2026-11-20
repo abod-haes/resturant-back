@@ -18,7 +18,7 @@ export function buildApiDocument(app: INestApplication): OpenAPIObject {
       "QR credentials, visit tokens, passwords and Expo device tokens must never be logged or put in analytics.",
       "A queued call or accepted Expo ticket does not guarantee delivery to a person's phone.",
     ].join(" "))
-    .setVersion("1.12.0")
+    .setVersion("0.12.0")
     .addBearerAuth({ type: "http", scheme: "bearer", bearerFormat: "JWT" })
     .build();
 
