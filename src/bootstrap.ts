@@ -1,5 +1,6 @@
 import { type INestApplication, ValidationPipe } from "@nestjs/common";
-import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
+import { SwaggerModule } from "@nestjs/swagger";
+import { buildApiDocument } from "./common/openapi/api-document";
 import { ApiExceptionFilter } from "./common/http/api-exception.filter";
 import { requestIdMiddleware } from "./common/http/request-id.middleware";
 import { RUNTIME_CONFIG, type RuntimeConfig } from "./common/config/runtime-config";
@@ -21,10 +22,5 @@ export function configureHttpApp(app: INestApplication): void {
     app.enableCors({ origin: config.corsOrigins.includes("*") ? true : [...config.corsOrigins], credentials: true });
   }
 
-  const swaggerConfig = new DocumentBuilder()
-    .setTitle("Restaurant Platform API")
-    .setVersion("0.12.0")
-    .addBearerAuth()
-    .build();
-  SwaggerModule.setup("api/docs", app, SwaggerModule.createDocument(app, swaggerConfig));
+  SwaggerModule.setup("api/docs", app, buildApiDocument(app));
 }
