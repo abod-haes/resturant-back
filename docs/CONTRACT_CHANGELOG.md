@@ -1,3 +1,6 @@
+## v1.2.0 demo seed harmonization — 2026-11-20 (no HTTP contract change)
+Synced in-memory reference fixture data across backend, dashboard monorepo, customer and employee mobile: now includes the additional no-staff hookah call and owner alert with linked callId. The fixture remains mock-only: text identifiers and simplified UI fields are NOT backend DTOs; executable Swagger and v1.4-v1.12 contract fixtures are the source for live transport. No DB seeding behavior or production API is modified.
+
 ## 2026-11-20 — complete Swagger inventory & shared error response (documentation only)
 Every executable Nest endpoint must match the 96-operation versioned OpenAPI path inventory via integration CI. Generated `/api/docs-json` now documents a shared error envelope on all operations; `/api/docs` remains interactive Swagger UI. No business DTO/route changes. See `docs/EXECUTABLE_SWAGGER.md`.
 
