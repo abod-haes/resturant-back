@@ -24,3 +24,8 @@ Every PR: formatting/lint, strict typecheck, unit tests, API contract tests, bui
 Domain pure unit tests; repository/controller integration tests against test PostgreSQL; contract tests generated from OpenAPI; Playwright E2E for web; Expo device smoke tests; load tests for concurrent calls.
 ## Definition of done
 Business acceptance, no regression, observability, tests executed and documented, docs updated, no security exceptions.
+
+## Automated multi-role restaurant journey E2E
+Run `npm run test:e2e` against a migrated, isolated PostgreSQL database whose name ends in `_test`. This is a separate mandatory GitHub Actions gate after integration tests. The scenario exercises HTTP routes for primary bootstrap fixture, restaurant/owner onboarding, plan activation, forced password changes, branch currency and public menu, floors/areas/two table QRs, no-staff call/owner alert/idempotency/cooldown, employee shift/device registration, queued recipient outbox, a fake Expo gateway ticket, recipient realtime events, cross-tenant/role isolation, QR rotation and subscription expiry.
+
+**Boundary:** the test checks persistence and simulated provider acceptance; it does not assert an actual phone received a push, audio played, SSE crossed a network proxy, a real CDN/storage was configured, or the dashboards/mobile/customer app were integrated. Keep the mock provider limited to the external Expo transport and never route test credentials to external services. Reuse `test/integration` for specialized feature cases; this suite enforces the whole critical customer-to-staff workflow.
