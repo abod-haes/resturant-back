@@ -27,7 +27,7 @@
 | Live events | `text/event-stream` owner/employee SSE with bearer header + `Last-Event-ID` resume; GET history is source of truth |
 | File upload | `multipart/form-data` only for media images and PDF documents; authorized document download returns expiring URL |
 
-**Request body column:** When a named schema is shown, read its definition from OpenAPI `components.schemas`. A comma-separated field list means the first declared inline `required` group extracted from the YAML; for optional nested fields and exact validation use the full YAML or generated JSON. “Inline JSON DTO” means the object is defined inline under the endpoint, not that its fields are untyped.
+**Request body column:** When a named schema is shown, read its definition from OpenAPI `components.schemas`. A comma-separated field list means the top-level inline `required` properties extracted from the YAML; for optional nested fields and exact validation use the full YAML or generated JSON. “Inline JSON DTO” means the object is defined inline under the endpoint, not that its fields are untyped.
 
 **Roles:** `PRIMARY_ADMIN` only can manage platform admins and read redacted audit logs. Other `/admin/*` endpoints allow primary/platform admin. `/owner/*` owner-scoped and `/employee/*` staff-scoped. `/public/*` requires no login but the QR and visit endpoints require valid opaque QR/session credentials. `/auth/refresh` and `/auth/logout` rely on refresh credentials (web cookie or mobile body) even though an access bearer JWT is not required.
 
@@ -88,10 +88,10 @@ Use one typed HTTP adapter; keep DTO and presentation models separate; runtime-v
 | HTTP | Path (append to `/api/v1`) | Request body | Query | 2xx | Other status codes | Access |
 |---|---|---|---|---|---|---|
 | `POST` | `/auth/login` | username, password | — | 200 | 400, 401, 429 | Public / credential-specific |
-| `POST` | `/auth/refresh` | Inline JSON DTO | — | 200 | 401 | Public / credential-specific |
-| `POST` | `/auth/logout` | — | — | 200 | 401 | Public / credential-specific |
+| `POST` | `/auth/refresh` | refreshToken? (mobile body / web cookie) | — | 200 | 401 | Public / credential-specific |
+| `POST` | `/auth/logout` | refreshToken? (mobile body / web cookie) | — | 200 | 401 | Public / credential-specific |
 | `GET` | `/auth/me` | — | — | 200 | 401 | Bearer (any signed-in role) |
-| `POST` | `/auth/change-password` | — | — | 200 | 400, 401, 403 | Bearer (any signed-in role) |
+| `POST` | `/auth/change-password` | currentPassword, newPassword | — | 200 | 400, 401, 403 | Bearer (any signed-in role) |
 
 ## Platform administration (20)
 
@@ -105,7 +105,7 @@ Use one typed HTTP adapter; keep DTO and presentation models separate; runtime-v
 
 | HTTP | Path (append to `/api/v1`) | Request body | Query | 2xx | Other status codes | Access |
 |---|---|---|---|---|---|---|
-| `POST` | `/admin/restaurants` | name | — | 201 | 400, 401, 403, 409 | PRIMARY_ADMIN / PLATFORM_ADMIN |
+| `POST` | `/admin/restaurants` | name, owner, initialBranch | — | 201 | 400, 401, 403, 409 | PRIMARY_ADMIN / PLATFORM_ADMIN |
 | `GET` | `/admin/restaurants` | — | `limit`, `cursor`, `search` | 200 | 400, 401, 403 | PRIMARY_ADMIN / PLATFORM_ADMIN |
 | `GET` | `/admin/restaurants/{id}` | — | — | 200 | 400, 401, 403, 404 | PRIMARY_ADMIN / PLATFORM_ADMIN |
 | `PATCH` | `/admin/restaurants/{id}` | Inline JSON DTO | — | 200 | 400, 401, 403, 404 | PRIMARY_ADMIN / PLATFORM_ADMIN |
@@ -115,7 +115,7 @@ Use one typed HTTP adapter; keep DTO and presentation models separate; runtime-v
 | HTTP | Path (append to `/api/v1`) | Request body | Query | 2xx | Other status codes | Access |
 |---|---|---|---|---|---|---|
 | `GET` | `/admin/plans` | — | `limit`, `cursor` | 200 | 401, 403 | PRIMARY_ADMIN / PLATFORM_ADMIN |
-| `POST` | `/admin/plans` | menu, waiter_calls, hookah_calls, analytics | — | 201 | 400, 409 | PRIMARY_ADMIN / PLATFORM_ADMIN |
+| `POST` | `/admin/plans` | name, maxBranches, maxTables, maxEmployees, features | — | 201 | 400, 409 | PRIMARY_ADMIN / PLATFORM_ADMIN |
 | `GET` | `/admin/plans/{id}` | — | — | 200 | 404 | PRIMARY_ADMIN / PLATFORM_ADMIN |
 | `PATCH` | `/admin/plans/{id}` | — | — | 200 | 400, 409 | PRIMARY_ADMIN / PLATFORM_ADMIN |
 
@@ -162,7 +162,7 @@ Use one typed HTTP adapter; keep DTO and presentation models separate; runtime-v
 | HTTP | Path (append to `/api/v1`) | Request body | Query | 2xx | Other status codes | Access |
 |---|---|---|---|---|---|---|
 | `GET` | `/owner/branches/{branchId}/products/{productId}/gallery` | — | — | 200 | 404 | RESTAURANT_OWNER |
-| `PUT` | `/owner/branches/{branchId}/products/{productId}/gallery` | mediaId | — | 200 | 400, 404 | RESTAURANT_OWNER |
+| `PUT` | `/owner/branches/{branchId}/products/{productId}/gallery` | images | — | 200 | 400, 404 | RESTAURANT_OWNER |
 
 ### Owner analytics
 
@@ -184,7 +184,7 @@ Use one typed HTTP adapter; keep DTO and presentation models separate; runtime-v
 | `POST` | `/owner/employees` | username, name, initialPassword, branchId, department | — | 201 | 403, 409 | RESTAURANT_OWNER |
 | `PATCH` | `/owner/employees/{id}` | — | — | 200 | 409 | RESTAURANT_OWNER |
 | `DELETE` | `/owner/employees/{id}` | — | — | 200 | default | RESTAURANT_OWNER |
-| `POST` | `/owner/employees/{id}/reset-password` | — | — | 200 | default | RESTAURANT_OWNER |
+| `POST` | `/owner/employees/{id}/reset-password` | initialPassword | — | 200 | default | RESTAURANT_OWNER |
 | `POST` | `/owner/employees/{id}/end-shift` | — | — | 200 | 409 | RESTAURANT_OWNER |
 
 ### Owner calls
@@ -204,9 +204,9 @@ Use one typed HTTP adapter; keep DTO and presentation models separate; runtime-v
 | HTTP | Path (append to `/api/v1`) | Request body | Query | 2xx | Other status codes | Access |
 |---|---|---|---|---|---|---|
 | `GET` | `/owner/call-settings` | — | — | 200 | default | RESTAURANT_OWNER |
-| `PATCH` | `/owner/call-settings` | — | — | 200 | default | RESTAURANT_OWNER |
+| `PATCH` | `/owner/call-settings` | RestaurantCallSettingsDto | — | 200 | default | RESTAURANT_OWNER |
 | `GET` | `/owner/branches/{branchId}/call-settings` | — | — | 200 | default | RESTAURANT_OWNER |
-| `PATCH` | `/owner/branches/{branchId}/call-settings` | — | — | 200 | default | RESTAURANT_OWNER |
+| `PATCH` | `/owner/branches/{branchId}/call-settings` | BranchCallSettingsDto | — | 200 | default | RESTAURANT_OWNER |
 
 ### Owner subscription
 
