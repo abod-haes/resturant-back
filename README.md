@@ -49,3 +49,10 @@ The CI job runs `npm run test:e2e` with a disposable PostgreSQL database ending 
 
 ## Executable Swagger
 Open `/api/docs` for the interactive docs or `/api/docs-json` for controller-generated OpenAPI. The backend CI asserts one-to-one parity of runtime and versioned YAML path+method inventories and documents the standard JSON error envelope. See `docs/EXECUTABLE_SWAGGER.md`.
+
+## Complete API handoff and downloadable generated contract
+
+- [All 96 endpoints: grouped frontend contract catalogue](docs/ALL_96_API_CONTRACT_FRONTEND.md).
+- Static reference: `openapi/restaurant.v1.yaml` (route inventory, sample requests and selected response schemas).
+- **Machine-generated actual DTO contract:** run `npm run build && npm run contract:export` with validated backend environment variables. Output: `artifacts/restaurant.openapi.json`. GitHub Actions additionally uploads this exact file as `restaurant-openapi-runtime` on successful quality runs; use that for OpenAPI type generation.
+- Running backend itself serves `/api/docs` (Swagger UI) and `/api/docs-json` (exact full schema). Generated runtime JSON is authoritative if a static description-only response lacks details. Do not place secrets in the exported JSON.
