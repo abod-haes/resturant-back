@@ -1,5 +1,5 @@
 import {
-  Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, Query,
+  Body, Controller, Get, HttpCode, HttpStatus, Param, ParseUUIDPipe, Patch, Post, Query,
   Req, UnauthorizedException,
 } from "@nestjs/common";
 import {
@@ -60,6 +60,7 @@ export class PlatformAdminController {
   }
 
   @Post(":id/reset-password")
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Reset initial password, force change on login and revoke every session" })
   @ApiOkResponse({ type: PlatformAdminResetResponseDto })
   @ApiNotFoundResponse({ description: "Only PLATFORM_ADMIN accounts can be reset here" })
