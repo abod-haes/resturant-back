@@ -172,7 +172,7 @@ describe("Primary-only platform administrator management (PostgreSQL)", () => {
     const reset = await request(app.getHttpServer()).post(path + "/reset-password")
       .set(auth(primary)).set("x-request-id", "pa-reset-2026")
       .send({ initialPassword: NEXT_PASSWORD });
-    expect(reset.status).toBe(201 === reset.status ? 201 : 200);
+    expect(reset.status).toBe(200);
     expect(reset.body).toEqual({ data: { reset: true } });
     expect((await request(app.getHttpServer()).get("/api/v1/auth/me")
       .set(auth(active.body.data.accessToken))).status).toBe(401);
