@@ -89,4 +89,18 @@ if (media.schemaVersion !== "1.11.0" || media.document?.data?.url !== null ||
   media.image?.data?.kind !== "image" || !Array.isArray(media.gallery?.data)) {
   throw new Error("v1.11 media fixture missing or private PDF leaked");
 }
+
+const mockSeed = JSON.parse(readFileSync("mocks/fixtures.json", "utf8"));
+if (mockSeed.schemaVersion !== "1.2.0" || !Array.isArray(mockSeed.calls) ||
+  !Array.isArray(mockSeed.ownerAlerts)) {
+  throw new Error("Canonical v1.2 mock seed is missing");
+}
+const callIds = new Set(mockSeed.calls.map(call => call.id));
+const branchIds = new Set(mockSeed.branches.map(branch => branch.id));
+for (const alert of mockSeed.ownerAlerts) {
+  if (!callIds.has(alert.callId) || !branchIds.has(alert.branchId)) {
+    throw new Error("Demo owner alert must link an existing call and branch");
+  }
+}
+
 console.log("OpenAPI and versioned fixtures OK (" + ops.size + " operations)");

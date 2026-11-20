@@ -1,5 +1,5 @@
-# Stateful Mock API — v1.1.0
-All four active repositories have identical normalized seed data at `mocks/fixtures.json`. The three UI repositories have a shared deterministic **in-memory** state engine at `src/shared/mock/engine.ts`. Backend keeps the canonical fixture copy for contract work.
+# Stateful Mock API — v1.2.0
+Active backend, workspace dashboard, customer and mobile repositories use the same normalized demo seed data (v1.2.0) at `mocks/fixtures.json`. The UI repositories use independent **in-memory** state adapters; the active dashboard uses `packages/api/src/mock.ts` rather than its legacy root `src/shared/mock/engine.ts`. Backend keeps the canonical fixture copy for contract work.
 
 ## Implemented
 - Normalized restaurants, plans, subscriptions, branches, floors, areas, tables, QR, categories, products, employees, shifts, calls, owner alerts, templates, contact methods.
