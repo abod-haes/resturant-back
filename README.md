@@ -46,3 +46,6 @@ Set `MEDIA_S3_BUCKET`, `MEDIA_S3_REGION`, `MEDIA_S3_ACCESS_KEY_ID`, `MEDIA_S3_SE
 
 ## Restaurant journey acceptance check
 The CI job runs `npm run test:e2e` with a disposable PostgreSQL database ending in `_test`. It verifies the joined HTTP/DB flow from restaurant onboarding through published menu, table QR, no-staff alert, on-shift employee queue/push ticket simulation, cross-tenant isolation, QR revocation and expired subscription handling. Expo gateway is mocked; real handset delivery, reverse-proxy SSE, S3/CDN and client-app integration still need deployed staging/device tests. See `docs/TEST_STRATEGY.md`.
+
+## Executable Swagger
+Open `/api/docs` for the interactive docs or `/api/docs-json` for controller-generated OpenAPI. The backend CI asserts one-to-one parity of runtime and versioned YAML path+method inventories and documents the standard JSON error envelope. See `docs/EXECUTABLE_SWAGGER.md`.
