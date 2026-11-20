@@ -30,7 +30,7 @@ describe("Complete executable Swagger coverage (PostgreSQL)", () => {
     expect(ui.text).toContain("swagger-ui");
     const response = await request(app.getHttpServer()).get("/api/docs-json");
     expect(response.status).toBe(200);
-    expect(response.body.openapi).toMatch(/^3\\./);
+    expect(response.body.openapi).toMatch(/^3\./);
     expect(response.body.info.title).toBe("Restaurant Platform API");
     expect(response.body.components.schemas.ApiErrorEnvelope).toBeDefined();
     expect(response.body.components.securitySchemes.bearer).toBeDefined();
@@ -68,7 +68,7 @@ describe("Complete executable Swagger coverage (PostgreSQL)", () => {
             schema: { $ref: "#/components/schemas/ApiErrorEnvelope" },
           } },
         });
-        expect(Object.keys(operation.responses ?? {}).some(status => /^2\\d\\d$/.test(status))).toBe(true);
+        expect(Object.keys(operation.responses ?? {}).some(status => /^2\d\d$/.test(status))).toBe(true);
       }
     }
     expect([...runtimeOperations].sort()).toEqual([...referenceOperations].sort());
