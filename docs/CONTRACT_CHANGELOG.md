@@ -1,3 +1,6 @@
+## 2026-11-20 — complete Swagger inventory & shared error response (documentation only)
+Every executable Nest endpoint must match the 96-operation versioned OpenAPI path inventory via integration CI. Generated `/api/docs-json` now documents a shared error envelope on all operations; `/api/docs` remains interactive Swagger UI. No business DTO/route changes. See `docs/EXECUTABLE_SWAGGER.md`.
+
 # Contract changelog
 
 ## v1.12.0 — 2026-11-20 (Primary-only platform administrator lifecycle)
