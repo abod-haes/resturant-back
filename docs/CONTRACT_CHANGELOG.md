@@ -1,5 +1,9 @@
 # Contract changelog
 
+## v1.12.0 — 2026-11-20 (Primary-only platform administrator lifecycle)
+Introduced global platform administrator create/list/search/details/update and password reset. All management routes require PRIMARY_ADMIN. Disabled accounts and password resets immediately revoke sessions; newly created/reset accounts must change their password. Audited transactions, case-insensitive username uniqueness, password redaction, and v1.12 OpenAPI/fixtures/tests included. No database migration required. See docs/PLATFORM_ADMINS_DASHBOARD_HANDOFF.md. Dashboard and deployed staging integration not claimed.
+
+
 ## v1.11.0 — 2026-11-20 (Managed media and files)
 New tenant-scoped S3-compatible image & private PDF uploads, Sharp WebP processing, metadata library paging, short-lived private document download, guarded deletion and cleanup. Product gallery GET/PUT with ordered image IDs (first primary, max 8), composite tenant FK constraints and menu-copy reference preservation; legacy HTTPS image URLs remain compatible. Storage configuration optional at startup and mandatory for uploads. No live S3/CDN/dashboard deployment verified; PDF antivirus scan not provided. See docs/MEDIA_DASHBOARD_HANDOFF.md and ADR-011.
 
