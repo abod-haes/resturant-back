@@ -11,7 +11,7 @@ import { PublicMenuService } from "../application/public-menu.service";
 import {
   CategoryListDto, CategoryResponseDto, CopyMenuDto, CopyMenuResponseDto, CreateCategoryDto,
   CreateProductDto, MenuPageDto, PatchCategoryDto, PatchProductDto,
-  ProductListDto, ProductResponseDto, PublicMenuResponseDto,
+  OwnerProductListQueryDto, ProductListDto, ProductResponseDto, PublicMenuResponseDto,
 } from "./menu.dto";
 
 function principal(req: AuthenticatedRequest) {
@@ -63,7 +63,7 @@ export class CategoriesController {
 export class ProductsController {
   constructor(private readonly service: ProductsService) {}
   @Get() @ApiOkResponse({ type: ProductListDto })
-  async list(@Param("branchId", uuid()) branchId: string, @Query() query: MenuPageDto,
+  async list(@Param("branchId", uuid()) branchId: string, @Query() query: OwnerProductListQueryDto,
     @Req() req: AuthenticatedRequest): Promise<ProductListDto> {
     return this.service.list(principal(req), branchId, query);
   }
