@@ -8,7 +8,7 @@ import type { AuthPrincipal } from "../../../common/auth/principal";
 import { decodeDisplayCursor, encodeDisplayCursor } from "../../../common/pagination/keyset";
 import { RUNTIME_CONFIG, type RuntimeConfig } from "../../../common/config/runtime-config";
 import type {
-  CreateProductDto, MenuPageDto, PatchProductDto, ProductDto, ProductImageDto, ProductImageInputDto,
+  CreateProductDto, OwnerProductListQueryDto, PatchProductDto, ProductDto, ProductImageDto, ProductImageInputDto,
 } from "../presentation/menu.dto";
 import { lockTenantForMenuWrite, requireOwnerBranch } from "./menu-access";
 import { verifyMediaUrls } from "./menu-media.policy";
@@ -60,10 +60,11 @@ export class ProductsService {
     if (!row) throw new NotFoundException("Category not found");
   }
 
-  async list(principal: AuthPrincipal, branchId: string, query: MenuPageDto) {
+  async list(principal: AuthPrincipal, branchId: string, query: OwnerProductListQueryDto) {
     await requireOwnerBranch(this.database.db, principal, branchId);
     let select = this.database.db.selectFrom("products").selectAll()
       .where("branch_id", "=", branchId).where("archived_at", "is", null);
+    if (query.categoryId) select = select.where("category_id", "=", query.categoryId);
     if (query.search) select = select.where(sql<boolean>`position(lower(${query.search}) in lower(name)) > 0`);
     if (query.cursor) {
       const cursor = decodeDisplayCursor(query.cursor);
