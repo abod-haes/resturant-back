@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
- * Explicit staging-only bootstrap of one platform administrator and one owner
- * per demo restaurant. Idempotent, transactional, and never resets passwords.
- * Run only against a dedicated, migrated staging database.
+ * Explicit opt-in seed of one platform administrator and restaurant owners.
+ * May run against an existing production database ONLY with separate production
+ * confirmation. Transactional; existing credentials are never overwritten.
  */
 import "dotenv/config";
 import { createHash } from "node:crypto";
@@ -27,8 +27,16 @@ function requirePassword(name) {
 }
 
 async function run() {
-  if (env.APP_ENV !== "staging" || env.SEED_STAGING_ACCOUNTS_CONFIRM !== "yes") {
-    throw new Error("Staging seed requires APP_ENV=staging and SEED_STAGING_ACCOUNTS_CONFIRM=yes");
+  const production = env.APP_ENV === "production";
+  const staging = env.APP_ENV === "staging";
+  if (!production && !staging) {
+    throw new Error("Set APP_ENV=staging or APP_ENV=production explicitly");
+  }
+  if (production && env.SEED_PRODUCTION_ACCOUNTS_CONFIRM !== "I_UNDERSTAND_THIS_WRITES_TO_PRODUCTION") {
+    throw new Error("Production seed requires SEED_PRODUCTION_ACCOUNTS_CONFIRM=I_UNDERSTAND_THIS_WRITES_TO_PRODUCTION");
+  }
+  if (staging && env.SEED_STAGING_ACCOUNTS_CONFIRM !== "yes") {
+    throw new Error("Staging seed requires SEED_STAGING_ACCOUNTS_CONFIRM=yes");
   }
   if (!env.DATABASE_URL) throw new Error("DATABASE_URL is required");
   const adminUsername = env.PRIMARY_ADMIN_USERNAME;
@@ -132,7 +140,7 @@ async function run() {
     }
     await client.query("COMMIT");
     inTransaction = false;
-    console.log("Staging accounts ready: " + adminUsername + ", demo.yasmin.owner, demo.ward.owner.");
+    console.log((production ? "Production" : "Staging") + " accounts ready: " + adminUsername + ", demo.yasmin.owner, demo.ward.owner.");
     console.log("Existing accounts were preserved; no passwords were printed or overwritten.");
   } catch (error) {
     if (inTransaction) await client.query("ROLLBACK").catch(() => {});
@@ -145,6 +153,6 @@ async function run() {
 try {
   await run();
 } catch (error) {
-  console.error(error instanceof Error ? error.message : "Staging account seed failed");
+  console.error(error instanceof Error ? error.message : "Account seed failed");
   process.exitCode = 1;
 }
