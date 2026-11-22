@@ -11,6 +11,10 @@ export class MenuPageDto {
   @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(500) cursor?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(100) @Matches(/\S/u) search?: string;
 }
+export class OwnerProductListQueryDto extends MenuPageDto {
+  @ApiPropertyOptional({ format: "uuid", description: "Filter products by category within the selected branch" })
+  @IsOptional() @IsUUID("4") categoryId?: string;
+}
 export class MenuPageMetaDto {
   @ApiProperty({ nullable: true }) nextCursor!: string | null;
   @ApiProperty() hasMore!: boolean;
