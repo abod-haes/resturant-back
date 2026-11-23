@@ -183,6 +183,13 @@ export class RestaurantAdminService {
     const limit = query.limit;
     let select = this.selection()
       .select(sql<string>`to_char(restaurants.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`.as("cursor_timestamp"));
+    if (query.status) select = select.where("restaurants.is_active", "=", query.status === "active");
+    if (query.planId) {
+      select = select.where(sql<boolean>`(
+        SELECT s.plan_id FROM subscriptions s WHERE s.restaurant_id = restaurants.id
+        ORDER BY (s.status = 'active') DESC, s.created_at DESC LIMIT 1
+      ) = ${query.planId}::uuid`);
+    }
     if (query.search) {
       // Parameters are bound; percent and underscore are treated as literal search characters.
       select = select.where(sql<boolean>`position(lower(${query.search}) in lower(${sql.ref("restaurants.name")})) > 0`);
