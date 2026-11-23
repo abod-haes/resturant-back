@@ -95,6 +95,19 @@ export class SubscriptionsController {
     return { data: await this.subscriptions.withNames(await this.subscriptions.activate(id, body, requirePrincipal(req), req.requestId)) };
   }
 
+  @Post("subscriptions/:id/cancel")
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: "Immediately cancel a pending or active subscription, preserving history" })
+  @ApiOkResponse({ type: SubscriptionResponseDto })
+  async cancel(
+    @Param("id", new ParsePostgresUuidPipe()) id: string,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<SubscriptionResponseDto> {
+    return { data: await this.subscriptions.withNames(
+      await this.subscriptions.cancel(id, requirePrincipal(req), req.requestId),
+    ) };
+  }
+
   @Post("subscriptions/:id/renew")
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Manually renew current subscription, preserving term history" })
