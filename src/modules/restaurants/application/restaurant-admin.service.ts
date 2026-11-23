@@ -55,6 +55,9 @@ type RestaurantRow = {
   owner_id: string | null;
   owner_name: string | null;
   owner_username: string | null;
+  branch_count: number;
+  subscription_status: string | null;
+  plan_name: string | null;
 };
 
 function toSummary(row: RestaurantRow): RestaurantSummaryDto {
@@ -64,6 +67,9 @@ function toSummary(row: RestaurantRow): RestaurantSummaryDto {
     slug: row.slug,
     isActive: row.is_active,
     createdAt: row.created_at.toISOString(),
+    branchCount: row.branch_count,
+    subscriptionStatus: row.subscription_status,
+    planName: row.plan_name,
     owner: row.owner_id && row.owner_name && row.owner_username
       ? { id: row.owner_id, name: row.owner_name, username: row.owner_username }
       : null,
@@ -84,6 +90,9 @@ export class RestaurantAdminService {
         "restaurants.is_active", "restaurants.created_at",
         "users.id as owner_id", "users.display_name as owner_name",
         "users.username as owner_username",
+        sql<number>`(select count(*)::int from branches b where b.restaurant_id = restaurants.id and b.is_active)`.as("branch_count"),
+        sql<string | null>`(select s.status from subscriptions s where s.restaurant_id = restaurants.id order by (s.status = 'active') desc, s.created_at desc limit 1)`.as("subscription_status"),
+        sql<string | null>`(select p.name from subscriptions s join plans p on p.id = s.plan_id where s.restaurant_id = restaurants.id order by (s.status = 'active') desc, s.created_at desc limit 1)`.as("plan_name"),
       ]);
   }
 
