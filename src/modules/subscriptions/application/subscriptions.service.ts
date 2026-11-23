@@ -169,6 +169,19 @@ export class SubscriptionsService {
     });
   }
 
+  /** Present display labels in mutations as well as collection/detail responses. */
+  async withNames(subscription: SubscriptionDto): Promise<SubscriptionDto> {
+    const labels = await this.database.db.selectFrom("restaurants as r")
+      .innerJoin("plans as p", "p.id", sql`${subscription.planId}::uuid`)
+      .select(["r.name as restaurant_name", "p.name as plan_name"])
+      .where("r.id", "=", subscription.restaurantId)
+      .executeTakeFirst();
+    return {
+      ...subscription,
+      ...(labels ? { restaurantName: labels.restaurant_name, planName: labels.plan_name } : {}),
+    };
+  }
+
   /** Globally paginated subscriptions, with names joined in the database. */
   async list(query: ListSubscriptionsQueryDto): Promise<{ data: SubscriptionListItemDto[]; meta: { nextCursor: string | null; hasMore: boolean } }> {
     let builder = this.database.db.selectFrom("subscriptions as s")
