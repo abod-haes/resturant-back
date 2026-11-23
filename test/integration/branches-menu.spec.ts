@@ -140,6 +140,22 @@ describe("Branches, categories, products and independent menu copy (PostgreSQL)"
     ownerA = a.token; ownerB = b.token;
   });
 
+  it("discovers active public branches by restaurant UUID without exposing credentials", async () => {
+    const discovered = await request(app.getHttpServer())
+      .get("/api/v1/public/menu/restaurants/" + restaurantA + "/branches");
+    expect(discovered.status).toBe(200);
+    expect(discovered.body.data.restaurant.id).toBe(restaurantA);
+    expect(discovered.body.data.branches).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: branchA, name: "Main", slug: expect.any(String) }),
+    ]));
+    expect(JSON.stringify(discovered.body)).not.toContain("password");
+    expect(JSON.stringify(discovered.body)).not.toContain("qrToken");
+    expect((await request(app.getHttpServer())
+      .get("/api/v1/public/menu/restaurants/not-an-id/branches")).status).toBe(400);
+    expect((await request(app.getHttpServer())
+      .get("/api/v1/public/menu/restaurants/00000000-0000-0000-0000-000000000000/branches")).status).toBe(404);
+  });
+
   it("blocks missing auth, impersonation and cross-tenant branch reads", async () => {
     expect((await request(app.getHttpServer()).get("/api/v1/owner/branches")).status).toBe(401);
     const deniedRole = await request(app.getHttpServer()).get("/api/v1/owner/branches").set(adminAuth());
