@@ -23,7 +23,8 @@ export class AccessGuard implements CanActivate {
     const match = typeof header === "string" ? /^Bearer ([A-Za-z0-9_.-]+)$/.exec(header) : null;
     if (!match) throw new UnauthorizedException("Bearer access token required");
     const principal = await this.auth.authenticate(match[1]);
-    if (principal.mustChangePassword &&
+    // Employee accounts retain initial-password enforcement; dashboard accounts do not.
+    if (principal.role === "EMPLOYEE" && principal.mustChangePassword &&
       !metadata<boolean>(context, this.reflector, ALLOW_PASSWORD_CHANGE_KEY)) {
       throw new ForbiddenException({ code: "PASSWORD_CHANGE_REQUIRED", message: "Password change required" });
     }
