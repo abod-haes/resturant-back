@@ -316,19 +316,6 @@ components:
           type: array
           maxItems: 90
           items: { $ref: '#/components/schemas/CallAnalyticsDaily' }
-    AdminAuditEntry:
-      type: object
-      required: [id, actorId, restaurantId, action, entityType, entityId, requestId, createdAt]
-      description: Metadata intentionally excluded; may contain private or secret values.
-      properties:
-        id: { type: string, format: uuid }
-        actorId: { type: [string, "null"], format: uuid }
-        restaurantId: { type: [string, "null"], format: uuid }
-        action: { type: string }
-        entityType: { type: string }
-        entityId: { type: [string, "null"], format: uuid }
-        requestId: { type: [string, "null"] }
-        createdAt: { type: string, format: date-time }
     ManagedMedia:
       type: object
       required: [id, branchId, kind, url, name, contentType, byteSize, width, height, createdAt]
@@ -592,45 +579,6 @@ paths:
         '401': { description: Missing access token }
         '403': { description: Non-owner, SUBSCRIPTION_INACTIVE or PLAN_FEATURE_DISABLED }
         '404': { description: Unknown or foreign branch }
-  /admin/audit-logs:
-    get:
-      operationId: listPrimaryAdminAuditLogs
-      tags: [Platform audit]
-      security: [{ bearerAuth: [] }]
-      description: PRIMARY_ADMIN only. Stable keyset pagination; deliberately omits raw sensitive metadata.
-      parameters:
-        - in: query
-          name: restaurantId
-          schema: { type: string, format: uuid }
-        - in: query
-          name: actorId
-          schema: { type: string, format: uuid }
-        - in: query
-          name: action
-          description: Exact audit action filter
-          schema: { type: string, maxLength: 100 }
-        - in: query
-          name: cursor
-          schema: { type: string, maxLength: 500 }
-        - in: query
-          name: limit
-          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
-      responses:
-        '200':
-          description: Redacted audit metadata with stable keyset pagination
-          content:
-            application/json:
-              schema:
-                type: object
-                required: [data, meta]
-                properties:
-                  data:
-                    type: array
-                    items: { $ref: '#/components/schemas/AdminAuditEntry' }
-                  meta: { $ref: '#/components/schemas/PageMeta' }
-        '400': { description: Invalid UUID, action, cursor or limit }
-        '401': { description: Unauthenticated }
-        '403': { description: Non-primary role }
   /employee/devices:
     get:
       operationId: listEmployeePushDevices

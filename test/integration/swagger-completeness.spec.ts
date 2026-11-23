@@ -34,6 +34,8 @@ describe("Complete executable Swagger coverage (PostgreSQL)", () => {
     expect(response.body.info.title).toBe("Restaurant Platform API");
     expect(response.body.components.schemas.ApiErrorEnvelope).toBeDefined();
     expect(response.body.components.securitySchemes.bearer).toBeDefined();
+    expect(response.body.paths["/api/v1/admin/audit-logs"]).toBeUndefined();
+    expect(response.body.paths["/api/v1/auth/change-password"]?.post).toBeDefined();
   });
 
   it("keeps canonical YAML and Nest runtime operation inventories in exact parity", async () => {

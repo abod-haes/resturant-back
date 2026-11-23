@@ -5,6 +5,7 @@ import { DatabaseService } from "../../../database/database.service";
 import { RUNTIME_CONFIG, type RuntimeConfig } from "../../../common/config/runtime-config";
 import type { AuthPrincipal, AuthUser } from "../domain/auth.types";
 import { hashPassword, verifyPassword } from "../domain/password";
+import { isDatabaseUuid } from "../domain/database-uuid";
 import { LoginThrottleService } from "./login-throttle.service";
 
 const ACCESS_SECONDS = 15 * 60;
@@ -147,7 +148,7 @@ export class AuthService {
     } catch {
       throw new UnauthorizedException("Invalid or expired session");
     }
-    if (claims.typ !== "access" || !isUuid(claims.sub) || !isUuid(claims.sid)) {
+    if (claims.typ !== "access" || !isDatabaseUuid(claims.sub) || !isDatabaseUuid(claims.sid)) {
       throw new UnauthorizedException("Invalid or expired session");
     }
 
@@ -261,11 +262,6 @@ import { sql } from "kysely";
 
 function sqlLowerUsername() {
   return sql<string>`lower(users.username)`;
-}
-
-function isUuid(value: unknown): value is string {
-  return typeof value === "string" &&
-    /^[a-f\d]{8}-[a-f\d]{4}-[1-8][a-f\d]{3}-[89ab][a-f\d]{3}-[a-f\d]{12}$/i.test(value);
 }
 
 function isRefreshToken(value: string): boolean {

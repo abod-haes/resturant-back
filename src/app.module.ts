@@ -12,13 +12,12 @@ import { CallsModule } from "./modules/calls/calls.module";
 import { RealtimeModule } from "./modules/realtime/realtime.module";
 import { PushModule } from "./modules/push/push.module";
 import { AnalyticsModule } from "./modules/analytics/analytics.module";
-import { AuditModule } from "./modules/audit/audit.module";
 import { MediaModule } from "./modules/media/media.module";
 import { PlatformAdminsModule } from "./modules/platform-admins/platform-admins.module";
 import { HealthController } from "./modules/health/presentation/health.controller";
 
 @Module({
-  imports: [RuntimeConfigModule, DatabaseModule, AuthModule, RestaurantAdminModule, SubscriptionsModule, BranchesModule, MenuModule, TablesModule, EmployeesModule, CallsModule, RealtimeModule, PushModule, AnalyticsModule, AuditModule, MediaModule, PlatformAdminsModule],
+  imports: [RuntimeConfigModule, DatabaseModule, AuthModule, RestaurantAdminModule, SubscriptionsModule, BranchesModule, MenuModule, TablesModule, EmployeesModule, CallsModule, RealtimeModule, PushModule, AnalyticsModule, MediaModule, PlatformAdminsModule],
   controllers: [HealthController],
 })
 export class AppModule {}
