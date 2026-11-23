@@ -111,9 +111,23 @@ export class AuthController {
   async logout(@Body() body: RefreshDto, @Req() req: AuthenticatedRequest,
     @Headers("origin") origin: string | undefined,
     @Res({ passthrough: true }) res: Response): Promise<{ data: { loggedOut: boolean } }> {
-    const credential = this.credential(body, req, origin);
-    await this.auth.logout(credential.token);
-    if (credential.client === "web") this.clearRefreshCookie(res);
+    // Mobile clients send refreshToken explicitly. Browser clients prefer the
+    // HttpOnly refresh cookie, but a different-site localhost UI may not have it.
+    if (body?.refreshToken) {
+      await this.auth.logout(body.refreshToken);
+    } else {
+      this.requireBrowserOrigin(origin);
+      const cookie = this.cookieCredential(req);
+      const bearer = req.headers.authorization?.match(/^Bearer\\s+(.+)$/i)?.[1];
+      if (cookie) {
+        await this.auth.logout(cookie);
+      } else if (bearer) {
+        await this.auth.logoutAccessSession(bearer);
+      } else {
+        throw new UnauthorizedException("Logout session credential required");
+      }
+      this.clearRefreshCookie(res);
+    }
     return { data: { loggedOut: true } };
   }
 
