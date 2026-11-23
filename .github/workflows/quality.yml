@@ -61,4 +61,5 @@ jobs:
           path: artifacts/restaurant.openapi.json
           if-no-files-found: error
           retention-days: 60
+      - run: node --test test/deployment/dockerfile-scripts.test.mjs
       - run: node --test test/deployment/seed-demo.test.mjs
