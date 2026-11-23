@@ -61,10 +61,10 @@ describe("Authentication and RBAC against PostgreSQL", () => {
   }
 
   async function createUser(role: string, restaurantId: string | null, branchId: string | null,
-    department: string | null, mustChange = false): Promise<string> {
+    department: string | null, mustChange = false, userId?: string): Promise<string> {
     const username = randomName();
     loginNames.push(username);
-    const id = randomUUID();
+    const id = userId ?? randomUUID();
     await pool.query(`INSERT INTO users (id,username,display_name,password_hash,role,restaurant_id,branch_id,department,must_change_password)
       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
     [id,username,"Auth Test",await hashPassword(PASSWORD),role,restaurantId,branchId,department,mustChange]);
@@ -134,6 +134,24 @@ describe("Authentication and RBAC against PostgreSQL", () => {
       role: "RESTAURANT_OWNER", restaurantId: restaurantA, branchId: null,
     });
     expect(response.body.data.sessionId).toBeUndefined();
+  });
+
+  it("accepts an existing legacy UUID in signed dashboard JWT claims", async () => {
+    const generated = randomUUID();
+    // Old PostgreSQL UUIDs need not satisfy the RFC version/variant nibble rules.
+    const legacyId = generated.slice(0, 14) + "9" + generated.slice(15, 19) +
+      "f" + generated.slice(20);
+    const legacyUser = await createUser("RESTAURANT_OWNER", restaurantA, null, null, false, legacyId);
+    const signed = await login(legacyUser);
+    expect(signed.status).toBe(200);
+    const bearer = "Bearer " + signed.body.data.accessToken;
+    const me = await request(app.getHttpServer()).get("/api/v1/auth/me")
+      .set("Authorization", bearer);
+    expect(me.status).toBe(200);
+    const change = await request(app.getHttpServer()).post("/api/v1/auth/change-password")
+      .set("Authorization", bearer)
+      .send({ currentPassword: PASSWORD, newPassword: NEW_PASSWORD });
+    expect(change.status).toBe(200);
   });
 
   it("rejects cross-tenant owner or employee resource access and undefined roles", async () => {
