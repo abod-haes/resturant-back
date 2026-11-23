@@ -137,7 +137,7 @@ export class RestaurantAdminService {
         (SELECT count(*)::int FROM restaurants) AS "restaurants",
         (SELECT count(*)::int FROM restaurants WHERE is_active) AS "activeRestaurants",
         (SELECT count(*)::int FROM restaurants WHERE NOT is_active) AS "inactiveRestaurants",
-        (SELECT count(*)::int FROM branches WHERE archived_at IS NULL) AS "branches",
+        (SELECT count(*)::int FROM branches WHERE is_active) AS "branches",
         (SELECT count(*)::int FROM subscriptions WHERE status = 'active') AS "activeSubscriptions",
         (SELECT count(*)::int FROM subscriptions
           WHERE status = 'active' AND ends_at > now()
