@@ -1,7 +1,7 @@
 import { Type } from "class-transformer";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import {
-  IsBoolean, IsDefined, IsInt, IsOptional, IsString, Matches, Max, MaxLength, Min, MinLength,
+  IsBoolean, IsDefined, IsIn, IsInt, IsOptional, IsString, Matches, Max, MaxLength, Min, MinLength,
   ValidateNested,
 } from "class-validator";
 
@@ -87,6 +87,13 @@ export class RestaurantListQueryDto {
   @MinLength(1)
   @MaxLength(100)
   search?: string;
+  @ApiPropertyOptional({ enum: ["active", "inactive"], description: "Filter by restaurant active state" })
+  @IsOptional() @IsIn(["active", "inactive"])
+  status?: "active" | "inactive";
+
+  @ApiPropertyOptional({ format: "uuid", description: "Current subscription plan identifier" })
+  @IsOptional() @Matches(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)
+  planId?: string;
 }
 
 export class OnboardingDataDto {
