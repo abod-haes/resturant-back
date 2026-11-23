@@ -926,6 +926,33 @@ paths:
         '400': { description: Bad pagination parameters }
         '401': { description: Unauthorized }
         '403': { description: Forbidden }
+  /admin/restaurants/overview:
+    get:
+      operationId: getPlatformOverview
+      tags: [Platform restaurants]
+      security: [{ bearerAuth: [] }]
+      description: Global platform counts calculated in PostgreSQL, not from a paginated restaurant list.
+      responses:
+        '200':
+          description: Platform overview counters
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    required: [restaurants, activeRestaurants, inactiveRestaurants, branches, activeSubscriptions, expiringSubscriptions]
+                    properties:
+                      restaurants: { type: integer, minimum: 0 }
+                      activeRestaurants: { type: integer, minimum: 0 }
+                      inactiveRestaurants: { type: integer, minimum: 0 }
+                      branches: { type: integer, minimum: 0 }
+                      activeSubscriptions: { type: integer, minimum: 0 }
+                      expiringSubscriptions: { type: integer, minimum: 0 }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
   /admin/restaurants/{id}:
     parameters:
       - in: path
