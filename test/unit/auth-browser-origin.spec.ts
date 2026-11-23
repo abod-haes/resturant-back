@@ -20,7 +20,7 @@ const session: IssuedSession = {
 
 function controller(origins: string[]) {
   const auth = { login: jest.fn().mockResolvedValue(session) };
-  const config = { corsOrigins: origins, nodeEnv: "test" } as RuntimeConfig;
+  const config = { corsOrigins: origins, nodeEnv: "test" } as unknown as RuntimeConfig;
   const instance = new AuthController(auth as unknown as AuthService, config);
   const res = { cookie: jest.fn() } as unknown as Response;
   return { instance, auth, res };
