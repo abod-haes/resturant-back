@@ -10,6 +10,31 @@ import { imagesForProducts, productDto } from "./products.service";
 export class PublicMenuService {
   constructor(private readonly database: DatabaseService) {}
 
+
+  /** Public tenant-scoped discovery: restaurant UUID resolves active menu branches.
+   * The menu itself remains branch-scoped and is fetched by the returned branch slug.
+   */
+  async restaurantBranches(restaurantId: string) {
+    const restaurant = await this.database.db.selectFrom("restaurants")
+      .select(["id", "name", "is_active"])
+      .where("id", "=", restaurantId).executeTakeFirst();
+    if (!restaurant?.is_active) throw new NotFoundException("Restaurant not found");
+    await requireOperationalEntitlements(this.database.db, restaurantId, "menu");
+    const branches = await this.database.db.selectFrom("branches")
+      .select(["id", "name", "slug"])
+      .where("restaurant_id", "=", restaurantId)
+      .where("is_active", "=", true)
+      .orderBy("created_at", "asc")
+      .orderBy("id", "asc")
+      .limit(101).execute();
+    return {
+      data: {
+        restaurant: { id: restaurant.id, name: restaurant.name },
+        branches: branches.slice(0, 100),
+      },
+    };
+  }
+
   private async resolveBranch(slug: string) {
     const branch = await this.database.db.selectFrom("branches")
       .innerJoin("restaurants", "restaurants.id", "branches.restaurant_id")
