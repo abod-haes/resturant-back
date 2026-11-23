@@ -1,5 +1,6 @@
+import { ParsePostgresUuidPipe } from "../../../common/http/parse-postgres-uuid.pipe";
 import {
-  Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, Query, Req, UnauthorizedException,
+  Body, Controller, Get, Param, Patch, Post, Query, Req, UnauthorizedException,
 } from "@nestjs/common";
 import {
   ApiBearerAuth, ApiCreatedResponse, ApiOkResponse, ApiOperation, ApiTags,
@@ -32,13 +33,13 @@ export class BranchesController {
   }
 
   @Get(":branchId") @ApiOkResponse({ type: BranchResponseDto })
-  async get(@Param("branchId", new ParseUUIDPipe({ version: "4" })) id: string,
+  async get(@Param("branchId", new ParsePostgresUuidPipe()) id: string,
     @Req() req: AuthenticatedRequest): Promise<BranchResponseDto> {
     return { data: await this.service.get(this.principal(req), id) };
   }
 
   @Patch(":branchId") @ApiOkResponse({ type: BranchResponseDto })
-  async patch(@Param("branchId", new ParseUUIDPipe({ version: "4" })) id: string,
+  async patch(@Param("branchId", new ParsePostgresUuidPipe()) id: string,
     @Body() body: BranchPatchDto, @Req() req: AuthenticatedRequest): Promise<BranchResponseDto> {
     return { data: await this.service.patch(this.principal(req), id, body, req.requestId) };
   }
