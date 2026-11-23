@@ -119,10 +119,13 @@ export class AuthController {
       this.requireBrowserOrigin(origin);
       const cookie = this.cookieCredential(req);
       const bearer = req.headers.authorization?.match(/^Bearer\\s+(.+)$/i)?.[1];
-      if (cookie) {
-        await this.auth.logout(cookie);
-      } else if (bearer) {
+      if (bearer) {
+        // Prefer the current authenticated browser session over a stale cookie.
+        // No new privilege is granted: authenticate() verifies the bearer
+        // and active DB session before revocation.
         await this.auth.logoutAccessSession(bearer);
+      } else if (cookie) {
+        await this.auth.logout(cookie);
       } else {
         throw new UnauthorizedException("Logout session credential required");
       }
