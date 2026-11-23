@@ -169,6 +169,35 @@ export class SubscriptionsService {
     });
   }
 
+  /** Immediately terminate a pending or active subscription without deleting term history. */
+  async cancel(id: string, actor: AuthPrincipal, requestId?: string): Promise<SubscriptionDto> {
+    return this.database.db.transaction().execute(async (trx) => {
+      const current = await trx.selectFrom("subscriptions").selectAll()
+        .where("id", "=", id).forUpdate().executeTakeFirst();
+      if (!current) throw new NotFoundException("Subscription not found");
+      if (current.status !== "active" && current.status !== "pending") {
+        throw conflict("SUBSCRIPTION_NOT_CANCELLABLE", "Only active or pending subscriptions may be cancelled");
+      }
+      const cancelled = await trx.updateTable("subscriptions")
+        .set({ status: "cancelled" }).where("id", "=", id)
+        .returningAll().executeTakeFirstOrThrow();
+      await trx.insertInto("audit_logs").values({
+        actor_user_id: actor.id,
+        restaurant_id: current.restaurant_id,
+        action: "subscription.cancelled",
+        entity_type: "subscription",
+        entity_id: id,
+        request_id: requestId ?? null,
+        metadata: {
+          previousStatus: current.status,
+          planId: current.plan_id,
+          terminatedAt: new Date().toISOString(),
+        },
+      }).execute();
+      return serialize(cancelled);
+    });
+  }
+
   /** Present display labels in mutations as well as collection/detail responses. */
   async withNames(subscription: SubscriptionDto): Promise<SubscriptionDto> {
     const [restaurant, plan] = await Promise.all([
