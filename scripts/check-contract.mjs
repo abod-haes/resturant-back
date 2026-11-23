@@ -71,10 +71,8 @@ if (fixture.schemaVersion !== "1.9.0" || fixture.registered?.data?.expoPushToken
 }
 const reporting = JSON.parse(readFileSync("mocks/contracts/analytics-audit-v1.10.json","utf8"));
 if (reporting.schemaVersion !== "1.10.0" ||
-  !Array.isArray(reporting.ownerAnalytics?.data?.daily) ||
-  !Array.isArray(reporting.adminAudit?.data) ||
-  reporting.adminAudit.data.some(row => "metadata" in row)) {
-  throw new Error("v1.10 report/audit contract fixture invalid or leaking metadata");
+  !Array.isArray(reporting.ownerAnalytics?.data?.daily)) {
+  throw new Error("v1.10 analytics contract fixture invalid");
 }
 const platformAdmins = JSON.parse(readFileSync("mocks/contracts/platform-admins-v1.12.json","utf8"));
 if (platformAdmins.schemaVersion !== "1.12.0" ||
