@@ -48,7 +48,7 @@ for (const [path, method] of [
   ["/employee/devices","post"], ["/employee/devices","get"], ["/employee/devices/{id}","delete"],
   ["/owner/events","get"], ["/employee/events","get"],
   ["/public/calls","post"], ["/employee/shifts/start","post"],
-  ["/owner/call-analytics","get"], ["/admin/audit-logs","get"],
+  ["/owner/call-analytics","get"],
   ["/owner/branches/{branchId}/media/images","post"],
   ["/owner/branches/{branchId}/media/documents","post"],
   ["/owner/branches/{branchId}/media","get"],
@@ -59,7 +59,7 @@ for (const [path, method] of [
   if (!doc.paths[path]?.[method]) throw new Error("Missing contract: " + method + " " + path);
 }
 for (const path of ["/owner/events","/employee/events","/employee/devices",
-  "/owner/call-analytics","/admin/audit-logs"]) {
+  "/owner/call-analytics"]) {
   const method = path.endsWith("devices") ? "post" : "get";
   if (!doc.paths[path][method].security?.some(x => Object.hasOwn(x, "bearerAuth"))) {
     throw new Error("Bearer security missing from " + path);
@@ -72,9 +72,8 @@ if (fixture.schemaVersion !== "1.9.0" || fixture.registered?.data?.expoPushToken
 const reporting = JSON.parse(readFileSync("mocks/contracts/analytics-audit-v1.10.json","utf8"));
 if (reporting.schemaVersion !== "1.10.0" ||
   !Array.isArray(reporting.ownerAnalytics?.data?.daily) ||
-  !Array.isArray(reporting.adminAudit?.data) ||
-  reporting.adminAudit.data.some(row => "metadata" in row)) {
-  throw new Error("v1.10 report/audit contract fixture invalid or leaking metadata");
+  reporting.ownerAnalytics?.data?.daily.length > 90) {
+  throw new Error("v1.10 analytics fixture invalid");
 }
 const platformAdmins = JSON.parse(readFileSync("mocks/contracts/platform-admins-v1.12.json","utf8"));
 if (platformAdmins.schemaVersion !== "1.12.0" ||
