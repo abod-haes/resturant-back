@@ -64,7 +64,7 @@ export class AuthService {
       restaurantId: user.restaurant_id,
       branchId: user.branch_id,
       department: user.department,
-      mustChangePassword: user.must_change_password,
+      mustChangePassword: user.role === "EMPLOYEE" && user.must_change_password,
     };
   }
 
