@@ -185,6 +185,12 @@ describe("Restaurant E2E: onboarding to waiter call on PostgreSQL", () => {
       .set(owner()).send({ areaId: area.body.data.id, label: "2" });
     expect(first.status).toBe(201); expect(second.status).toBe(201);
     tableOne = first.body.data.id; tableTwo = second.body.data.id;
+    const ownerOverview = await request(app.getHttpServer())
+      .get("/api/v1/owner/overview").set(owner());
+    expect(ownerOverview.status).toBe(200);
+    expect(ownerOverview.body.data).toEqual(expect.objectContaining({
+      branches: 1, activeTables: 2, onShiftEmployees: 0,
+    }));
     const firstQr = await request(app.getHttpServer())
       .get("/api/v1/owner/tables/" + tableOne + "/qr").set(owner());
     const secondQr = await request(app.getHttpServer())
