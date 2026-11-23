@@ -1,4 +1,3 @@
-import { describe, expect, it } from "@jest/globals";
 import { isDatabaseUuid } from "../../src/modules/auth/domain/database-uuid";
 
 describe("database UUID used by JWT principal validation", () => {
