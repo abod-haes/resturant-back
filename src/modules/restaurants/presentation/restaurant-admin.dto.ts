@@ -140,3 +140,16 @@ export class RestaurantDetailsDto extends RestaurantSummaryDto {
 export class RestaurantDetailsResponseDto {
   @ApiProperty({ type: RestaurantDetailsDto }) data!: RestaurantDetailsDto;
 }
+
+/** Server-calculated totals; never infer platform-wide counts from a paginated page. */
+export class PlatformOverviewDto {
+  @ApiProperty() restaurants!: number;
+  @ApiProperty() activeRestaurants!: number;
+  @ApiProperty() inactiveRestaurants!: number;
+  @ApiProperty() branches!: number;
+  @ApiProperty() activeSubscriptions!: number;
+  @ApiProperty() expiringSubscriptions!: number;
+}
+export class PlatformOverviewResponseDto {
+  @ApiProperty({ type: PlatformOverviewDto }) data!: PlatformOverviewDto;
+}
