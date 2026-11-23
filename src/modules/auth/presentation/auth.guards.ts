@@ -1,6 +1,7 @@
 import { CanActivate, ExecutionContext, ForbiddenException, Injectable, NotFoundException, UnauthorizedException } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
 import { DatabaseService } from "../../../database/database.service";
+import { POSTGRES_UUID_PATTERN } from "../../../common/http/parse-postgres-uuid.pipe";
 import type { PlatformRole } from "../../../database/database.types";
 import type { AuthenticatedRequest } from "../../../common/auth/authenticated-request";
 import { AuthService } from "../application/auth.service";
@@ -58,7 +59,7 @@ export class ScopeGuard implements CanActivate {
     const principal = request.principal;
     const requestedId = request.params?.[scope.parameter];
     if (!principal || !requestedId) throw new ForbiddenException("Resource scope required");
-    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(requestedId)) {
+    if (!POSTGRES_UUID_PATTERN.test(requestedId)) {
       throw new NotFoundException("Resource not found");
     }
 
