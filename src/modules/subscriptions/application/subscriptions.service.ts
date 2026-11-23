@@ -6,7 +6,7 @@ import { requireOperationalEntitlements } from "../../../common/subscription/ope
 import { DatabaseService } from "../../../database/database.service";
 import type { FeatureKey, SubscriptionsTable, SubscriptionPeriod } from "../../../database/database.types";
 import type { AuthPrincipal } from "../../../common/auth/principal";
-import type { ActivateSubscriptionDto, CreatePendingSubscriptionDto, RenewSubscriptionDto, SubscriptionDto } from "../presentation/subscriptions.dto";
+import type { ActivateSubscriptionDto, CreatePendingSubscriptionDto, RenewSubscriptionDto, SubscriptionDto, ListSubscriptionsQueryDto, SubscriptionListItemDto } from "../presentation/subscriptions.dto";
 import {
   addCalendarPeriod, addGraceDays, canOperate, effectiveSubscriptionStatus, planEntitlements,
 } from "../domain/subscription-policy";
@@ -169,6 +169,38 @@ export class SubscriptionsService {
     });
   }
 
+  /** Globally paginated subscriptions, with names joined in the database. */
+  async list(query: ListSubscriptionsQueryDto): Promise<{ data: SubscriptionListItemDto[]; meta: { nextCursor: string | null; hasMore: boolean } }> {
+    let builder = this.database.db.selectFrom("subscriptions as s")
+      .innerJoin("restaurants as r", "r.id", "s.restaurant_id")
+      .innerJoin("plans as p", "p.id", "s.plan_id")
+      .selectAll("s").select(["r.name as restaurant_name", "p.name as plan_name"])
+      .select(sql<string>`to_char(s.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`.as("cursor_timestamp"));
+    if (query.restaurantId) builder = builder.where("s.restaurant_id", "=", query.restaurantId);
+    if (query.planId) builder = builder.where("s.plan_id", "=", query.planId);
+    if (query.status) builder = builder.where("s.status", "=", query.status);
+    if (query.cursor) {
+      let cursor: { timestamp: string; id: string };
+      try {
+        if (!/^[A-Za-z0-9_-]{1,500}$/.test(query.cursor)) throw new Error("invalid encoding");
+        cursor = JSON.parse(Buffer.from(query.cursor, "base64url").toString("utf8")) as typeof cursor;
+        if (!cursor || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z$/.test(cursor.timestamp) ||
+          !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cursor.id)) throw new Error("invalid cursor");
+      } catch { throw new BadRequestException("Invalid pagination cursor"); }
+      builder = builder.where(sql<boolean>`(s.created_at, s.id) < (${cursor.timestamp}::timestamptz, ${cursor.id}::uuid)`);
+    }
+    const rows = await builder.orderBy("s.created_at", "desc").orderBy("s.id", "desc")
+      .limit(query.limit + 1).execute();
+    const hasMore = rows.length > query.limit;
+    const page = rows.slice(0, query.limit);
+    const last = page.at(-1);
+    return {
+      data: page.map(row => ({ ...serialize(row), restaurantName: row.restaurant_name, planName: row.plan_name })),
+      meta: { hasMore, nextCursor: hasMore && last ? Buffer.from(JSON.stringify({
+        timestamp: last.cursor_timestamp, id: last.id,
+      })).toString("base64url") : null },
+    };
+  }
   async currentForRestaurant(restaurantId: string): Promise<SubscriptionDto | null> {
     const rows = await this.database.db.selectFrom("subscriptions").selectAll()
       .where("restaurant_id", "=", restaurantId).orderBy(sql<number>`CASE WHEN status = 'active' THEN 0 ELSE 1 END`, "asc")
