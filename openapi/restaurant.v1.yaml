@@ -569,6 +569,34 @@ paths:
         '200': { description: Updated ordered product gallery }
         '400': { description: MEDIA_DUPLICATED or DTO validation }
         '404': { description: Foreign/missing product or media ID }
+  /owner/overview:
+    get:
+      operationId: getOwnerOverview
+      tags: [Owner overview]
+      security: [{ bearerAuth: [] }]
+      description: Tenant-wide active branches, tables, on-shift employees and UTC-today calls.
+      responses:
+        '200':
+          description: Current restaurant overview counters
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    required: [branches, activeTables, onShiftEmployees, callsToday, waiterCallsToday, hookahCallsToday, noStaffCallsToday]
+                    properties:
+                      branches: { type: integer, minimum: 0 }
+                      activeTables: { type: integer, minimum: 0 }
+                      onShiftEmployees: { type: integer, minimum: 0 }
+                      callsToday: { type: integer, minimum: 0 }
+                      waiterCallsToday: { type: integer, minimum: 0 }
+                      hookahCallsToday: { type: integer, minimum: 0 }
+                      noStaffCallsToday: { type: integer, minimum: 0 }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
   /owner/call-analytics:
     get:
       operationId: getOwnerCallAnalytics
