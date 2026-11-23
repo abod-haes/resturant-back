@@ -32,13 +32,23 @@ components:
         hasMore: { type: boolean }
     RestaurantSummary:
       type: object
-      required: [id, name, slug, isActive, createdAt, owner]
+      required: [id, name, slug, isActive, createdAt, branchCount, subscriptionStatus, planName, owner]
       properties:
         id: { type: string, format: uuid }
         name: { type: string }
         slug: { type: string }
         isActive: { type: boolean }
         createdAt: { type: string, format: date-time }
+        branchCount: { type: integer, minimum: 0 }
+        subscriptionStatus:
+          oneOf:
+            - type: 'null'
+            - type: string
+              enum: [pending, active, expired, cancelled]
+        planName:
+          oneOf:
+            - type: 'null'
+            - type: string
         owner:
           oneOf:
             - type: 'null'
