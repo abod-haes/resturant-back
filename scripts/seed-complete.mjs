@@ -182,6 +182,9 @@ async function ensureTable(client, restaurantId, branchId, areaId, label, order)
   const credential = await single(client,
     "SELECT id FROM qr_credentials WHERE table_id=$1 AND revoked_at IS NULL", [row.id]);
   if (!credential) {
+    const oldCredential = await single(client,
+      "SELECT id FROM qr_credentials WHERE table_id=$1 LIMIT 1", [row.id]);
+    if (oldCredential) throw new Error("QR was revoked for table " + label + "; rotate it from Restaurant Dashboard instead.");
     const token = randomBytes(32).toString("base64url");
     const [tokenHash,box] = newTokenCredential(token);
     await client.query(`INSERT INTO qr_credentials
