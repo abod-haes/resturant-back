@@ -206,8 +206,10 @@ describe("Authentication and RBAC against PostgreSQL", () => {
     expect(signed.status).toBe(200);
     expect(signed.body.data.user.mustChangePassword).toBe(true);
     const authorization = "Bearer " + signed.body.data.accessToken;
+    // A platform admin with an initial password still has PLATFORM_ADMIN RBAC,
+    // not the PRIMARY_ADMIN role required by the probe.
     expect((await request(app.getHttpServer()).get("/api/v1/__auth_policy_probe/admin")
-      .set("Authorization",authorization)).status).toBe(200);
+      .set("Authorization",authorization)).status).toBe(403);
     expect((await request(app.getHttpServer()).get("/api/v1/auth/me")
       .set("Authorization",authorization)).status).toBe(200);
     const changed = await request(app.getHttpServer()).post("/api/v1/auth/change-password")
