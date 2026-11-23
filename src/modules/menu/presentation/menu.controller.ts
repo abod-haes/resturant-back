@@ -12,6 +12,7 @@ import {
   CategoryListDto, CategoryResponseDto, CopyMenuDto, CopyMenuResponseDto, CreateCategoryDto,
   CreateProductDto, MenuPageDto, PatchCategoryDto, PatchProductDto,
   OwnerProductListQueryDto, ProductListDto, ProductResponseDto, PublicMenuResponseDto,
+  PublicRestaurantBranchesResponseDto,
 } from "./menu.dto";
 
 function principal(req: AuthenticatedRequest) {
@@ -110,6 +111,13 @@ export class MenuCopyController {
 @Controller("public/menu")
 export class PublicMenuController {
   constructor(private readonly service: PublicMenuService) {}
+  @Get("restaurants/:restaurantId/branches")
+  @ApiOperation({ summary: "List public active menu branches by restaurant UUID (no QR token)" })
+  @ApiOkResponse({ type: PublicRestaurantBranchesResponseDto })
+  async restaurantBranches(@Param("restaurantId", new ParseUUIDPipe({ version: "4" })) restaurantId: string):
+    Promise<PublicRestaurantBranchesResponseDto> {
+    return this.service.restaurantBranches(restaurantId);
+  }
   @Get(":slug") @ApiOperation({ summary: "Paginated public catalog, without table call credentials" })
   @ApiOkResponse({ type: PublicMenuResponseDto })
   async list(@Param("slug") slug: string, @Query() query: MenuPageDto): Promise<PublicMenuResponseDto> {
