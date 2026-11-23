@@ -309,10 +309,9 @@ describe("Restaurant E2E: onboarding to waiter call on PostgreSQL", () => {
     expect((await request(app.getHttpServer()).get("/api/v1/public/menu/" + slug)).status).toBe(403);
     expect((await request(app.getHttpServer()).post("/api/v1/public/t/" + newQr + "/sessions")).status)
       .toBe(403);
-    const audit = await request(app.getHttpServer())
-      .get("/api/v1/admin/audit-logs?restaurantId=" + restaurantId).set(admin());
-    expect(audit.status).toBe(200);
-    expect(audit.body.data.length).toBeGreaterThan(0);
-    expect(audit.body.data[0]).not.toHaveProperty("metadata");
+    // The Admin audit listing endpoint has been retired. Internal event
+    // persistence is retained for security and operational traceability.
+    expect((await request(app.getHttpServer())
+      .get("/api/v1/admin/audit-logs?restaurantId=" + restaurantId).set(admin())).status).toBe(404);
   });
 });
