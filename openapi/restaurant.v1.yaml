@@ -981,7 +981,7 @@ paths:
                 properties:
                   data:
                     type: object
-                    required: [restaurants, activeRestaurants, inactiveRestaurants, branches, activeSubscriptions, expiringSubscriptions]
+                    required: [restaurants, activeRestaurants, inactiveRestaurants, branches, activeSubscriptions, expiringSubscriptions, pendingSubscriptions, expiredSubscriptions, cancelledSubscriptions, expiringRestaurants]
                     properties:
                       restaurants: { type: integer, minimum: 0 }
                       activeRestaurants: { type: integer, minimum: 0 }
@@ -989,6 +989,19 @@ paths:
                       branches: { type: integer, minimum: 0 }
                       activeSubscriptions: { type: integer, minimum: 0 }
                       expiringSubscriptions: { type: integer, minimum: 0 }
+                      pendingSubscriptions: { type: integer, minimum: 0 }
+                      expiredSubscriptions: { type: integer, minimum: 0 }
+                      cancelledSubscriptions: { type: integer, minimum: 0 }
+                      expiringRestaurants:
+                        type: array
+                        items:
+                          type: object
+                          required: [restaurantId, restaurantName, endsAt, daysRemaining]
+                          properties:
+                            restaurantId: { type: string, format: uuid }
+                            restaurantName: { type: string }
+                            endsAt: { type: string, format: date-time }
+                            daysRemaining: { type: integer, minimum: 1 }
         '401': { description: Unauthorized }
         '403': { description: Forbidden }
   /admin/restaurants/{id}:
