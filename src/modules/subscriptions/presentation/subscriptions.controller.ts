@@ -75,7 +75,7 @@ export class SubscriptionsController {
     @Param("restaurantId", new ParsePostgresUuidPipe()) restaurantId: string,
     @Body() body: CreatePendingSubscriptionDto, @Req() req: AuthenticatedRequest,
   ): Promise<SubscriptionResponseDto> {
-    return { data: await this.subscriptions.createPending(restaurantId, body, requirePrincipal(req), req.requestId) };
+    return { data: await this.subscriptions.withNames(await this.subscriptions.createPending(restaurantId, body, requirePrincipal(req), req.requestId)) };
   }
 
   @Get("restaurants/:restaurantId/subscription")
@@ -92,7 +92,7 @@ export class SubscriptionsController {
     @Param("id", new ParsePostgresUuidPipe()) id: string,
     @Body() body: ActivateSubscriptionDto, @Req() req: AuthenticatedRequest,
   ): Promise<SubscriptionResponseDto> {
-    return { data: await this.subscriptions.activate(id, body, requirePrincipal(req), req.requestId) };
+    return { data: await this.subscriptions.withNames(await this.subscriptions.activate(id, body, requirePrincipal(req), req.requestId)) };
   }
 
   @Post("subscriptions/:id/renew")
@@ -103,7 +103,7 @@ export class SubscriptionsController {
     @Param("id", new ParsePostgresUuidPipe()) id: string,
     @Body() body: RenewSubscriptionDto, @Req() req: AuthenticatedRequest,
   ): Promise<SubscriptionResponseDto> {
-    return { data: await this.subscriptions.renew(id, body, requirePrincipal(req), req.requestId) };
+    return { data: await this.subscriptions.withNames(await this.subscriptions.renew(id, body, requirePrincipal(req), req.requestId)) };
   }
 }
 
