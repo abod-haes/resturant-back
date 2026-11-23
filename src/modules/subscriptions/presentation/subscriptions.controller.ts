@@ -12,7 +12,7 @@ import { SubscriptionsService } from "../application/subscriptions.service";
 import { RenewalContactsService } from "../application/renewal-contacts.service";
 import {
   ActivateSubscriptionDto, ContactsResponseDto, CreatePendingSubscriptionDto, CreatePlanDto,
-  ListPlansQueryDto, OwnerSubscriptionResponseDto, PatchPlanDto, PlanListResponseDto,
+  ListPlansQueryDto, ListSubscriptionsQueryDto, SubscriptionListResponseDto, OwnerSubscriptionResponseDto, PatchPlanDto, PlanListResponseDto,
   PlanResponseDto, RenewSubscriptionDto, ReplaceContactsDto, SubscriptionResponseDto, OptionalSubscriptionResponseDto,
 } from "./subscriptions.dto";
 
@@ -60,6 +60,13 @@ export class PlansController {
 @Controller("admin")
 export class SubscriptionsController {
   constructor(private readonly subscriptions: SubscriptionsService) {}
+
+  @Get("subscriptions")
+  @ApiOperation({ summary: "List subscriptions with restaurant and plan names and cursor pagination" })
+  @ApiOkResponse({ type: SubscriptionListResponseDto })
+  async list(@Query() query: ListSubscriptionsQueryDto): Promise<SubscriptionListResponseDto> {
+    return this.subscriptions.list(query);
+  }
 
   @Post("restaurants/:restaurantId/subscriptions")
   @ApiOperation({ summary: "Create a pending manual subscription for an existing restaurant" })
