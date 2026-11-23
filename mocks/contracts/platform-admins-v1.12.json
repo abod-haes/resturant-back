@@ -7,7 +7,7 @@
       "name": "Platform Operator",
       "role": "PLATFORM_ADMIN",
       "isActive": true,
-      "mustChangePassword": true,
+      "mustChangePassword": false,
       "createdAt": "2026-11-20T10:00:00.000Z"
     }
   },
@@ -19,7 +19,7 @@
         "name": "Platform Operator",
         "role": "PLATFORM_ADMIN",
         "isActive": true,
-        "mustChangePassword": true,
+        "mustChangePassword": false,
         "createdAt": "2026-11-20T10:00:00.000Z"
       }
     ],
