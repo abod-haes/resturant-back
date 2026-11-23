@@ -106,12 +106,9 @@ export class ListSubscriptionsQueryDto {
   @IsOptional() @IsIn(["pending", "active", "expired", "cancelled"])
   status?: "pending" | "active" | "expired" | "cancelled";
 }
-export class SubscriptionListItemDto extends SubscriptionDto {
-  @ApiProperty() restaurantName!: string;
-  @ApiProperty() planName!: string;
-}
+export type SubscriptionListItemDto = SubscriptionDto & { restaurantName: string; planName: string };
 export class SubscriptionListResponseDto {
-  @ApiProperty({ type: [SubscriptionListItemDto] }) data!: SubscriptionListItemDto[];
+  @ApiProperty({ type: [SubscriptionDto], description: "Each record contains restaurantName and planName." }) data!: SubscriptionListItemDto[];
   @ApiProperty({ type: PageMetaDto }) meta!: PageMetaDto;
 }
 
