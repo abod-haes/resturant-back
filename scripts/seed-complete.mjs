@@ -23,6 +23,10 @@ if (!/^[a-fA-F0-9]{64}$/.test(env.QR_TOKEN_ENCRYPTION_KEY ?? "")) {
   throw new Error("Set the existing Backend QR_TOKEN_ENCRYPTION_KEY (64 hex chars), never expose it to a frontend.");
 }
 const reset = process.argv.includes("--reset-demo-passwords");
+const dryRun = process.argv.includes("--dry-run");
+if (process.argv.some(arg => arg.startsWith("--") && !["--reset-demo-passwords", "--dry-run"].includes(arg))) {
+  throw new Error("Unknown option. Supported: --dry-run and --reset-demo-passwords");
+}
 if (reset && env.SEED_RESET_DEMO_PASSWORDS_CONFIRM !== "RESET_ONLY_NAMED_DEMO_ACCOUNTS") {
   throw new Error("Password reset requires SEED_RESET_DEMO_PASSWORDS_CONFIRM=RESET_ONLY_NAMED_DEMO_ACCOUNTS");
 }
@@ -262,15 +266,15 @@ async function run() {
         }
       }
     }
-    await client.query("COMMIT");
+    await client.query(dryRun ? "ROLLBACK" : "COMMIT");
     transaction=false;
-    console.log("Seed completed successfully (only absent rows created).");
+    console.log(dryRun ? "DRY RUN successful: all changes rolled back." : "Seed completed successfully (only absent rows created).");
     console.table(summary);
-    if (generated.length) {
+    if (generated.length && !dryRun) {
       console.log("ONE-TIME CREDENTIALS - store privately now; never post or commit:");
       console.table(generated);
       console.log("Existing credentials not listed above were preserved.");
-    } else {
+    } else if (!dryRun) {
       console.log("All accounts already exist; passwords unchanged. For intentional demo-account rotation, use --reset-demo-passwords with separate confirmation.");
     }
   } catch(error) {
