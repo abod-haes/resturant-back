@@ -71,6 +71,8 @@ export class CallHistoryDto {
   @ApiProperty() id!: string;
   @ApiProperty() branchId!: string;
   @ApiProperty() tableId!: string;
+  @ApiPropertyOptional({ nullable: true }) tableLabel?: string | null;
+  @ApiPropertyOptional({ nullable: true }) branchName?: string | null;
   @ApiProperty({ enum: ["waiter","hookah"] }) type!: CallType;
   @ApiProperty({ enum: ["queued","no_staff"] }) deliveryState!: CallDeliveryState;
   @ApiProperty() recipientsCount!: number;
