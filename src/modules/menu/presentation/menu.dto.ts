@@ -136,3 +136,20 @@ export class PublicMenuResponseDto {
   @ApiProperty({ type: PublicMenuDto }) data!: PublicMenuDto;
   @ApiProperty({ type: MenuPageMetaDto }) meta!: MenuPageMetaDto;
 }
+
+
+export class PublicRestaurantBranchDto {
+  @ApiProperty({ format: "uuid" }) id!: string;
+  @ApiProperty() name!: string;
+  @ApiProperty() slug!: string;
+}
+export class PublicRestaurantIdentityDto {
+  @ApiProperty({ format: "uuid" }) id!: string;
+  @ApiProperty() name!: string;
+}
+export class PublicRestaurantBranchesResponseDto {
+  @ApiProperty() data!: {
+    restaurant: PublicRestaurantIdentityDto;
+    branches: PublicRestaurantBranchDto[];
+  };
+}
