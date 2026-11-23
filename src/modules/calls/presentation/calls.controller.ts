@@ -1,5 +1,6 @@
+import { ParsePostgresUuidPipe } from "../../../common/http/parse-postgres-uuid.pipe";
 import {
-  Body, Controller, Get, HttpCode, HttpStatus, Param, ParseUUIDPipe, Patch, Post, Query, Req,
+  Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post, Query, Req,
   Res, UnauthorizedException,
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiCreatedResponse, ApiOkResponse, ApiOperation, ApiTags } from "@nestjs/swagger";
@@ -72,12 +73,12 @@ export class OwnerRestaurantCallSettingsController {
 export class OwnerBranchCallSettingsController {
   constructor(private readonly settings: CallSettingsService) {}
   @Get() @ApiOkResponse({ type: SettingsResponseDto })
-  async get(@Param("branchId", new ParseUUIDPipe({ version: "4" })) branchId: string,
+  async get(@Param("branchId", new ParsePostgresUuidPipe()) branchId: string,
     @Req() req: AuthenticatedRequest): Promise<SettingsResponseDto> {
     return { data: await this.settings.ownerBranch(principal(req), branchId) };
   }
   @Patch() @ApiOkResponse({ type: SettingsResponseDto })
-  async patch(@Param("branchId", new ParseUUIDPipe({ version: "4" })) branchId: string,
+  async patch(@Param("branchId", new ParsePostgresUuidPipe()) branchId: string,
     @Body() body: BranchCallSettingsDto, @Req() req: AuthenticatedRequest): Promise<SettingsResponseDto> {
     return { data: await this.settings.updateBranch(principal(req), branchId, body, req.requestId) };
   }
