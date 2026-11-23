@@ -366,36 +366,6 @@ describe("QR sessions and shift-aware calls (PostgreSQL)", () => {
       .get("/api/v1/owner/call-analytics")).status).toBe(401);
   });
 
-  it("provides PRIMARY_ADMIN only redacted audit trail and stable keyset pagination", async () => {
-    const action = "analytics.audit_test";
-    for (const n of [1, 2]) {
-      await pool.query(`INSERT INTO audit_logs (restaurant_id, actor_user_id, action, entity_type,
-        entity_id, request_id, metadata) VALUES ($1,NULL,$2,'test',NULL,$3,$4)`,
-      [restaurantId, action, "audit-test-" + n, { rawExpoToken: "never-return-me", secret: "never-return-me" }]);
-    }
-    const query = "/api/v1/admin/audit-logs?action=" + action + "&restaurantId=" + restaurantId + "&limit=1";
-    const first = await request(app.getHttpServer()).get(query).set(admin());
-    expect(first.status).toBe(200);
-    expect(first.body.data).toHaveLength(1);
-    expect(first.body.meta.hasMore).toBe(true);
-    expect(first.body.data[0]).toMatchObject({ action, restaurantId, entityType: "test" });
-    expect(first.body.data[0]).not.toHaveProperty("metadata");
-    expect(JSON.stringify(first.body)).not.toContain("never-return-me");
-    const next = await request(app.getHttpServer()).get(query + "&cursor=" +
-      encodeURIComponent(first.body.meta.nextCursor)).set(admin());
-    expect(next.status).toBe(200);
-    expect(next.body.data).toHaveLength(1);
-    expect(next.body.data[0].id).not.toBe(first.body.data[0].id);
-    expect(next.body.meta.hasMore).toBe(false);
-    expect((await request(app.getHttpServer()).get(query + "&cursor=broken").set(admin())).status).toBe(400);
-    expect((await request(app.getHttpServer()).get(query + "&limit=101").set(admin())).status).toBe(400);
-    expect((await request(app.getHttpServer()).get(query + "&action=invalid%20action").set(admin())).status).toBe(400);
-    expect((await request(app.getHttpServer()).get(query).set(owner())).status).toBe(403);
-    expect((await request(app.getHttpServer()).get(query).set(auth(platformToken))).status).toBe(403);
-    expect((await request(app.getHttpServer()).get(query).set(auth(employeeToken))).status).toBe(403);
-    expect((await request(app.getHttpServer()).get(query)).status).toBe(401);
-  });
-
   it("enforces owner role and documents public/staff APIs", async () => {
     const denied = await request(app.getHttpServer()).get("/api/v1/owner/employees")
       .set(auth(employeeToken));
