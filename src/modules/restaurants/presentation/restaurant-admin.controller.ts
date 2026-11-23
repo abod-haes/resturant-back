@@ -11,7 +11,7 @@ import type { AuthenticatedRequest } from "../../../common/auth/authenticated-re
 import { RestaurantAdminService } from "../application/restaurant-admin.service";
 import {
   CreateRestaurantDto, OnboardingResponseDto, RestaurantDetailsResponseDto,
-  RestaurantListQueryDto, RestaurantListResponseDto, UpdateRestaurantDto,
+  RestaurantListQueryDto, RestaurantListResponseDto, PlatformOverviewResponseDto, UpdateRestaurantDto,
 } from "./restaurant-admin.dto";
 
 const ADMIN_ROLES = ["PRIMARY_ADMIN", "PLATFORM_ADMIN"] as const;
@@ -37,6 +37,13 @@ export class RestaurantAdminController {
   @ApiOkResponse({ type: RestaurantListResponseDto })
   async list(@Query() query: RestaurantListQueryDto): Promise<RestaurantListResponseDto> {
     return this.service.list(query);
+  }
+
+  @Get("overview")
+  @ApiOperation({ summary: "Server-aggregated platform dashboard totals (not page-limited)" })
+  @ApiOkResponse({ type: PlatformOverviewResponseDto })
+  async overview(): Promise<PlatformOverviewResponseDto> {
+    return { data: await this.service.overview() };
   }
 
   @Get(":id")
