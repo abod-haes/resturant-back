@@ -147,8 +147,19 @@ async function ensureByName(client, table, scopeColumn, scopeId, name, extraColu
 }
 async function ensureSubscription(client, restaurantId, planId, adminId) {
   const existing = await single(client,
-    "SELECT id FROM subscriptions WHERE restaurant_id=$1 AND status='active' FOR UPDATE", [restaurantId]);
-  if (existing) return; // No overwriting current subscription terms.
+    "SELECT id,starts_at,grace_ends_at,entitlement_snapshot FROM subscriptions WHERE restaurant_id=$1 AND status='active' FOR UPDATE", [restaurantId]);
+  if (existing) {
+    const ent = existing.entitlement_snapshot;
+    const active = existing.starts_at && existing.grace_ends_at
+      && new Date(existing.starts_at) <= new Date()
+      && new Date(existing.grace_ends_at) > new Date()
+      && ent?.features?.menu === true
+      && ent?.features?.waiter_calls === true
+      && ent?.features?.hookah_calls === true
+      && ent?.maxTables >= 5 && ent?.maxEmployees >= 2;
+    if (!active) throw new Error("Existing active subscription does not support full demo; resolve its entitlements in Admin Dashboard.");
+    return; // Never overwrite existing terms.
+  }
   const start = new Date();
   const end = new Date(start);
   end.setUTCFullYear(end.getUTCFullYear()+1);
