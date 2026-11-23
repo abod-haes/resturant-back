@@ -171,14 +171,16 @@ export class SubscriptionsService {
 
   /** Present display labels in mutations as well as collection/detail responses. */
   async withNames(subscription: SubscriptionDto): Promise<SubscriptionDto> {
-    const labels = await this.database.db.selectFrom("restaurants as r")
-      .innerJoin("plans as p", "p.id", sql`${subscription.planId}::uuid`)
-      .select(["r.name as restaurant_name", "p.name as plan_name"])
-      .where("r.id", "=", subscription.restaurantId)
-      .executeTakeFirst();
+    const [restaurant, plan] = await Promise.all([
+      this.database.db.selectFrom("restaurants").select("name")
+        .where("id", "=", subscription.restaurantId).executeTakeFirst(),
+      this.database.db.selectFrom("plans").select("name")
+        .where("id", "=", subscription.planId).executeTakeFirst(),
+    ]);
     return {
       ...subscription,
-      ...(labels ? { restaurantName: labels.restaurant_name, planName: labels.plan_name } : {}),
+      ...(restaurant ? { restaurantName: restaurant.name } : {}),
+      ...(plan ? { planName: plan.name } : {}),
     };
   }
 
