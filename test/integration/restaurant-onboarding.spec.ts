@@ -138,7 +138,7 @@ describe("Platform restaurant onboarding (real PostgreSQL)", () => {
     expect(after.rows[0].total).toBe(before.rows[0].total);
   });
 
-  it("lets platform admin onboard, but blocks owners and requires their initial password change", async () => {
+  it("lets platform admin onboard, but blocks owners by role without forcing an initial password change", async () => {
     const username = loginName();
     const onboard = await postRestaurant(payload(username,"Platform Created"), platformToken);
     expect(onboard.status).toBe(201);
@@ -156,7 +156,7 @@ describe("Platform restaurant onboarding (real PostgreSQL)", () => {
     const forbiddenUntilChanged = await request(app.getHttpServer()).get("/api/v1/admin/restaurants")
       .set("Authorization", bearer);
     expect(forbiddenUntilChanged.status).toBe(403);
-    expect(forbiddenUntilChanged.body.error.code).toBe("PASSWORD_CHANGE_REQUIRED");
+    expect(forbiddenUntilChanged.body.error.code).toBe("FORBIDDEN");
     const changed = await request(app.getHttpServer()).post("/api/v1/auth/change-password")
       .set("Authorization",bearer)
       .send({ currentPassword: OWNER_PASSWORD, newPassword: OWNER_CHANGED_PASSWORD });
