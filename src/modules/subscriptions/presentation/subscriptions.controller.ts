@@ -1,5 +1,6 @@
+import { ParsePostgresUuidPipe } from "../../../common/http/parse-postgres-uuid.pipe";
 import {
-  Body, Controller, Get, HttpCode, HttpStatus, Param, ParseUUIDPipe, Patch, Post, Query, Req, UnauthorizedException,
+  Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post, Query, Req, UnauthorizedException,
 } from "@nestjs/common";
 import {
   ApiBearerAuth, ApiCreatedResponse, ApiOkResponse, ApiOperation, ApiTags,
@@ -40,13 +41,13 @@ export class PlansController {
   }
 
   @Get(":id") @ApiOkResponse({ type: PlanResponseDto })
-  async get(@Param("id", new ParseUUIDPipe({ version: "4" })) id: string): Promise<PlanResponseDto> {
+  async get(@Param("id", new ParsePostgresUuidPipe()) id: string): Promise<PlanResponseDto> {
     return { data: await this.plans.get(id) };
   }
 
   @Patch(":id") @ApiOkResponse({ type: PlanResponseDto })
   async update(
-    @Param("id", new ParseUUIDPipe({ version: "4" })) id: string, @Body() body: PatchPlanDto,
+    @Param("id", new ParsePostgresUuidPipe()) id: string, @Body() body: PatchPlanDto,
     @Req() req: AuthenticatedRequest,
   ): Promise<PlanResponseDto> {
     return { data: await this.plans.update(id, body, requirePrincipal(req), req.requestId) };
@@ -64,7 +65,7 @@ export class SubscriptionsController {
   @ApiOperation({ summary: "Create a pending manual subscription for an existing restaurant" })
   @ApiCreatedResponse({ type: SubscriptionResponseDto })
   async create(
-    @Param("restaurantId", new ParseUUIDPipe({ version: "4" })) restaurantId: string,
+    @Param("restaurantId", new ParsePostgresUuidPipe()) restaurantId: string,
     @Body() body: CreatePendingSubscriptionDto, @Req() req: AuthenticatedRequest,
   ): Promise<SubscriptionResponseDto> {
     return { data: await this.subscriptions.createPending(restaurantId, body, requirePrincipal(req), req.requestId) };
@@ -72,7 +73,7 @@ export class SubscriptionsController {
 
   @Get("restaurants/:restaurantId/subscription")
   @ApiOkResponse({ type: OptionalSubscriptionResponseDto })
-  async current(@Param("restaurantId", new ParseUUIDPipe({ version: "4" })) restaurantId: string): Promise<OptionalSubscriptionResponseDto> {
+  async current(@Param("restaurantId", new ParsePostgresUuidPipe()) restaurantId: string): Promise<OptionalSubscriptionResponseDto> {
     return { data: await this.subscriptions.currentForRestaurant(restaurantId) };
   }
 
@@ -81,7 +82,7 @@ export class SubscriptionsController {
   @ApiOperation({ summary: "Activate pending subscription with explicit UTC start and grace period" })
   @ApiOkResponse({ type: SubscriptionResponseDto })
   async activate(
-    @Param("id", new ParseUUIDPipe({ version: "4" })) id: string,
+    @Param("id", new ParsePostgresUuidPipe()) id: string,
     @Body() body: ActivateSubscriptionDto, @Req() req: AuthenticatedRequest,
   ): Promise<SubscriptionResponseDto> {
     return { data: await this.subscriptions.activate(id, body, requirePrincipal(req), req.requestId) };
@@ -92,7 +93,7 @@ export class SubscriptionsController {
   @ApiOperation({ summary: "Manually renew current subscription, preserving term history" })
   @ApiOkResponse({ type: SubscriptionResponseDto })
   async renew(
-    @Param("id", new ParseUUIDPipe({ version: "4" })) id: string,
+    @Param("id", new ParsePostgresUuidPipe()) id: string,
     @Body() body: RenewSubscriptionDto, @Req() req: AuthenticatedRequest,
   ): Promise<SubscriptionResponseDto> {
     return { data: await this.subscriptions.renew(id, body, requirePrincipal(req), req.requestId) };

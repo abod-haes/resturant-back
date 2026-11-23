@@ -211,6 +211,29 @@ describe("Platform restaurant onboarding (real PostgreSQL)", () => {
       .set("Authorization", authorization)).status).toBe(404);
   });
 
+  it("accepts legacy PostgreSQL UUID identifiers in detail and patch routes", async () => {
+    const legacyId = "803852bc-d9d5-96c4-f879-9648831f85cf";
+    // A fresh legacy identifier with non-v4 bits; do not collide with fixtures in tests.
+    const id = "f07b6c85-3f0a-dfc1-95fe-a1cb8c6c85a8";
+    expect(id).not.toBe(legacyId);
+    const slug = "legacy-" + id.replaceAll("-", "");
+    restaurantIds.push(id);
+    await pool.query("INSERT INTO restaurants (id,name,slug) VALUES ($1,$2,$3)",
+      [id, "Legacy restaurant", slug]);
+    const bearer = "Bearer " + primaryToken;
+    const detail = await request(app.getHttpServer()).get("/api/v1/admin/restaurants/" + id)
+      .set("Authorization", bearer);
+    expect(detail.status).toBe(200);
+    expect(detail.body.data.id).toBe(id);
+    const update = await request(app.getHttpServer()).patch("/api/v1/admin/restaurants/" + id)
+      .set("Authorization", bearer).send({ name: "Updated legacy restaurant" });
+    expect(update.status).toBe(200);
+    expect(update.body.data.name).toBe("Updated legacy restaurant");
+    const malformed = await request(app.getHttpServer()).get("/api/v1/admin/restaurants/invalid-id")
+      .set("Authorization", bearer);
+    expect(malformed.status).toBe(400);
+  });
+
   it("uses stable paginated, case-insensitive name filtering and enforces limit caps", async () => {
     for (const name of ["Basil Alpha", "Basil Beta", "Basil Gamma"]) {
       const username = loginName();

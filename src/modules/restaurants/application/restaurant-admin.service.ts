@@ -2,6 +2,7 @@ import {
   BadRequestException, ConflictException, Injectable, NotFoundException,
 } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
+import { POSTGRES_UUID_PATTERN } from "../../../common/http/parse-postgres-uuid.pipe";
 import { sql } from "kysely";
 import { DatabaseService } from "../../../database/database.service";
 import { hashPassword } from "../../../common/crypto/password";
@@ -20,7 +21,6 @@ interface CursorValue {
   timestamp: string;
   id: string;
 }
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function parseCursor(cursor: string): CursorValue {
   try {
@@ -31,7 +31,7 @@ function parseCursor(cursor: string): CursorValue {
     const timestamp = decoded.timestamp;
     const id = decoded.id;
     if (typeof timestamp !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z$/.test(timestamp) ||
-      !Number.isFinite(Date.parse(timestamp)) || typeof id !== "string" || !UUID_RE.test(id)) {
+      !Number.isFinite(Date.parse(timestamp)) || typeof id !== "string" || !POSTGRES_UUID_PATTERN.test(id)) {
       throw new Error("Bad cursor values");
     }
     return { timestamp, id };
