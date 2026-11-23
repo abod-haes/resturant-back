@@ -1,5 +1,5 @@
 import {
-  Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Query, Req, UnauthorizedException,
+  BadRequestException, Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Query, Req, UnauthorizedException,
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiCreatedResponse, ApiOkResponse, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { BranchScope, Public, Roles } from "../../../common/auth/policy.decorators";
@@ -114,8 +114,12 @@ export class PublicMenuController {
   @Get("restaurants/:restaurantId/branches")
   @ApiOperation({ summary: "List public active menu branches by restaurant UUID (no QR token)" })
   @ApiOkResponse({ type: PublicRestaurantBranchesResponseDto })
-  async restaurantBranches(@Param("restaurantId", new ParseUUIDPipe({ version: "4" })) restaurantId: string):
+  async restaurantBranches(@Param("restaurantId") restaurantId: string):
     Promise<PublicRestaurantBranchesResponseDto> {
+    // Existing seeded IDs may use non-v4 UUID variants, accepted by PostgreSQL uuid.
+    if (!/^[a-f\d]{8}(-[a-f\d]{4}){3}-[a-f\d]{12}$/i.test(restaurantId)) {
+      throw new BadRequestException("Invalid restaurant UUID");
+    }
     return this.service.restaurantBranches(restaurantId);
   }
   @Get(":slug") @ApiOperation({ summary: "Paginated public catalog, without table call credentials" })
