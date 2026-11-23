@@ -137,10 +137,13 @@ export class RestaurantAdminService {
   async overview(): Promise<{
     restaurants: number; activeRestaurants: number; inactiveRestaurants: number;
     branches: number; activeSubscriptions: number; expiringSubscriptions: number;
+    pendingSubscriptions: number; expiredSubscriptions: number; cancelledSubscriptions: number;
+    expiringRestaurants: { restaurantId: string; restaurantName: string; endsAt: string; daysRemaining: number }[];
   }> {
     const summary = await sql<{
       restaurants: number; activeRestaurants: number; inactiveRestaurants: number;
       branches: number; activeSubscriptions: number; expiringSubscriptions: number;
+      pendingSubscriptions: number; expiredSubscriptions: number; cancelledSubscriptions: number;
     }>`
       SELECT
         (SELECT count(*)::int FROM restaurants) AS "restaurants",
@@ -150,9 +153,30 @@ export class RestaurantAdminService {
         (SELECT count(*)::int FROM subscriptions WHERE status = 'active') AS "activeSubscriptions",
         (SELECT count(*)::int FROM subscriptions
           WHERE status = 'active' AND ends_at > now()
-            AND ends_at <= now() + interval '7 days') AS "expiringSubscriptions"
+            AND ends_at <= now() + interval '7 days') AS "expiringSubscriptions",
+        (SELECT count(*)::int FROM subscriptions WHERE status = 'pending') AS "pendingSubscriptions",
+        (SELECT count(*)::int FROM subscriptions WHERE status = 'expired') AS "expiredSubscriptions",
+        (SELECT count(*)::int FROM subscriptions WHERE status = 'cancelled') AS "cancelledSubscriptions"
     `.execute(this.database.db);
-    return summary.rows[0];
+    const now = new Date();
+    const weekEnd = new Date(now.getTime() + 7 * 86_400_000);
+    const expiring = await this.database.db.selectFrom("subscriptions as s")
+      .innerJoin("restaurants as r", "r.id", "s.restaurant_id")
+      .select(["r.id as restaurant_id", "r.name as restaurant_name", "s.ends_at as ends_at"])
+      .where("s.status", "=", "active")
+      .where("s.ends_at", ">", now)
+      .where("s.ends_at", "<=", weekEnd)
+      .orderBy("s.ends_at", "asc")
+      .limit(5).execute();
+    return {
+      ...summary.rows[0],
+      expiringRestaurants: expiring.filter(row => row.ends_at !== null).map(row => ({
+        restaurantId: row.restaurant_id,
+        restaurantName: row.restaurant_name,
+        endsAt: row.ends_at!.toISOString(),
+        daysRemaining: Math.max(1, Math.ceil((row.ends_at!.getTime() - now.getTime()) / 86_400_000)),
+      })),
+    };
   }
 
   async list(query: RestaurantListQueryDto): Promise<ListPage> {
