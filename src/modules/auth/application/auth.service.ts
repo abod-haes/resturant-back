@@ -209,6 +209,18 @@ export class AuthService {
       refreshToken: nextToken, user: this.toPublicUser(user) };
   }
 
+  /** Revoke a browser session using its authenticated bearer when the HttpOnly
+   * refresh cookie is unavailable (e.g. localhost frontend and cross-site API).
+   * authenticate() validates signature, expiry, user and live DB session first. */
+  async logoutAccessSession(accessToken: string): Promise<void> {
+    const principal = await this.authenticate(accessToken);
+    await this.database.db.updateTable("auth_sessions")
+      .set({ revoked_at: new Date() })
+      .where("id", "=", principal.sessionId)
+      .where("revoked_at", "is", null)
+      .execute();
+  }
+
   async logout(refreshToken: string): Promise<void> {
     if (!isRefreshToken(refreshToken)) throw new UnauthorizedException("Invalid refresh credential");
     const digest = this.hashToken(refreshToken);
