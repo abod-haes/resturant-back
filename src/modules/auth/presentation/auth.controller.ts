@@ -22,7 +22,8 @@ export class AuthController {
     res.cookie(COOKIE_NAME, refreshToken, {
       httpOnly: true,
       secure: this.config.nodeEnv !== "development" && this.config.nodeEnv !== "test",
-      sameSite: "strict",
+      sameSite: this.config.authCrossSiteCookie ? "none" : "strict",
+      partitioned: this.config.authCrossSiteCookie,
       path: "/api/v1/auth",
       maxAge: 30 * 86400 * 1000,
     });
@@ -32,7 +33,8 @@ export class AuthController {
     res.clearCookie(COOKIE_NAME, {
       httpOnly: true,
       secure: this.config.nodeEnv !== "development" && this.config.nodeEnv !== "test",
-      sameSite: "strict",
+      sameSite: this.config.authCrossSiteCookie ? "none" : "strict",
+      partitioned: this.config.authCrossSiteCookie,
       path: "/api/v1/auth",
     });
   }

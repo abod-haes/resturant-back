@@ -20,7 +20,7 @@ const session: IssuedSession = {
 
 function controller(origins: string[]) {
   const auth = { login: jest.fn().mockResolvedValue(session) };
-  const config = { corsOrigins: origins, nodeEnv: "test" } as unknown as RuntimeConfig;
+  const config = { corsOrigins: origins, nodeEnv: "test", authCrossSiteCookie: undefined } as unknown as RuntimeConfig;
   const instance = new AuthController(auth as unknown as AuthService, config);
   const res = { cookie: jest.fn() } as unknown as Response;
   return { instance, auth, res };
@@ -34,6 +34,29 @@ describe("browser origin policy", () => {
     await expect(instance.login({ username: "platform.admin", password: "valid-password", client: "web" },
       "https://dashboard.example.test", res)).resolves.toHaveProperty("data.accessToken");
     expect(auth.login).toHaveBeenCalledTimes(2);
+  });
+
+  it("sets secure partitioned refresh cookies only with explicit cross-site mode", async () => {
+    const { instance, res } = controller(["*"]);
+    const configured = instance as unknown as { config: RuntimeConfig };
+    configured.config = {
+      ...configured.config, nodeEnv: "production", authCrossSiteCookie: true,
+    };
+    await instance.login({ username: "platform.admin", password: "valid-password", client: "web" },
+      "http://localhost:5173", res);
+    expect(res.cookie).toHaveBeenCalledWith("restaurant_refresh", "test-refresh-token",
+      expect.objectContaining({
+        httpOnly: true, secure: true, sameSite: "none", partitioned: true,
+        path: "/api/v1/auth",
+      }));
+  });
+
+  it("keeps Strict SameSite cookies as the default policy", async () => {
+    const { instance, res } = controller(["*"]);
+    await instance.login({ username: "platform.admin", password: "valid-password", client: "web" },
+      "http://localhost:5173", res);
+    expect(res.cookie).toHaveBeenCalledWith("restaurant_refresh", "test-refresh-token",
+      expect.objectContaining({ sameSite: "strict", partitioned: undefined }));
   });
 
   it("still rejects an unlisted origin in restrictive mode", async () => {

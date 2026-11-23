@@ -7,6 +7,7 @@ export interface RuntimeConfig {
   readonly databaseUrl: string;
   readonly databaseConnectTimeoutMs: number;
   readonly corsOrigins: readonly string[];
+  readonly authCrossSiteCookie: boolean;
   readonly mediaAllowedOrigins: readonly string[];
   readonly mediaStorage: Readonly<{
     bucket: string;
@@ -70,6 +71,17 @@ export function parseRuntimeConfig(env: NodeJS.ProcessEnv): RuntimeConfig {
     if (!["http:", "https:"].includes(parsedOrigin.protocol) || parsedOrigin.origin !== origin) {
       throw new Error("CORS_ORIGINS must contain origins without paths");
     }
+  }
+
+  // Explicit opt-in for browser frontends hosted on a different site from the API.
+  // Cookie remains HttpOnly, Secure and partitioned; SameSite=Strict is default.
+  const crossSiteCookieSetting = (env.AUTH_CROSS_SITE_COOKIE ?? "false").trim();
+  if (!["true", "false"].includes(crossSiteCookieSetting)) {
+    throw new Error("AUTH_CROSS_SITE_COOKIE must be true or false");
+  }
+  const authCrossSiteCookie = crossSiteCookieSetting === "true";
+  if (authCrossSiteCookie && nodeEnv !== "production") {
+    throw new Error("AUTH_CROSS_SITE_COOKIE requires NODE_ENV=production (Secure cookies)");
   }
 
   const mediaAllowedOrigins = (env.MEDIA_ALLOWED_ORIGINS ?? "")
@@ -166,6 +178,7 @@ export function parseRuntimeConfig(env: NodeJS.ProcessEnv): RuntimeConfig {
     databaseUrl,
     databaseConnectTimeoutMs: positiveInteger(env.DB_CONNECT_TIMEOUT_MS ?? "2000", "DB_CONNECT_TIMEOUT_MS", 60000),
     corsOrigins: Object.freeze(corsOrigins),
+    authCrossSiteCookie,
     mediaAllowedOrigins: Object.freeze(mediaAllowedOrigins),
     mediaStorage,
     qrEncryptionKey,
