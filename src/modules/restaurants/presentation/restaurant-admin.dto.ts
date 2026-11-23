@@ -112,6 +112,9 @@ export class RestaurantSummaryDto {
   @ApiProperty() slug!: string;
   @ApiProperty() isActive!: boolean;
   @ApiProperty({ format: "date-time" }) createdAt!: string;
+  @ApiProperty() branchCount!: number;
+  @ApiProperty({ type: String, nullable: true }) subscriptionStatus!: string | null;
+  @ApiProperty({ type: String, nullable: true }) planName!: string | null;
   @ApiProperty({ type: RestaurantOwnerDto, nullable: true }) owner!: RestaurantOwnerDto | null;
 }
 
