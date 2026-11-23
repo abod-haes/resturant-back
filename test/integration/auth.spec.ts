@@ -57,7 +57,7 @@ describe("Authentication and RBAC against PostgreSQL", () => {
     const generated = randomUUID();
     // Existing PostgreSQL branch IDs may have non-RFC UUID version/variant bits.
     const id = restaurantId === restaurantA
-      ? generated.slice(0, 14) + "e" + generated.slice(15, 19) + "-f" + generated.slice(24)
+      ? generated.slice(0, 14) + "e" + generated.slice(15, 19) + "f" + generated.slice(20)
       : generated;
     await pool.query("INSERT INTO branches (id,restaurant_id,name,slug) VALUES ($1,$2,$3,$4)",
       [id,restaurantId,"Auth test branch","branch-" + id]);
