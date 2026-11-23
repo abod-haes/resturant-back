@@ -83,6 +83,8 @@ export class SubscriptionDto {
   @ApiProperty({ format: "uuid" }) id!: string;
   @ApiProperty({ format: "uuid" }) restaurantId!: string;
   @ApiProperty({ format: "uuid" }) planId!: string;
+  @ApiPropertyOptional() restaurantName?: string;
+  @ApiPropertyOptional() planName?: string;
   @ApiProperty({ enum: ["monthly", "yearly"] }) period!: SubscriptionPeriod;
   @ApiProperty({ enum: ["pending", "scheduled", "active", "grace", "expired", "cancelled"] })
   effectiveStatus!: EffectiveSubscriptionStatus;
@@ -93,6 +95,26 @@ export class SubscriptionDto {
   @ApiProperty() graceDays!: number;
   @ApiProperty({ nullable: true, type: Object }) entitlements!: EntitlementSnapshot | null;
 }
+/** List filters are applied in SQL before cursor pagination. */
+export class ListSubscriptionsQueryDto {
+  @ApiPropertyOptional({ default: 10, minimum: 1, maximum: 100 })
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(100) limit = 10;
+  @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(500) cursor?: string;
+  @ApiPropertyOptional({ format: "uuid" }) @IsOptional() @Matches(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i) restaurantId?: string;
+  @ApiPropertyOptional({ format: "uuid" }) @IsOptional() @Matches(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i) planId?: string;
+  @ApiPropertyOptional({ enum: ["pending", "active", "expired", "cancelled"] })
+  @IsOptional() @IsIn(["pending", "active", "expired", "cancelled"])
+  status?: "pending" | "active" | "expired" | "cancelled";
+}
+export class SubscriptionListItemDto extends SubscriptionDto {
+  @ApiProperty() restaurantName!: string;
+  @ApiProperty() planName!: string;
+}
+export class SubscriptionListResponseDto {
+  @ApiProperty({ type: [SubscriptionListItemDto] }) data!: SubscriptionListItemDto[];
+  @ApiProperty({ type: PageMetaDto }) meta!: PageMetaDto;
+}
+
 export class SubscriptionResponseDto { @ApiProperty({ type: SubscriptionDto }) data!: SubscriptionDto; }
 export class OptionalSubscriptionResponseDto { @ApiProperty({ type: SubscriptionDto, nullable: true }) data!: SubscriptionDto | null; }
 
