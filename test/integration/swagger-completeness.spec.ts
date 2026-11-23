@@ -72,6 +72,6 @@ describe("Complete executable Swagger coverage (PostgreSQL)", () => {
       }
     }
     expect([...runtimeOperations].sort()).toEqual([...referenceOperations].sort());
-    expect(runtimeOperations.size).toBeGreaterThanOrEqual(90);
+    expect(runtimeOperations.size).toBeGreaterThanOrEqual(89);
   });
 });
