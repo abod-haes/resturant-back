@@ -948,6 +948,12 @@ paths:
         - in: query
           name: search
           schema: { type: string, maxLength: 100 }
+        - in: query
+          name: status
+          schema: { type: string, enum: [active, inactive] }
+        - in: query
+          name: planId
+          schema: { type: string, format: uuid }
       responses:
         '200':
           description: Paginated restaurant summaries
