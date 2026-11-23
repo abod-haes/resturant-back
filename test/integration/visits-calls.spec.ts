@@ -22,7 +22,7 @@ const NEW_STAFF = "CallIntegrationStaffChanged_2026!";
 describe("QR sessions and shift-aware calls (PostgreSQL)", () => {
   let app: INestApplication;
   let pool: Pool;
-  let adminToken = "", ownerToken = "", employeeToken = "", platformToken = "";
+  let adminToken = "", ownerToken = "", employeeToken = "";
   let restaurantId = "", branchId = "", tableId = "", qrToken = "", visitToken = "";
   let employeeId = "", otherBranchId = "";
   const gateway: PushGateway = {
@@ -67,15 +67,6 @@ describe("QR sessions and shift-aware calls (PostgreSQL)", () => {
     const login = await request(app.getHttpServer()).post("/api/v1/auth/login")
       .send({ username: adminName, password: ADMIN, client: "mobile" });
     expect(login.status).toBe(200); adminToken = login.body.data.accessToken;
-    const platformName = unique(), platformId = randomUUID();
-    users.push(platformId); names.push(platformName);
-    await pool.query(`INSERT INTO users (id,username,display_name,password_hash,role,must_change_password)
-      VALUES ($1,$2,'Call Platform Admin',$3,'PLATFORM_ADMIN',false)`,
-      [platformId, platformName, await hashPassword(ADMIN)]);
-    const platformLogin = await request(app.getHttpServer()).post("/api/v1/auth/login")
-      .send({ username: platformName, password: ADMIN, client: "mobile" });
-    expect(platformLogin.status).toBe(200);
-    platformToken = platformLogin.body.data.accessToken;
     const username = unique();
     const restaurant = await request(app.getHttpServer()).post("/api/v1/admin/restaurants").set(admin())
       .send({ name: "Call Test Restaurant", owner: { name: "Owner", username, initialPassword: INITIAL },
