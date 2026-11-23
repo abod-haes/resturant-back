@@ -86,7 +86,7 @@ describe("Primary-only platform administrator management (PostgreSQL)", () => {
       .send({ ...body, initialPassword: "short" })).status).toBe(400);
   });
 
-  it("creates scoped global admin, requires first password change and redacts secrets", async () => {
+  it("creates scoped global admin without blocking first dashboard sign-in and redacts secrets", async () => {
     managedUsername = username();
     const created = await createAdmin("مدير المنصة", managedUsername);
     expect(created.status).toBe(201);
@@ -105,7 +105,7 @@ describe("Primary-only platform administrator management (PostgreSQL)", () => {
     expect(signed.status).toBe(200);
     expect(signed.body.data.user.mustChangePassword).toBe(true);
     expect((await request(app.getHttpServer()).get("/api/v1/admin/restaurants")
-      .set(auth(signed.body.data.accessToken))).status).toBe(403);
+      .set(auth(signed.body.data.accessToken))).status).toBe(200);
     const audit = await pool.query("SELECT action, request_id, metadata FROM audit_logs WHERE entity_id=$1", [managedId]);
     expect(audit.rows).toEqual(expect.arrayContaining([expect.objectContaining({
       action: "platform_admin.created", request_id: "pa-create-2026", metadata: {},
