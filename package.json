@@ -16,12 +16,11 @@
     "check:architecture": "node scripts/check-boundaries.mjs",
     "check:contract": "node scripts/check-contract.mjs",
     "db:migrate": "node scripts/migrate.mjs",
-    "db:seed:demo": "node scripts/seed-demo.mjs",
-    "db:seed:staging-accounts": "node scripts/seed-staging-accounts.mjs",
     "db:migrate:check": "node scripts/migrate.mjs --check",
     "auth:bootstrap:primary": "node scripts/bootstrap-primary.mjs",
     "media:cleanup": "node dist/media-cleanup.js",
-    "contract:export": "node dist/export-contract.js"
+    "contract:export": "node dist/export-contract.js",
+    "db:seed:complete": "node scripts/seed-complete.mjs"
   },
   "dependencies": {
     "@nestjs/common": "^11.1.0",
