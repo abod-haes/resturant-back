@@ -50,7 +50,7 @@ export class AuthController {
   }
 
   private requireBrowserOrigin(origin: string | undefined): void {
-    if (!origin || !this.config.corsOrigins.includes(origin)) {
+    if (!origin || (!this.config.corsOrigins.includes("*") && !this.config.corsOrigins.includes(origin))) {
       throw new UnauthorizedException("Invalid browser origin");
     }
   }
