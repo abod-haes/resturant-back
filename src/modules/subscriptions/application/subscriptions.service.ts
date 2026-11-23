@@ -202,10 +202,14 @@ export class SubscriptionsService {
     };
   }
   async currentForRestaurant(restaurantId: string): Promise<SubscriptionDto | null> {
-    const rows = await this.database.db.selectFrom("subscriptions").selectAll()
-      .where("restaurant_id", "=", restaurantId).orderBy(sql<number>`CASE WHEN status = 'active' THEN 0 ELSE 1 END`, "asc")
-      .orderBy("created_at", "desc").limit(1).execute();
-    return rows.length > 0 ? serialize(rows[0]) : null;
+    const rows = await this.database.db.selectFrom("subscriptions as s")
+      .innerJoin("restaurants as r", "r.id", "s.restaurant_id")
+      .innerJoin("plans as p", "p.id", "s.plan_id")
+      .selectAll("s").select(["r.name as restaurant_name", "p.name as plan_name"])
+      .where("s.restaurant_id", "=", restaurantId)
+      .orderBy(sql<number>`CASE WHEN s.status = 'active' THEN 0 ELSE 1 END`, "asc")
+      .orderBy("s.created_at", "desc").limit(1).execute();
+    return rows.length ? { ...serialize(rows[0]), restaurantName: rows[0].restaurant_name, planName: rows[0].plan_name } : null;
   }
 
   async assertOperational(restaurantId: string, feature?: FeatureKey): Promise<void> {
