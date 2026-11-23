@@ -27,7 +27,7 @@ function toDto(row: AdminRow): PlatformAdminDto {
     name: row.display_name,
     role: "PLATFORM_ADMIN",
     isActive: row.is_active,
-    mustChangePassword: row.must_change_password,
+    mustChangePassword: false,
     createdAt: row.created_at.toISOString(),
   };
 }
@@ -60,7 +60,7 @@ export class PlatformAdminService {
           restaurant_id: null,
           branch_id: null,
           department: null,
-          must_change_password: true,
+          must_change_password: false,
           is_active: true,
         }).returning(["id", "username", "display_name", "is_active", "must_change_password", "created_at"])
           .executeTakeFirstOrThrow();
@@ -145,7 +145,7 @@ export class PlatformAdminService {
     const hash = await hashPassword(initialPassword);
     await this.database.db.transaction().execute(async (trx) => {
       const updated = await trx.updateTable("users")
-        .set({ password_hash: hash, must_change_password: true })
+        .set({ password_hash: hash, must_change_password: false })
         .where("id", "=", id).where("role", "=", "PLATFORM_ADMIN")
         .returning("id").executeTakeFirst();
       if (!updated) throw new NotFoundException("Platform administrator not found");
