@@ -1,5 +1,6 @@
+import { ParsePostgresUuidPipe } from "../../../common/http/parse-postgres-uuid.pipe";
 import {
-  Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, Query, Req, UnauthorizedException,
+  Body, Controller, Get, Param, Patch, Post, Query, Req, UnauthorizedException,
 } from "@nestjs/common";
 import {
   ApiBearerAuth, ApiConflictResponse, ApiCreatedResponse,
@@ -42,7 +43,7 @@ export class RestaurantAdminController {
   @ApiOperation({ summary: "Get restaurant and initial branch details" })
   @ApiOkResponse({ type: RestaurantDetailsResponseDto })
   @ApiNotFoundResponse({ description: "Restaurant not found" })
-  async get(@Param("id", new ParseUUIDPipe({ version: "4" })) id: string): Promise<RestaurantDetailsResponseDto> {
+  async get(@Param("id", new ParsePostgresUuidPipe()) id: string): Promise<RestaurantDetailsResponseDto> {
     return { data: await this.service.get(id) };
   }
 
@@ -51,7 +52,7 @@ export class RestaurantAdminController {
   @ApiOkResponse({ type: RestaurantDetailsResponseDto })
   @ApiNotFoundResponse({ description: "Restaurant not found" })
   async update(
-    @Param("id", new ParseUUIDPipe({ version: "4" })) id: string,
+    @Param("id", new ParsePostgresUuidPipe()) id: string,
     @Body() dto: UpdateRestaurantDto,
     @Req() request: AuthenticatedRequest,
   ): Promise<RestaurantDetailsResponseDto> {
