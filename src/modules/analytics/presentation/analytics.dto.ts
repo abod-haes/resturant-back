@@ -34,3 +34,17 @@ export class CallAnalyticsReportDto {
 export class CallAnalyticsResponseDto {
   @ApiProperty({ type: CallAnalyticsReportDto }) data!: CallAnalyticsReportDto;
 }
+
+/** Global counters for the authenticated restaurant owner. */
+export class OwnerOverviewDto {
+  @ApiProperty() branches!: number;
+  @ApiProperty() activeTables!: number;
+  @ApiProperty() onShiftEmployees!: number;
+  @ApiProperty() callsToday!: number;
+  @ApiProperty() waiterCallsToday!: number;
+  @ApiProperty() hookahCallsToday!: number;
+  @ApiProperty() noStaffCallsToday!: number;
+}
+export class OwnerOverviewResponseDto {
+  @ApiProperty({ type: OwnerOverviewDto }) data!: OwnerOverviewDto;
+}
