@@ -4,7 +4,7 @@ import { DatabaseService } from "../../../database/database.service";
 import type { PlatformRole } from "../../../database/database.types";
 import type { AuthenticatedRequest } from "../../../common/auth/authenticated-request";
 import { AuthService } from "../application/auth.service";
-import { ALLOW_PASSWORD_CHANGE_KEY, AUTHENTICATED_KEY, PUBLIC_KEY, RESOURCE_SCOPE_KEY, ROLES_KEY, type ResourceScope } from "../../../common/auth/policy.decorators";
+import { AUTHENTICATED_KEY, PUBLIC_KEY, RESOURCE_SCOPE_KEY, ROLES_KEY, type ResourceScope } from "../../../common/auth/policy.decorators";
 
 export type { AuthenticatedRequest } from "../../../common/auth/authenticated-request";
 
@@ -23,10 +23,6 @@ export class AccessGuard implements CanActivate {
     const match = typeof header === "string" ? /^Bearer ([A-Za-z0-9_.-]+)$/.exec(header) : null;
     if (!match) throw new UnauthorizedException("Bearer access token required");
     const principal = await this.auth.authenticate(match[1]);
-    if (principal.mustChangePassword &&
-      !metadata<boolean>(context, this.reflector, ALLOW_PASSWORD_CHANGE_KEY)) {
-      throw new ForbiddenException({ code: "PASSWORD_CHANGE_REQUIRED", message: "Password change required" });
-    }
     request.principal = principal;
     return true;
   }
