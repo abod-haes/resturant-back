@@ -107,7 +107,7 @@ export class RestaurantAdminService {
         await trx.insertInto("users").values({
           id: ownerId, username: payload.owner.username, display_name: payload.owner.name.trim(),
           password_hash: passwordHash, role: "RESTAURANT_OWNER", restaurant_id: id,
-          branch_id: null, department: null, must_change_password: true, is_active: true,
+          branch_id: null, department: null, must_change_password: false, is_active: true,
         }).execute();
         await trx.insertInto("audit_logs").values({
           actor_user_id: actor.id, restaurant_id: id,
