@@ -64,7 +64,12 @@ describe("Authentication and RBAC against PostgreSQL", () => {
     department: string | null, mustChange = false): Promise<string> {
     const username = randomName();
     loginNames.push(username);
-    const id = randomUUID();
+    // Exercise pre-existing PostgreSQL UUIDs whose variant bits are not RFC 4122.
+    // These IDs are valid in the database and must authenticate successfully.
+    const generated = randomUUID();
+    const id = role === "RESTAURANT_OWNER"
+      ? generated.slice(0, 19) + "003e" + generated.slice(23)
+      : generated;
     await pool.query(`INSERT INTO users (id,username,display_name,password_hash,role,restaurant_id,branch_id,department,must_change_password)
       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
     [id,username,"Auth Test",await hashPassword(PASSWORD),role,restaurantId,branchId,department,mustChange]);
