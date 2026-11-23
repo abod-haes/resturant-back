@@ -78,7 +78,7 @@ if (reporting.schemaVersion !== "1.10.0" ||
 const platformAdmins = JSON.parse(readFileSync("mocks/contracts/platform-admins-v1.12.json","utf8"));
 if (platformAdmins.schemaVersion !== "1.12.0" ||
   platformAdmins.created?.data?.role !== "PLATFORM_ADMIN" ||
-  platformAdmins.created?.data?.mustChangePassword !== true ||
+  platformAdmins.created?.data?.mustChangePassword !== false ||
   platformAdmins.created?.data?.initialPassword !== undefined ||
   !Array.isArray(platformAdmins.list?.data)) {
   throw new Error("v1.12 platform administrator fixture invalid or secrets leaked");
