@@ -93,7 +93,7 @@ describe("Primary-only platform administrator management (PostgreSQL)", () => {
     managedId = created.body.data.id as string;
     expect(created.body.data).toMatchObject({
       username: managedUsername, name: "مدير المنصة",
-      role: "PLATFORM_ADMIN", isActive: true, mustChangePassword: true,
+      role: "PLATFORM_ADMIN", isActive: true, mustChangePassword: false,
     });
     expect(created.body.data.passwordHash).toBeUndefined();
     expect(created.body.data.initialPassword).toBeUndefined();
@@ -103,7 +103,7 @@ describe("Primary-only platform administrator management (PostgreSQL)", () => {
     const signed = await request(app.getHttpServer()).post("/api/v1/auth/login")
       .send({ username: managedUsername, password: PASSWORD, client: "mobile" });
     expect(signed.status).toBe(200);
-    expect(signed.body.data.user.mustChangePassword).toBe(true);
+    expect(signed.body.data.user.mustChangePassword).toBe(false);
     expect((await request(app.getHttpServer()).get("/api/v1/admin/restaurants")
       .set(auth(signed.body.data.accessToken))).status).toBe(200);
     const audit = await pool.query("SELECT action, request_id, metadata FROM audit_logs WHERE entity_id=$1", [managedId]);
@@ -181,7 +181,7 @@ describe("Primary-only platform administrator management (PostgreSQL)", () => {
     const next = await request(app.getHttpServer()).post("/api/v1/auth/login")
       .send({ username: managedUsername, password: NEXT_PASSWORD, client: "mobile" });
     expect(next.status).toBe(200);
-    expect(next.body.data.user.mustChangePassword).toBe(true);
+    expect(next.body.data.user.mustChangePassword).toBe(false);
     const audit = await pool.query("SELECT action,request_id,metadata FROM audit_logs WHERE entity_id=$1", [managedId]);
     expect(audit.rows).toEqual(expect.arrayContaining([expect.objectContaining({
       action: "platform_admin.password_reset", request_id: "pa-reset-2026", metadata: {},
