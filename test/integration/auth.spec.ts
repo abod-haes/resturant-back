@@ -189,13 +189,13 @@ describe("Authentication and RBAC against PostgreSQL", () => {
     expect(allowed.body.data.refreshToken).toBeUndefined();
   });
 
-  it("forces initial password change, audits it and invalidates sessions", async () => {
+  it("allows dashboard access before optional password change and revokes sessions after a voluntary change", async () => {
     const signed = await login(passwordUser);
     expect(signed.status).toBe(200);
     expect(signed.body.data.user.mustChangePassword).toBe(true);
     const authorization = "Bearer " + signed.body.data.accessToken;
     expect((await request(app.getHttpServer()).get("/api/v1/__auth_policy_probe/admin")
-      .set("Authorization",authorization)).status).toBe(403);
+      .set("Authorization",authorization)).status).toBe(200);
     expect((await request(app.getHttpServer()).get("/api/v1/auth/me")
       .set("Authorization",authorization)).status).toBe(200);
     const changed = await request(app.getHttpServer()).post("/api/v1/auth/change-password")
