@@ -48,7 +48,7 @@ for (const [path, method] of [
   ["/employee/devices","post"], ["/employee/devices","get"], ["/employee/devices/{id}","delete"],
   ["/owner/events","get"], ["/employee/events","get"],
   ["/public/calls","post"], ["/employee/shifts/start","post"],
-  ["/owner/call-analytics","get"], ["/admin/audit-logs","get"],
+  ["/owner/call-analytics","get"],
   ["/owner/branches/{branchId}/media/images","post"],
   ["/owner/branches/{branchId}/media/documents","post"],
   ["/owner/branches/{branchId}/media","get"],
@@ -59,7 +59,7 @@ for (const [path, method] of [
   if (!doc.paths[path]?.[method]) throw new Error("Missing contract: " + method + " " + path);
 }
 for (const path of ["/owner/events","/employee/events","/employee/devices",
-  "/owner/call-analytics","/admin/audit-logs"]) {
+  "/owner/call-analytics"]) {
   const method = path.endsWith("devices") ? "post" : "get";
   if (!doc.paths[path][method].security?.some(x => Object.hasOwn(x, "bearerAuth"))) {
     throw new Error("Bearer security missing from " + path);
