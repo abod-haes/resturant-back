@@ -25,6 +25,9 @@ cd /app
 npm run db:migrate:check
 export APP_ENV=production
 export SEED_FULL_CONFIRM=I_UNDERSTAND_THIS_WRITES_TO_PRODUCTION
+# First: validate the full operation without saving any change
+npm run db:seed:complete -- --dry-run
+# Only after checking the dry-run output:
 npm run db:seed:complete
 unset SEED_FULL_CONFIRM
 ```
@@ -66,3 +69,10 @@ unset SEED_FULL_CONFIRM SEED_RESET_DEMO_PASSWORDS_CONFIRM
 للاستدعاءات: من لوحة مالك الياسمين، افتح قائمة الطاولات، واختر QR الطاولة الأولى واعرض/اطبع رابط QR الحقيقي. افتح الرابط `/t/<token>` على Customer (النسخة المحلية أو المنشورة). هذه القيمة **Token خاص بالطاولة** وليست `restaurantId` وليست `QR_TOKEN_ENCRYPTION_KEY`. يبدأ الموظفون دواماتهم من التطبيق حتى تصلهم الاستدعاءات.
 
 لتشخيص وجود المنتجات والطاولات بعد التنفيذ، افحص `summary` المطبوعة في Terminal، ثم تأكد من البيانات من لوحات الإدارة والمنيو.
+
+
+## الفحص قبل الكتابة
+
+استخدم `npm run db:seed:complete -- --dry-run` أولاً. هذا ينفّذ جميع عمليات الفحص والإدخال داخل Transaction ثم يرجعها بالكامل، ولا يطبع كلمات المرور التجريبية التي تم توليدها خلال الفحص. الملخص يعرض عدد السجلات التي **كانت ستُضاف**، وليس السجلات الموجودة بالفعل. تأكد من نجاح هذا الفحص قبل التشغيل الحقيقي، وتحقق من أن DATABASE_URL يشير لنفس قاعدة السيرفر المقصودة.
+
+**تنبيه مهم:** سبق أن ظهر مفتاح تشفير QR في المحادثة، لذلك يجب التخطيط لتدويره بأمان لاحقاً بعد حصر رموز الطاولات المشفرة بالفعل، دون تعطيل QR الحالي بمجرد تغيير المفتاح.
