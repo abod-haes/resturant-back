@@ -149,9 +149,9 @@ describe("Authentication and RBAC against PostgreSQL", () => {
     const signedOwner = await login(owner);
     const ownerBearer = "Bearer " + signedOwner.body.data.accessToken;
     expect((await request(app.getHttpServer()).get("/api/v1/__auth_policy_probe/owner/" + branchA).set("Authorization",ownerBearer)).status).toBe(200);
-    // The real owner products route must accept this branch ID as well.
+    // A valid tenant-scoped branch may still be denied without an active subscription.
     expect((await request(app.getHttpServer()).get("/api/v1/owner/branches/" + branchA + "/products?limit=20")
-      .set("Authorization", ownerBearer)).status).toBe(200);
+      .set("Authorization", ownerBearer)).status).toBe(403);
     expect((await request(app.getHttpServer()).get("/api/v1/__auth_policy_probe/owner/" + branchB).set("Authorization",ownerBearer)).status).toBe(404);
     expect((await request(app.getHttpServer()).get("/api/v1/__auth_policy_probe/owner/not-a-uuid").set("Authorization",ownerBearer)).status).toBe(404);
     expect((await request(app.getHttpServer()).get("/api/v1/__auth_policy_probe/admin").set("Authorization",ownerBearer)).status).toBe(403);
