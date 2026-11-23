@@ -1,5 +1,6 @@
+import { ParsePostgresUuidPipe } from "../../../common/http/parse-postgres-uuid.pipe";
 import {
-  Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, ParseUUIDPipe,
+  Body, Controller, Delete, Get, HttpCode, HttpStatus, Param,
   Patch, Post, Query, Req, Res, UnauthorizedException, BadRequestException,
 } from "@nestjs/common";
 import {
@@ -25,7 +26,7 @@ function principal(req: AuthenticatedRequest) {
   if (!req.principal) throw new UnauthorizedException();
   return req.principal;
 }
-const uuid = () => new ParseUUIDPipe({ version: "4" });
+const uuid = () => new ParsePostgresUuidPipe();
 
 @ApiTags("Owner floors")
 @ApiBearerAuth()
