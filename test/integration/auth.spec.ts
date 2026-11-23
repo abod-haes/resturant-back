@@ -54,7 +54,11 @@ describe("Authentication and RBAC against PostgreSQL", () => {
   }
 
   async function createBranch(restaurantId: string): Promise<string> {
-    const id = randomUUID();
+    const generated = randomUUID();
+    // Existing PostgreSQL branch IDs may have non-RFC UUID version/variant bits.
+    const id = restaurantId === restaurantA
+      ? generated.slice(0, 14) + "e" + generated.slice(15, 19) + "-f" + generated.slice(24)
+      : generated;
     await pool.query("INSERT INTO branches (id,restaurant_id,name,slug) VALUES ($1,$2,$3,$4)",
       [id,restaurantId,"Auth test branch","branch-" + id]);
     return id;
@@ -145,6 +149,9 @@ describe("Authentication and RBAC against PostgreSQL", () => {
     const signedOwner = await login(owner);
     const ownerBearer = "Bearer " + signedOwner.body.data.accessToken;
     expect((await request(app.getHttpServer()).get("/api/v1/__auth_policy_probe/owner/" + branchA).set("Authorization",ownerBearer)).status).toBe(200);
+    // The real owner products route must accept this branch ID as well.
+    expect((await request(app.getHttpServer()).get("/api/v1/owner/branches/" + branchA + "/products?limit=20")
+      .set("Authorization", ownerBearer)).status).toBe(200);
     expect((await request(app.getHttpServer()).get("/api/v1/__auth_policy_probe/owner/" + branchB).set("Authorization",ownerBearer)).status).toBe(404);
     expect((await request(app.getHttpServer()).get("/api/v1/__auth_policy_probe/owner/not-a-uuid").set("Authorization",ownerBearer)).status).toBe(404);
     expect((await request(app.getHttpServer()).get("/api/v1/__auth_policy_probe/admin").set("Authorization",ownerBearer)).status).toBe(403);
