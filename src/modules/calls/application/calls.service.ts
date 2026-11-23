@@ -18,8 +18,9 @@ function toCall(row: CallRow): CallDataDto {
     createdAt: row.created_at.toISOString(), firstCallNeedsConfirmation: false,
   };
 }
-function toHistory(row: CallRow): CallHistoryDto {
-  return { id: row.id, branchId: row.branch_id, tableId: row.table_id, type: row.type,
+function toHistory(row: CallRow & { table_label?: string | null; branch_name?: string | null }): CallHistoryDto {
+  return { id: row.id, branchId: row.branch_id, tableId: row.table_id,
+    tableLabel: row.table_label ?? null, branchName: row.branch_name ?? null, type: row.type,
     deliveryState: row.delivery_state, recipientsCount: row.recipients_count,
     ownerAlerted: row.owner_alerted, createdAt: row.created_at.toISOString() };
 }
@@ -132,6 +133,10 @@ export class CallsService {
     const restaurantId = requireTenant(principal);
     await requireOperationalEntitlements(this.database.db, restaurantId);
     let qb = this.database.db.selectFrom("service_calls").selectAll()
+      .select([
+        sql<string>`(SELECT t.label FROM restaurant_tables t WHERE t.id = service_calls.table_id)`.as("table_label"),
+        sql<string>`(SELECT b.name FROM branches b WHERE b.id = service_calls.branch_id)`.as("branch_name"),
+      ])
       .select(sql<string>`to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`.as("cursor_timestamp"))
       .where("restaurant_id", "=", restaurantId);
     if (query.branchId) {
