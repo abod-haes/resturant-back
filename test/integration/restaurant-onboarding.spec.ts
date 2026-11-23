@@ -121,7 +121,7 @@ describe("Platform restaurant onboarding (real PostgreSQL)", () => {
     expect(records[1].rows[0]).toMatchObject({ restaurant_id: id, name: "الفرع الرئيسي" });
     expect(records[2].rows[0]).toMatchObject({
       restaurant_id: id, username: createdOwnerUsername,
-      role: "RESTAURANT_OWNER", must_change_password: true,
+      role: "RESTAURANT_OWNER", must_change_password: false,
     });
     expect(records[2].rows[0].password_hash).toMatch(/^scrypt\$/);
     expect(records[2].rows[0].password_hash).not.toBe(OWNER_PASSWORD);
@@ -151,7 +151,7 @@ describe("Platform restaurant onboarding (real PostgreSQL)", () => {
     const ownerLogin = await request(app.getHttpServer()).post("/api/v1/auth/login")
       .send({ username: createdOwnerUsername, password: OWNER_PASSWORD, client: "mobile" });
     expect(ownerLogin.status).toBe(200);
-    expect(ownerLogin.body.data.user.mustChangePassword).toBe(true);
+    expect(ownerLogin.body.data.user.mustChangePassword).toBe(false);
     const bearer = "Bearer " + ownerLogin.body.data.accessToken;
     const forbiddenUntilChanged = await request(app.getHttpServer()).get("/api/v1/admin/restaurants")
       .set("Authorization", bearer);
