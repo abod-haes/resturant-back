@@ -124,6 +124,28 @@ export class RestaurantAdminService {
     }
   }
 
+  /** Global platform metrics: aggregate directly in PostgreSQL, not from a 20-row page. */
+  async overview(): Promise<{
+    restaurants: number; activeRestaurants: number; inactiveRestaurants: number;
+    branches: number; activeSubscriptions: number; expiringSubscriptions: number;
+  }> {
+    const summary = await sql<{
+      restaurants: number; activeRestaurants: number; inactiveRestaurants: number;
+      branches: number; activeSubscriptions: number; expiringSubscriptions: number;
+    }>`
+      SELECT
+        (SELECT count(*)::int FROM restaurants) AS "restaurants",
+        (SELECT count(*)::int FROM restaurants WHERE is_active) AS "activeRestaurants",
+        (SELECT count(*)::int FROM restaurants WHERE NOT is_active) AS "inactiveRestaurants",
+        (SELECT count(*)::int FROM branches WHERE archived_at IS NULL) AS "branches",
+        (SELECT count(*)::int FROM subscriptions WHERE status = 'active') AS "activeSubscriptions",
+        (SELECT count(*)::int FROM subscriptions
+          WHERE status = 'active' AND ends_at > now()
+            AND ends_at <= now() + interval '7 days') AS "expiringSubscriptions"
+    `.execute(this.database.db);
+    return summary.rows[0];
+  }
+
   async list(query: RestaurantListQueryDto): Promise<ListPage> {
     const limit = query.limit;
     let select = this.selection()
