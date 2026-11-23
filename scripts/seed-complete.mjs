@@ -102,6 +102,7 @@ async function ensureUser(client, username, displayName, role, restaurantId = nu
   if (existing) {
     id = existing.id;
     await client.query("UPDATE users SET password_hash=$2,must_change_password=true WHERE id=$1", [id,hash]);
+    await client.query("UPDATE auth_sessions SET revoked_at=now() WHERE user_id=$1 AND revoked_at IS NULL", [id]);
   } else {
     id = (await single(client, `INSERT INTO users
       (username,display_name,password_hash,role,restaurant_id,branch_id,department,must_change_password)
