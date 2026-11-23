@@ -19,6 +19,43 @@ function emptyDay(date: string): CallAnalyticsDailyDto {
 @Injectable()
 export class CallAnalyticsService {
   constructor(private readonly database: DatabaseService) {}
+  /** All counters are tenant scoped and aggregated in SQL, not paginated. */
+  async overview(principal: AuthPrincipal): Promise<{
+    branches: number; activeTables: number; onShiftEmployees: number;
+    callsToday: number; waiterCallsToday: number; hookahCallsToday: number; noStaffCallsToday: number;
+  }> {
+    if (principal.role !== "RESTAURANT_OWNER" || !principal.restaurantId) {
+      throw new ForbiddenException("Restaurant owner required");
+    }
+    const restaurantId = principal.restaurantId;
+    const result = await sql<{
+      branches: number; activeTables: number; onShiftEmployees: number;
+      callsToday: number; waiterCallsToday: number; hookahCallsToday: number; noStaffCallsToday: number;
+    }>`
+      SELECT
+        (SELECT count(*)::int FROM branches
+          WHERE restaurant_id = ${restaurantId}::uuid AND is_active) AS "branches",
+        (SELECT count(*)::int FROM restaurant_tables
+          WHERE restaurant_id = ${restaurantId}::uuid AND is_active) AS "activeTables",
+        (SELECT count(distinct user_id)::int FROM employee_shifts
+          WHERE restaurant_id = ${restaurantId}::uuid
+            AND ended_at IS NULL AND auto_end_at > now()) AS "onShiftEmployees",
+        (SELECT count(*)::int FROM service_calls
+          WHERE restaurant_id = ${restaurantId}::uuid
+            AND created_at >= date_trunc('day', now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC') AS "callsToday",
+        (SELECT count(*)::int FROM service_calls
+          WHERE restaurant_id = ${restaurantId}::uuid AND type = 'waiter'
+            AND created_at >= date_trunc('day', now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC') AS "waiterCallsToday",
+        (SELECT count(*)::int FROM service_calls
+          WHERE restaurant_id = ${restaurantId}::uuid AND type = 'hookah'
+            AND created_at >= date_trunc('day', now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC') AS "hookahCallsToday",
+        (SELECT count(*)::int FROM service_calls
+          WHERE restaurant_id = ${restaurantId}::uuid AND delivery_state = 'no_staff'
+            AND created_at >= date_trunc('day', now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC') AS "noStaffCallsToday"
+    `.execute(this.database.db);
+    return result.rows[0];
+  }
+
   async report(principal: AuthPrincipal, query: CallAnalyticsQueryDto): Promise<CallAnalyticsReportDto> {
     if (principal.role !== "RESTAURANT_OWNER" || !principal.restaurantId) {
       throw new ForbiddenException("Restaurant owner required");
