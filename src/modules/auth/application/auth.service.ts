@@ -264,8 +264,13 @@ function sqlLowerUsername() {
 }
 
 function isUuid(value: unknown): value is string {
+  // PostgreSQL's uuid type accepts UUIDs with non-RFC version/variant bits.
+  // Some existing users were created with such IDs, and login must not issue
+  // an access token that authenticate() immediately rejects. JWT signature,
+  // issuer, audience, expiration and the database-backed session are still
+  // verified independently before granting access.
   return typeof value === "string" &&
-    /^[a-f\d]{8}-[a-f\d]{4}-[1-8][a-f\d]{3}-[89ab][a-f\d]{3}-[a-f\d]{12}$/i.test(value);
+    /^[a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12}$/i.test(value);
 }
 
 function isRefreshToken(value: string): boolean {
