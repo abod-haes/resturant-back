@@ -1,10 +1,33 @@
 import { Injectable } from "@nestjs/common";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import QRCode from "qrcode";
+import sharp from "sharp";
 
-export interface PrintQrItem { id: string; label: string; url: string }
+export interface PrintQrItem { id: string; label: string; url: string; restaurantName: string }
 
-/** A4, six print-ready stickers per page; graphic QR carries the full opaque table URL. */
+/**
+ * Rasterizing text through SVG lets Sharp/Pango handle Arabic shaping without
+ * adding an unlicensed or environment-specific PDF font to the repository.
+ * All dynamic content is XML-escaped before embedding in the SVG.
+ */
+function escapeSvgText(value: string): string {
+  return value.replace(/&/g, "&amp;").replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;");
+}
+
+async function labelImage(value: string, width: number, fontSize: number): Promise<Buffer> {
+  const text = escapeSvgText(value.trim().slice(0, 120));
+  const isRtl = /[\u0590-\u08ff]/u.test(value);
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="78">
+    <rect width="100%" height="100%" fill="white"/>
+    <text x="50%" y="49" text-anchor="middle" font-family="DejaVu Sans, Noto Sans Arabic, sans-serif"
+      font-size="${fontSize}" font-weight="600" fill="#243039"
+      direction="${isRtl ? "rtl" : "ltr"}" unicode-bidi="plaintext">${text}</text>
+  </svg>`;
+  return sharp(Buffer.from(svg)).png().toBuffer();
+}
+
+/** A4, six print-ready stickers per page; QR encodes the existing table URL. */
 @Injectable()
 export class QrPrintService {
   async render(items: readonly PrintQrItem[]): Promise<Buffer> {
@@ -30,12 +53,19 @@ export class QrPrintService {
         const qr = await pdf.embedPng(png);
         const imageSize = Math.min(181, cellWidth - 40);
         page.drawImage(qr, { x: x + (cellWidth - imageSize) / 2,
-          y: y + 48, width: imageSize, height: imageSize });
-        // Standard embedded PDF font has no Arabic glyphs. Keep the QR functional,
-        // printing an ASCII identifier until the Arabic PDF typography design is integrated.
-        const title = /^[\x20-\x7E]+$/.test(item.label) ? item.label.slice(0, 30) : item.id.slice(0, 8);
-        page.drawText("TABLE " + title, { x: x + 22, y: y + 27,
-          size: 11, font, color: rgb(0.14, 0.17, 0.22), maxWidth: cellWidth - 44 });
+          y: y + 62, width: imageSize, height: imageSize });
+
+        const restaurantName = item.restaurantName.trim() || "Restaurant";
+        const titlePng = await pdf.embedPng(await labelImage(restaurantName, 620, 35));
+        const tablePng = await pdf.embedPng(await labelImage(item.label, 620, 28));
+        const textWidth = cellWidth - 32;
+        page.drawImage(titlePng, { x: x + 16, y: y + 40, width: textWidth, height: 27 });
+        page.drawImage(tablePng, { x: x + 16, y: y + 16, width: textWidth, height: 24 });
+
+        // Keep an accessible ASCII identifier in PDF metadata/text streams.
+        const identifier = item.id.slice(0, 8);
+        page.drawText(identifier, { x: x + 11, y: y + 9, size: 5,
+          font, color: rgb(0.5, 0.5, 0.5) });
       }
     }
     return Buffer.from(await pdf.save());
