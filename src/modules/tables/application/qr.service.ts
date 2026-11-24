@@ -118,7 +118,8 @@ export class QrService {
         .onRef("areas.branch_id", "=", "restaurant_tables.branch_id"))
       .innerJoin("floors", (join) => join.onRef("floors.id", "=", "areas.floor_id")
         .onRef("floors.branch_id", "=", "areas.branch_id"))
-      .select(["restaurant_tables.id", "restaurant_tables.label", "restaurant_tables.sort_order"])
+      .innerJoin("restaurants", "restaurants.id", "restaurant_tables.restaurant_id")
+      .select(["restaurant_tables.id", "restaurant_tables.label", "restaurant_tables.sort_order", "restaurants.name as restaurant_name"])
       .where("restaurant_tables.branch_id", "=", branchId)
       .where("restaurant_tables.archived_at", "is", null)
       .where("restaurant_tables.is_active", "=", true)
@@ -134,14 +135,14 @@ export class QrService {
     if (selectedIds && rows.length !== selectedIds.length) {
       throw new NotFoundException("One or more selected tables are not active and accessible");
     }
-    const items: { id: string; label: string; url: string }[] = [];
+    const items: { id: string; label: string; url: string; restaurantName: string }[] = [];
     for (const table of rows) {
       const credential = await this.database.db.selectFrom("qr_credentials")
         .select("token_box").where("table_id", "=", table.id)
         .where("revoked_at", "is", null).executeTakeFirst();
       if (!credential) throw new ConflictException({ code: "QR_REVOKED", message: "QR revoked" });
       items.push({
-        id: table.id, label: table.label,
+        id: table.id, label: table.label, restaurantName: table.restaurant_name,
         url: customerQrUrl(origin, decryptQrToken(credential.token_box, key)),
       });
     }
