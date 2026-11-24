@@ -20,7 +20,7 @@ async function labelImage(value: string, width: number, fontSize: number): Promi
   const isRtl = /[\u0590-\u08ff]/u.test(value);
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="78">
     <rect width="100%" height="100%" fill="white"/>
-    <text x="50%" y="49" text-anchor="middle" font-family="DejaVu Sans, Noto Sans Arabic, sans-serif"
+    <text x="50%" y="49" text-anchor="middle" font-family="Cairo, DejaVu Sans, Noto Sans Arabic, sans-serif"
       font-size="${fontSize}" font-weight="600" fill="#243039"
       direction="${isRtl ? "rtl" : "ltr"}" unicode-bidi="plaintext">${text}</text>
   </svg>`;
