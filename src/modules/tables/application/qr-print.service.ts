@@ -53,7 +53,7 @@ export class QrPrintService {
         const qr = await pdf.embedPng(png);
         const imageSize = Math.min(181, cellWidth - 40);
         page.drawImage(qr, { x: x + (cellWidth - imageSize) / 2,
-          y: y + 62, width: imageSize, height: imageSize });
+          y: y + 71, width: imageSize, height: imageSize });
 
         const restaurantName = item.restaurantName.trim() || "Restaurant";
         const titlePng = await pdf.embedPng(await labelImage(restaurantName, 620, 35));
