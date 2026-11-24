@@ -40,9 +40,9 @@ describe("Table QR token and printing policy", () => {
   });
   it("renders a valid A4 PDF containing one QR per label", async () => {
     const pdf = await new QrPrintService().render([
-      { id: "83775fa9-579b-4896-a435-3db54c1b3548", label: "Table 1",
+      { id: "83775fa9-579b-4896-a435-3db54c1b3548", label: "Table 1", restaurantName: "Restaurant Test",
         url: customerQrUrl("https://customer.example.test", generateQrToken()) },
-      { id: "c323b57f-5f21-4bee-af62-d688eaed4d21", label: "طاولة عربية",
+      { id: "c323b57f-5f21-4bee-af62-d688eaed4d21", label: "طاولة عربية", restaurantName: "مطعم دار حلب",
         url: customerQrUrl("https://customer.example.test", generateQrToken()) },
     ]);
     expect(pdf.subarray(0, 5).toString("ascii")).toBe("%PDF-");
