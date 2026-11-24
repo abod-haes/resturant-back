@@ -7,6 +7,8 @@ RUN npm run build
 FROM node:20-alpine
 WORKDIR /app
 ENV NODE_ENV=production
+# Sharp SVG rasterization needs an installed font to shape Arabic restaurant names.
+RUN apk add --no-cache fontconfig font-dejavu
 COPY --from=build /app/package*.json ./
 RUN npm install --omit=dev --no-audit --no-fund
 COPY --from=build /app/dist ./dist
