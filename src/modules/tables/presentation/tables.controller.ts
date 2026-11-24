@@ -164,9 +164,9 @@ export class QrPrintController {
     if (raw !== undefined) {
       ids = raw.split(",").map((v) => v.trim());
       if (!ids.length || ids.length > 100 || ids.some((id) =>
-        !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id))
+        !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id))
         || new Set(ids).size !== ids.length) {
-        throw new BadRequestException("tableIds must contain 1-100 distinct UUIDv4 values");
+        throw new BadRequestException("tableIds must contain 1-100 distinct PostgreSQL UUID values");
       }
     }
     const items = await this.qr.printable(principal(req), branchId, ids);
