@@ -1,6 +1,6 @@
 import { ParsePostgresUuidPipe } from "../../../common/http/parse-postgres-uuid.pipe";
 import {
-  Body, Controller, Delete, Get, HttpCode, HttpStatus, Param,
+  Body, Controller, Delete, Get, Headers, HttpCode, HttpStatus, Param,
   Patch, Post, Query, Req, Res, UnauthorizedException, BadRequestException,
 } from "@nestjs/common";
 import {
@@ -185,9 +185,9 @@ export class PublicTableQrController {
   constructor(private readonly qr: QrService) {}
   @Get(":qrToken") @ApiOkResponse({ type: PublicTableContextResponseDto })
   @ApiOperation({ summary: "Resolve an active table QR into read-only table/menu context; no visit sessions or calls yet" })
-  async resolve(@Param("qrToken") token: string,
+  async resolve(@Param("qrToken") token: string, @Headers("origin") origin: string | undefined,
     @Res({ passthrough: true }) res: Response): Promise<PublicTableContextResponseDto> {
     res.setHeader("Cache-Control", "no-store");
-    return { data: await this.qr.resolvePublic(token) };
+    return { data: await this.qr.resolvePublic(token, origin) };
   }
 }

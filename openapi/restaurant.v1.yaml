@@ -2,7 +2,7 @@ openapi: 3.1.0
 info:
   title: Restaurant Platform API
   version: 0.12.0-draft
-  description: "Versioned reference with all 96 implemented HTTP path/method pairs, checked against executable Nest Swagger. Some response schemas are summary-only; for exact DTO types use runtime /api/docs-json or the generated CI OpenAPI artifact."
+  description: "Versioned reference with all 102 implemented HTTP path/method pairs, checked against executable Nest Swagger. Some response schemas are summary-only; for exact DTO types use runtime /api/docs-json or the generated CI OpenAPI artifact."
 servers:
   - url: /api/v1
 components:
@@ -30,13 +30,23 @@ components:
       properties:
         nextCursor: { type: [string, "null"] }
         hasMore: { type: boolean }
+    RestaurantBranding:
+      type: object
+      properties:
+        fontFamily: { type: [string, 'null'], enum: [cairo, system, null] }
+        logoUrl: { type: [string, "null"], maxLength: 2048 }
+        primaryColor: { type: [string, "null"], pattern: "^#[0-9a-fA-F]{6}$" }
+        secondaryColor: { type: [string, "null"], pattern: "^#[0-9a-fA-F]{6}$" }
     RestaurantSummary:
       type: object
-      required: [id, name, slug, isActive, createdAt, branchCount, subscriptionStatus, planName, owner]
+      required: [id, name, slug, isActive, createdAt, branchCount, subscriptionStatus, planName, owner, subdomain, domainStatus, branding]
       properties:
         id: { type: string, format: uuid }
         name: { type: string }
         slug: { type: string }
+        subdomain: { type: [string, 'null'] }
+        domainStatus: { type: string, enum: [pending, ready] }
+        branding: { $ref: '#/components/schemas/RestaurantBranding' }
         isActive: { type: boolean }
         createdAt: { type: string, format: date-time }
         branchCount: { type: integer, minimum: 0 }
@@ -902,6 +912,7 @@ paths:
               required: [name, owner, initialBranch]
               properties:
                 name: { type: string, maxLength: 200 }
+                subdomain: { type: string, maxLength: 63, pattern: '^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$' }
                 owner:
                   type: object
                   required: [name, username, initialPassword]
@@ -925,10 +936,12 @@ paths:
                 properties:
                   data:
                     type: object
-                    required: [id, name, ownerId, branchId]
+                    required: [id, name, ownerId, branchId, subdomain, domainStatus]
                     properties:
                       id: { type: string, format: uuid }
                       name: { type: string }
+                      subdomain: { type: [string, 'null'] }
+                      domainStatus: { type: string, enum: [pending, ready] }
                       ownerId: { type: string, format: uuid }
                       branchId: { type: string, format: uuid }
         '400': { description: Invalid request }
@@ -1012,6 +1025,34 @@ paths:
                             daysRemaining: { type: integer, minimum: 1 }
         '401': { description: Unauthorized }
         '403': { description: Forbidden }
+  /admin/restaurants/{restaurantId}/branding/logo:
+    post:
+      operationId: uploadRestaurantLogo
+      tags: [Platform restaurant branding]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: path, name: restaurantId, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary }
+      responses:
+        '201':
+          description: Processed image uploaded
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/ManagedMedia' }
+        '403': { description: Platform admin required }
+        '404': { description: Restaurant not found }
   /admin/restaurants/{id}:
     parameters:
       - in: path
@@ -1044,6 +1085,9 @@ paths:
               properties:
                 name: { type: string, maxLength: 200 }
                 isActive: { type: boolean }
+                subdomain: { type: string, maxLength: 63, pattern: '^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$' }
+                domainStatus: { type: string, enum: [pending, ready] }
+                branding: { $ref: '#/components/schemas/RestaurantBranding' }
       responses:
         '200': { description: Updated restaurant details }
         '400': { description: Invalid patch }
@@ -2124,6 +2168,63 @@ paths:
         '403': { description: No subscription/feature }
         '404': { description: Source or target not within tenant }
         '409': { description: MENU_TARGET_NOT_EMPTY, MENU_CURRENCY_MISMATCH }
+  /public/menu/restaurants/by-subdomain/{subdomain}/identity:
+    get:
+      operationId: getPublicRestaurantIdentity
+      tags: [Public menu]
+      parameters:
+        - { in: path, name: subdomain, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Public identity only, independent of menu subscription
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    required: [id, name, subdomain, branding]
+                    properties:
+                      id: { type: string, format: uuid }
+                      name: { type: string }
+                      subdomain: { type: string }
+                      branding: { $ref: '#/components/schemas/RestaurantBranding' }
+        '404': { description: Restaurant unavailable }
+  /public/menu/restaurants/by-subdomain/{subdomain}:
+    get:
+      operationId: getPublicRestaurantBySubdomain
+      tags: [Public menu]
+      parameters:
+        - { in: path, name: subdomain, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Ready restaurant and active branches
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    required: [id, name, subdomain, branches, branding]
+                    properties:
+                      id: { type: string, format: uuid }
+                      name: { type: string }
+                      subdomain: { type: string }
+                      branding: { $ref: "#/components/schemas/RestaurantBranding" }
+                      branches:
+                        type: array
+                        items:
+                          type: object
+                          required: [id, name, slug]
+                          properties:
+                            id: { type: string, format: uuid }
+                            name: { type: string }
+                            slug: { type: string }
+        '403': { description: Subscription or menu unavailable }
+        '404': { description: Restaurant not found or domain pending }
   /public/menu/{slug}:
     get:
       operationId: getPublicMenu

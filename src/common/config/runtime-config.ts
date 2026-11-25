@@ -20,6 +20,7 @@ export interface RuntimeConfig {
   }> | null;
   readonly qrEncryptionKey: string | null;
   readonly customerAppOrigin: string | null;
+  readonly restaurantBaseDomain?: string | null;
   readonly authAccessSecret: string;
   readonly pushTokenEncryptionKey: string | null;
   readonly pushDispatchEnabled: boolean;
@@ -153,6 +154,11 @@ export function parseRuntimeConfig(env: NodeJS.ProcessEnv): RuntimeConfig {
     }
   }
 
+  const restaurantBaseDomain = env.RESTAURANT_BASE_DOMAIN?.trim() || null;
+  if (restaurantBaseDomain && !/^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/.test(restaurantBaseDomain)) {
+    throw new Error("RESTAURANT_BASE_DOMAIN must be a lowercase DNS domain without scheme or path");
+  }
+
   const pushTokenEncryptionKey = env.PUSH_TOKEN_ENCRYPTION_KEY?.trim() || null;
   if (pushTokenEncryptionKey && !/^[0-9a-fA-F]{64}$/.test(pushTokenEncryptionKey)) {
     throw new Error("PUSH_TOKEN_ENCRYPTION_KEY must be 32 bytes (64 hex characters)");
@@ -183,6 +189,7 @@ export function parseRuntimeConfig(env: NodeJS.ProcessEnv): RuntimeConfig {
     mediaStorage,
     qrEncryptionKey,
     customerAppOrigin,
+    restaurantBaseDomain,
     authAccessSecret,
     pushTokenEncryptionKey,
     pushDispatchEnabled,

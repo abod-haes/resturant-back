@@ -1,6 +1,6 @@
 import { ParsePostgresUuidPipe } from "../../../common/http/parse-postgres-uuid.pipe";
 import {
-  Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post, Query, Req,
+  Body, Controller, Get, Headers, HttpCode, HttpStatus, Param, Patch, Post, Query, Req,
   Res, UnauthorizedException,
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiCreatedResponse, ApiOkResponse, ApiOperation, ApiTags } from "@nestjs/swagger";
@@ -29,23 +29,23 @@ export class PublicVisitsController {
   @Post("t/:qrToken/sessions")
   @ApiOperation({ summary: "Start a 4h idle visit from an active table QR; token returned once" })
   @ApiCreatedResponse({ type: CreateVisitResponseDto })
-  async createVisit(@Param("qrToken") qrToken: string,
+  async createVisit(@Param("qrToken") qrToken: string, @Headers("origin") origin: string | undefined,
     @Res({ passthrough: true }) res: Response): Promise<CreateVisitResponseDto> {
     res.setHeader("Cache-Control", "no-store");
-    return { data: await this.visits.create(qrToken) };
+    return { data: await this.visits.create(qrToken, origin) };
   }
   @Post("sessions/status") @HttpCode(HttpStatus.OK) @ApiOkResponse({ type: VisitStatusResponseDto })
-  async status(@Body() body: SessionTokenDto,
+  async status(@Body() body: SessionTokenDto, @Headers("origin") origin: string | undefined,
     @Res({ passthrough: true }) res: Response): Promise<VisitStatusResponseDto> {
     res.setHeader("Cache-Control", "no-store");
-    return { data: await this.visits.status(body.sessionToken) };
+    return { data: await this.visits.status(body.sessionToken, origin) };
   }
   @Post("calls") @ApiCreatedResponse({ type: CallResponseDto })
   @ApiOperation({ summary: "First-call confirmation, atomic 10s table/type cooldown and idempotency" })
-  async call(@Body() body: CreateCallDto,
+  async call(@Body() body: CreateCallDto, @Headers("origin") origin: string | undefined,
     @Res({ passthrough: true }) res: Response): Promise<CallResponseDto> {
     res.setHeader("Cache-Control", "no-store");
-    return { data: await this.calls.create(body) };
+    return { data: await this.calls.create(body, origin) };
   }
 }
 

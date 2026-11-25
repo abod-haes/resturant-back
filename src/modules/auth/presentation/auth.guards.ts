@@ -24,6 +24,7 @@ export class AccessGuard implements CanActivate {
     const match = typeof header === "string" ? /^Bearer ([A-Za-z0-9_.-]+)$/.exec(header) : null;
     if (!match) throw new UnauthorizedException("Bearer access token required");
     const principal = await this.auth.authenticate(match[1]);
+    await this.auth.assertBrowserTenant(principal, request.headers.origin);
     request.principal = principal;
     return true;
   }

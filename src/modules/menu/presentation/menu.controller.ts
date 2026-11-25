@@ -1,6 +1,6 @@
 import { ParsePostgresUuidPipe } from "../../../common/http/parse-postgres-uuid.pipe";
 import {
-  Body, Controller, Delete, Get, Param, Patch, Post, Query, Req, UnauthorizedException,
+  Body, Controller, Delete, Get, Headers, Param, Patch, Post, Query, Req, UnauthorizedException,
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiCreatedResponse, ApiOkResponse, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { BranchScope, Public, Roles } from "../../../common/auth/policy.decorators";
@@ -12,7 +12,7 @@ import { PublicMenuService } from "../application/public-menu.service";
 import {
   CategoryListDto, CategoryResponseDto, CopyMenuDto, CopyMenuResponseDto, CreateCategoryDto,
   CreateProductDto, MenuPageDto, PatchCategoryDto, PatchProductDto,
-  OwnerProductListQueryDto, ProductListDto, ProductResponseDto, PublicMenuResponseDto,
+  OwnerProductListQueryDto, ProductListDto, ProductResponseDto, PublicMenuResponseDto, PublicRestaurantResponseDto, PublicRestaurantIdentityResponseDto,
 } from "./menu.dto";
 
 function principal(req: AuthenticatedRequest) {
@@ -111,13 +111,21 @@ export class MenuCopyController {
 @Controller("public/menu")
 export class PublicMenuController {
   constructor(private readonly service: PublicMenuService) {}
+  @Get("restaurants/by-subdomain/:subdomain/identity") @ApiOkResponse({ type: PublicRestaurantIdentityResponseDto })
+  async identity(@Param("subdomain") subdomain: string): Promise<PublicRestaurantIdentityResponseDto> {
+    return { data: await this.service.restaurantIdentity(subdomain) };
+  }
+  @Get("restaurants/by-subdomain/:subdomain") @ApiOkResponse({ type: PublicRestaurantResponseDto })
+  async restaurant(@Param("subdomain") subdomain: string): Promise<PublicRestaurantResponseDto> {
+    return { data: await this.service.restaurantBySubdomain(subdomain) };
+  }
   @Get(":slug") @ApiOperation({ summary: "Paginated public catalog, without table call credentials" })
   @ApiOkResponse({ type: PublicMenuResponseDto })
-  async list(@Param("slug") slug: string, @Query() query: MenuPageDto): Promise<PublicMenuResponseDto> {
-    return this.service.list(slug, query);
+  async list(@Param("slug") slug: string, @Query() query: MenuPageDto, @Headers("origin") origin: string | undefined): Promise<PublicMenuResponseDto> {
+    return this.service.list(slug, query, origin);
   }
   @Get(":slug/categories") @ApiOkResponse({ type: CategoryListDto })
-  async categories(@Param("slug") slug: string, @Query() query: MenuPageDto): Promise<CategoryListDto> {
-    return this.service.categories(slug, query);
+  async categories(@Param("slug") slug: string, @Query() query: MenuPageDto, @Headers("origin") origin: string | undefined): Promise<CategoryListDto> {
+    return this.service.categories(slug, query, origin);
   }
 }

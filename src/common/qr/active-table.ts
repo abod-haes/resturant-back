@@ -23,7 +23,7 @@ export async function requireActiveTableQr(db: QueryDatabase, token: string) {
       "floors.is_active as floor_active", "floors.archived_at as floor_archived",
       "branches.id as branch_id", "branches.name as branch_name", "branches.slug",
       "branches.is_active as branch_active", "restaurants.id as restaurant_id",
-      "restaurants.name as restaurant_name", "restaurants.is_active as restaurant_active",
+      "restaurants.name as restaurant_name", "restaurants.subdomain as restaurant_subdomain", "restaurants.is_active as restaurant_active", "restaurants.domain_status as restaurant_domain_status",
     ])
     .where("qr_credentials.token_hash", "=", hashQrToken(token))
     .where("qr_credentials.revoked_at", "is", null).executeTakeFirst();
@@ -50,7 +50,7 @@ export async function requireSessionTable(db: QueryDatabase, credentialId: strin
       "qr_credentials.id as credential_id", "qr_credentials.version",
       "areas.is_active as area_active", "areas.archived_at as area_archived",
       "floors.is_active as floor_active", "floors.archived_at as floor_archived",
-      "branches.is_active as branch_active", "restaurants.is_active as restaurant_active",
+      "branches.is_active as branch_active", "restaurants.subdomain as restaurant_subdomain", "restaurants.is_active as restaurant_active", "restaurants.domain_status as restaurant_domain_status",
     ])
     .where("qr_credentials.id", "=", credentialId).where("qr_credentials.table_id", "=", tableId)
     .where("qr_credentials.revoked_at", "is", null).executeTakeFirst();

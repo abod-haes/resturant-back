@@ -26,7 +26,7 @@ export class RestaurantAdminController {
   @Post()
   @ApiOperation({ summary: "Create restaurant, first branch and owner atomically" })
   @ApiCreatedResponse({ type: OnboardingResponseDto })
-  @ApiConflictResponse({ description: "OWNER_USERNAME_TAKEN" })
+  @ApiConflictResponse({ description: "OWNER_USERNAME_TAKEN or SUBDOMAIN_TAKEN" })
   async create(@Body() dto: CreateRestaurantDto, @Req() request: AuthenticatedRequest): Promise<OnboardingResponseDto> {
     if (!request.principal) throw new UnauthorizedException();
     return { data: await this.service.create(dto, request.principal, request.requestId) };
@@ -55,7 +55,7 @@ export class RestaurantAdminController {
   }
 
   @Patch(":id")
-  @ApiOperation({ summary: "Update restaurant name or active state, audited" })
+  @ApiOperation({ summary: "Update restaurant name, active state or manual domain configuration, audited" })
   @ApiOkResponse({ type: RestaurantDetailsResponseDto })
   @ApiNotFoundResponse({ description: "Restaurant not found" })
   async update(

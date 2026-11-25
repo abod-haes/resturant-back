@@ -1,3 +1,5 @@
+import { Inject } from "@nestjs/common";
+import { RUNTIME_CONFIG, type RuntimeConfig } from "../../../common/config/runtime-config";
 import { ConflictException, ForbiddenException, HttpException, Injectable, NotFoundException, UnauthorizedException } from "@nestjs/common";
 import { sql, type Selectable } from "kysely";
 import { appendRealtimeEvents } from "../../../common/realtime/realtime-outbox";
@@ -31,9 +33,9 @@ function requireTenant(principal: AuthPrincipal): string {
 
 @Injectable()
 export class CallsService {
-  constructor(private readonly database: DatabaseService) {}
+  constructor(private readonly database: DatabaseService, @Inject(RUNTIME_CONFIG) private readonly config: RuntimeConfig) {}
 
-  async create(input: CreateCallDto): Promise<CallDataDto> {
+  async create(input: CreateCallDto, origin?: string): Promise<CallDataDto> {
     const hash = visitHash(input.sessionToken);
     return this.database.db.transaction().execute(async trx => {
       const initial = await trx.selectFrom("visit_sessions")
@@ -43,7 +45,7 @@ export class CallsService {
       // This also serializes with table archive, disable, QR rotation and new session issuance.
       await trx.selectFrom("restaurant_tables").select("id")
         .where("id", "=", initial.table_id).forUpdate().executeTakeFirstOrThrow();
-      const { session, table, entitlements, settings } = await requireLiveVisit(trx, input.sessionToken);
+      const { session, table, entitlements, settings } = await requireLiveVisit(trx, input.sessionToken, origin, this.config.restaurantBaseDomain);
       if (!table.calls_enabled || !settings.enabled) {
         throw new ForbiddenException({ code: "CALLS_DISABLED", message: "Calls are disabled for this table" });
       }

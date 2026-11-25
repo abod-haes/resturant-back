@@ -1,3 +1,4 @@
+import { subdomainFromOrigin } from "../../../common/tenancy/subdomain";
 import { Body, Controller, Get, Headers, HttpCode, HttpStatus, Post, Req, Res, UnauthorizedException } from "@nestjs/common";
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiResponse, ApiTags } from "@nestjs/swagger";
 import type { Response } from "express";
@@ -18,8 +19,13 @@ export class AuthController {
     @Inject(RUNTIME_CONFIG) private readonly config: RuntimeConfig,
   ) {}
 
-  private setRefreshCookie(res: Response, refreshToken: string): void {
-    res.cookie(COOKIE_NAME, refreshToken, {
+  private cookieName(origin?: string): string {
+    const tenant = subdomainFromOrigin(origin, this.config.restaurantBaseDomain);
+    return tenant ? COOKIE_NAME + "_" + tenant : COOKIE_NAME;
+  }
+
+  private setRefreshCookie(res: Response, refreshToken: string, origin?: string): void {
+    res.cookie(this.cookieName(origin), refreshToken, {
       httpOnly: true,
       secure: this.config.nodeEnv !== "development" && this.config.nodeEnv !== "test",
       sameSite: this.config.authCrossSiteCookie ? "none" : "strict",
@@ -29,8 +35,8 @@ export class AuthController {
     });
   }
 
-  private clearRefreshCookie(res: Response): void {
-    res.clearCookie(COOKIE_NAME, {
+  private clearRefreshCookie(res: Response, origin?: string): void {
+    res.clearCookie(this.cookieName(origin), {
       httpOnly: true,
       secure: this.config.nodeEnv !== "development" && this.config.nodeEnv !== "test",
       sameSite: this.config.authCrossSiteCookie ? "none" : "strict",
@@ -39,13 +45,14 @@ export class AuthController {
     });
   }
 
-  private cookieCredential(request: AuthenticatedRequest): string | undefined {
+  private cookieCredential(request: AuthenticatedRequest, origin?: string): string | undefined {
+    const name = this.cookieName(origin);
     const cookies = request.headers.cookie;
     if (!cookies) return undefined;
-    const encoded = cookies.split(";").map((part) => part.trim()).find((part) => part.startsWith(COOKIE_NAME + "="));
+    const encoded = cookies.split(";").map((part) => part.trim()).find((part) => part.startsWith(name + "="));
     if (!encoded) return undefined;
     try {
-      return decodeURIComponent(encoded.slice(COOKIE_NAME.length + 1));
+      return decodeURIComponent(encoded.slice(name.length + 1));
     } catch {
       throw new UnauthorizedException("Invalid refresh credential");
     }
@@ -62,7 +69,7 @@ export class AuthController {
       return { token: body.refreshToken, client: "mobile" };
     }
     this.requireBrowserOrigin(origin);
-    const token = this.cookieCredential(request);
+    const token = this.cookieCredential(request, origin);
     if (!token) throw new UnauthorizedException("Refresh credential required");
     return { token, client: "web" };
   }
@@ -83,8 +90,8 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response): Promise<{ data: Omit<IssuedSession, "refreshToken"> & { refreshToken?: string } }> {
     const client = body.client ?? "web";
     if (client === "web" && origin) this.requireBrowserOrigin(origin);
-    const session = await this.auth.login(body.username, body.password);
-    if (client === "web") this.setRefreshCookie(res, session.refreshToken);
+    const session = await this.auth.login(body.username, body.password, client === "web" ? origin : undefined);
+    if (client === "web") this.setRefreshCookie(res, session.refreshToken, origin);
     return this.response(session, client);
   }
 
@@ -98,8 +105,8 @@ export class AuthController {
     @Headers("origin") origin: string | undefined,
     @Res({ passthrough: true }) res: Response): Promise<{ data: Omit<IssuedSession, "refreshToken"> & { refreshToken?: string } }> {
     const credential = this.credential(body, req, origin);
-    const session = await this.auth.refresh(credential.token);
-    if (credential.client === "web") this.setRefreshCookie(res, session.refreshToken);
+    const session = await this.auth.refresh(credential.token, credential.client === "web" ? origin : undefined);
+    if (credential.client === "web") this.setRefreshCookie(res, session.refreshToken, origin);
     return this.response(session, credential.client);
   }
 
@@ -117,19 +124,19 @@ export class AuthController {
       await this.auth.logout(body.refreshToken);
     } else {
       this.requireBrowserOrigin(origin);
-      const cookie = this.cookieCredential(req);
-      const bearer = req.headers.authorization?.match(/^Bearer\\s+(.+)$/i)?.[1];
+      const cookie = this.cookieCredential(req, origin);
+      const bearer = req.headers.authorization?.match(/^Bearer\s+(.+)$/i)?.[1];
       if (bearer) {
         // Prefer the current authenticated browser session over a stale cookie.
         // No new privilege is granted: authenticate() verifies the bearer
         // and active DB session before revocation.
-        await this.auth.logoutAccessSession(bearer);
+        await this.auth.logoutAccessSession(bearer, origin);
       } else if (cookie) {
-        await this.auth.logout(cookie);
+        await this.auth.logout(cookie, origin);
       } else {
         throw new UnauthorizedException("Logout session credential required");
       }
-      this.clearRefreshCookie(res);
+      this.clearRefreshCookie(res, origin);
     }
     return { data: { loggedOut: true } };
   }
