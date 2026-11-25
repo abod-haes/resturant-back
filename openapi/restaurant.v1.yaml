@@ -306,38 +306,6 @@ components:
         occurredAt: { type: string, format: date-time }
         branchId: { type: string, format: uuid }
         payload: { type: object, additionalProperties: true }
-    CallAnalyticsTotals:
-      type: object
-      required: [totalCalls, waiterCalls, hookahCalls, routedCalls, noStaffCalls, distinctTables]
-      properties:
-        totalCalls: { type: integer, minimum: 0 }
-        waiterCalls: { type: integer, minimum: 0 }
-        hookahCalls: { type: integer, minimum: 0 }
-        routedCalls: { type: integer, minimum: 0, description: Routed to on-shift staff at recording time; NOT notification delivered }
-        noStaffCalls: { type: integer, minimum: 0 }
-        distinctTables: { type: integer, minimum: 0 }
-    CallAnalyticsDaily:
-      type: object
-      required: [date, totalCalls, waiterCalls, hookahCalls, routedCalls, noStaffCalls]
-      properties:
-        date: { type: string, format: date }
-        totalCalls: { type: integer, minimum: 0 }
-        waiterCalls: { type: integer, minimum: 0 }
-        hookahCalls: { type: integer, minimum: 0 }
-        routedCalls: { type: integer, minimum: 0 }
-        noStaffCalls: { type: integer, minimum: 0 }
-    CallAnalyticsReport:
-      type: object
-      required: [from, to, branchId, summary, daily]
-      properties:
-        from: { type: string, format: date, description: Inclusive UTC calendar day }
-        to: { type: string, format: date, description: Exclusive UTC calendar day }
-        branchId: { type: [string, "null"], format: uuid }
-        summary: { $ref: '#/components/schemas/CallAnalyticsTotals' }
-        daily:
-          type: array
-          maxItems: 90
-          items: { $ref: '#/components/schemas/CallAnalyticsDaily' }
     AdminAuditEntry:
       type: object
       required: [id, actorId, restaurantId, action, entityType, entityId, requestId, createdAt]
@@ -581,67 +549,6 @@ paths:
         '200': { description: Updated ordered product gallery }
         '400': { description: MEDIA_DUPLICATED or DTO validation }
         '404': { description: Foreign/missing product or media ID }
-  /owner/overview:
-    get:
-      operationId: getOwnerOverview
-      tags: [Owner overview]
-      security: [{ bearerAuth: [] }]
-      description: Tenant-wide active branches, tables, on-shift employees and UTC-today calls.
-      responses:
-        '200':
-          description: Current restaurant overview counters
-          content:
-            application/json:
-              schema:
-                type: object
-                required: [data]
-                properties:
-                  data:
-                    type: object
-                    required: [branches, activeTables, onShiftEmployees, callsToday, waiterCallsToday, hookahCallsToday, noStaffCallsToday]
-                    properties:
-                      branches: { type: integer, minimum: 0 }
-                      activeTables: { type: integer, minimum: 0 }
-                      onShiftEmployees: { type: integer, minimum: 0 }
-                      callsToday: { type: integer, minimum: 0 }
-                      waiterCallsToday: { type: integer, minimum: 0 }
-                      hookahCallsToday: { type: integer, minimum: 0 }
-                      noStaffCallsToday: { type: integer, minimum: 0 }
-        '401': { description: Unauthorized }
-        '403': { description: Forbidden }
-  /owner/call-analytics:
-    get:
-      operationId: getOwnerCallAnalytics
-      tags: [Owner analytics]
-      security: [{ bearerAuth: [] }]
-      description: RESTAURANT_OWNER only with active analytics plan entitlement; UTC date-only [from,to), max 90 calendar days.
-      parameters:
-        - in: query
-          name: from
-          description: Inclusive UTC YYYY-MM-DD; requires to; default is 29 days before today
-          schema: { type: string, format: date }
-        - in: query
-          name: to
-          description: Exclusive UTC YYYY-MM-DD; requires from; default is tomorrow
-          schema: { type: string, format: date }
-        - in: query
-          name: branchId
-          description: Optional branch belonging to the JWT restaurant
-          schema: { type: string, format: uuid }
-      responses:
-        '200':
-          description: Bound to tenant and feature; all days zero-filled, routed NOT push delivered
-          content:
-            application/json:
-              schema:
-                type: object
-                required: [data]
-                properties:
-                  data: { $ref: '#/components/schemas/CallAnalyticsReport' }
-        '400': { description: Invalid date, range or branchId format }
-        '401': { description: Missing access token }
-        '403': { description: Non-owner, SUBSCRIPTION_INACTIVE or PLAN_FEATURE_DISABLED }
-        '404': { description: Unknown or foreign branch }
   /employee/devices:
     get:
       operationId: listEmployeePushDevices
@@ -983,46 +890,6 @@ paths:
                     items: { $ref: '#/components/schemas/RestaurantSummary' }
                   meta: { $ref: '#/components/schemas/PageMeta' }
         '400': { description: Bad pagination parameters }
-        '401': { description: Unauthorized }
-        '403': { description: Forbidden }
-  /admin/restaurants/overview:
-    get:
-      operationId: getPlatformOverview
-      tags: [Platform restaurants]
-      security: [{ bearerAuth: [] }]
-      description: Global platform counts calculated in PostgreSQL, not from a paginated restaurant list.
-      responses:
-        '200':
-          description: Platform overview counters
-          content:
-            application/json:
-              schema:
-                type: object
-                required: [data]
-                properties:
-                  data:
-                    type: object
-                    required: [restaurants, activeRestaurants, inactiveRestaurants, branches, activeSubscriptions, expiringSubscriptions, pendingSubscriptions, expiredSubscriptions, cancelledSubscriptions, expiringRestaurants]
-                    properties:
-                      restaurants: { type: integer, minimum: 0 }
-                      activeRestaurants: { type: integer, minimum: 0 }
-                      inactiveRestaurants: { type: integer, minimum: 0 }
-                      branches: { type: integer, minimum: 0 }
-                      activeSubscriptions: { type: integer, minimum: 0 }
-                      expiringSubscriptions: { type: integer, minimum: 0 }
-                      pendingSubscriptions: { type: integer, minimum: 0 }
-                      expiredSubscriptions: { type: integer, minimum: 0 }
-                      cancelledSubscriptions: { type: integer, minimum: 0 }
-                      expiringRestaurants:
-                        type: array
-                        items:
-                          type: object
-                          required: [restaurantId, restaurantName, endsAt, daysRemaining]
-                          properties:
-                            restaurantId: { type: string, format: uuid }
-                            restaurantName: { type: string }
-                            endsAt: { type: string, format: date-time }
-                            daysRemaining: { type: integer, minimum: 1 }
         '401': { description: Unauthorized }
         '403': { description: Forbidden }
   /admin/restaurants/{restaurantId}/branding/logo:

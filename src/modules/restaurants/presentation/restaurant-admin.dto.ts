@@ -173,26 +173,3 @@ export class RestaurantDetailsDto extends RestaurantSummaryDto {
 export class RestaurantDetailsResponseDto {
   @ApiProperty({ type: RestaurantDetailsDto }) data!: RestaurantDetailsDto;
 }
-
-/** Server-calculated totals; never infer platform-wide counts from a paginated page. */
-export class ExpiringRestaurantSubscriptionDto {
-  @ApiProperty({ format: "uuid" }) restaurantId!: string;
-  @ApiProperty() restaurantName!: string;
-  @ApiProperty({ format: "date-time" }) endsAt!: string;
-  @ApiProperty() daysRemaining!: number;
-}
-export class PlatformOverviewDto {
-  @ApiProperty() restaurants!: number;
-  @ApiProperty() activeRestaurants!: number;
-  @ApiProperty() inactiveRestaurants!: number;
-  @ApiProperty() branches!: number;
-  @ApiProperty() activeSubscriptions!: number;
-  @ApiProperty() expiringSubscriptions!: number;
-  @ApiProperty() pendingSubscriptions!: number;
-  @ApiProperty() expiredSubscriptions!: number;
-  @ApiProperty() cancelledSubscriptions!: number;
-  @ApiProperty({ type: [ExpiringRestaurantSubscriptionDto] }) expiringRestaurants!: ExpiringRestaurantSubscriptionDto[];
-}
-export class PlatformOverviewResponseDto {
-  @ApiProperty({ type: PlatformOverviewDto }) data!: PlatformOverviewDto;
-}

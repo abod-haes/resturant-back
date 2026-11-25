@@ -48,7 +48,6 @@ for (const [path, method] of [
   ["/employee/devices","post"], ["/employee/devices","get"], ["/employee/devices/{id}","delete"],
   ["/owner/events","get"], ["/employee/events","get"],
   ["/public/calls","post"], ["/employee/shifts/start","post"],
-  ["/owner/call-analytics","get"],
   ["/owner/branches/{branchId}/media/images","post"],
   ["/owner/branches/{branchId}/media/documents","post"],
   ["/owner/branches/{branchId}/media","get"],
@@ -58,8 +57,7 @@ for (const [path, method] of [
 ]) {
   if (!doc.paths[path]?.[method]) throw new Error("Missing contract: " + method + " " + path);
 }
-for (const path of ["/owner/events","/employee/events","/employee/devices",
-  "/owner/call-analytics"]) {
+for (const path of ["/owner/events","/employee/events","/employee/devices"]) {
   const method = path.endsWith("devices") ? "post" : "get";
   if (!doc.paths[path][method].security?.some(x => Object.hasOwn(x, "bearerAuth"))) {
     throw new Error("Bearer security missing from " + path);
@@ -68,11 +66,6 @@ for (const path of ["/owner/events","/employee/events","/employee/devices",
 const fixture = JSON.parse(readFileSync("mocks/contracts/push-realtime-v1.9.json","utf8"));
 if (fixture.schemaVersion !== "1.9.0" || fixture.registered?.data?.expoPushToken !== undefined) {
   throw new Error("Push contract fixture version/redaction invalid");
-}
-const reporting = JSON.parse(readFileSync("mocks/contracts/analytics-audit-v1.10.json","utf8"));
-if (reporting.schemaVersion !== "1.10.0" ||
-  !Array.isArray(reporting.ownerAnalytics?.data?.daily)) {
-  throw new Error("v1.10 analytics contract fixture invalid");
 }
 const platformAdmins = JSON.parse(readFileSync("mocks/contracts/platform-admins-v1.12.json","utf8"));
 if (platformAdmins.schemaVersion !== "1.12.0" ||
