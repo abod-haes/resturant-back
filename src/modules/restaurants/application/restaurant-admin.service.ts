@@ -264,6 +264,10 @@ export class RestaurantAdminService {
       if (!current) throw new NotFoundException("Restaurant not found");
       if (current.subdomain && patch.subdomain && current.subdomain !== patch.subdomain) throw new ConflictException({ code: "SUBDOMAIN_IMMUTABLE", message: "Subdomain cannot be changed" });
       if ((patch.domain_status ?? current.domain_status) === "ready" && !(patch.subdomain ?? current.subdomain)) throw new BadRequestException("Subdomain required before marking ready");
+      if (patch.logo_url) {
+        const managed = await trx.selectFrom("media_assets").select(["restaurant_id", "kind", "status"]).where("public_url", "=", patch.logo_url).executeTakeFirst();
+        if (managed && (managed.restaurant_id !== id || managed.kind !== "image" || managed.status !== "ready")) throw new BadRequestException("Invalid restaurant logo asset");
+      }
       const updated = await trx.updateTable("restaurants")
         .set(patch)
         .where("id", "=", id)
