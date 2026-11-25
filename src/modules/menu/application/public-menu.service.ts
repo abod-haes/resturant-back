@@ -1,3 +1,6 @@
+import { Inject } from "@nestjs/common";
+import { RUNTIME_CONFIG, type RuntimeConfig } from "../../../common/config/runtime-config";
+import { assertPublicTenant } from "../../../common/tenancy/public-tenant";
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { sql } from "kysely";
 import { DatabaseService } from "../../../database/database.service";
@@ -8,7 +11,7 @@ import { imagesForProducts, productDto } from "./products.service";
 
 @Injectable()
 export class PublicMenuService {
-  constructor(private readonly database: DatabaseService) {}
+  constructor(private readonly database: DatabaseService, @Inject(RUNTIME_CONFIG) private readonly config: RuntimeConfig) {}
 
   async restaurantIdentity(subdomain: string): Promise<PublicRestaurantIdentityDto> {
     const restaurant = await this.database.db.selectFrom("restaurants")
@@ -27,25 +30,27 @@ export class PublicMenuService {
     return { ...restaurant, branches };
   }
 
-  private async resolveBranch(slug: string) {
+  private async resolveBranch(slug: string, origin?: string) {
     const branch = await this.database.db.selectFrom("branches")
       .innerJoin("restaurants", "restaurants.id", "branches.restaurant_id")
       .select([
         "branches.id", "branches.name", "branches.slug", "branches.currency",
         "branches.restaurant_id", "restaurants.name as restaurant_name",
         "restaurants.logo_url", "restaurants.primary_color", "restaurants.secondary_color",
+        "restaurants.subdomain as restaurant_subdomain", "restaurants.domain_status as restaurant_domain_status",
         "branches.is_active", "restaurants.is_active as restaurant_active",
       ])
       .where("branches.slug", "=", slug).executeTakeFirst();
     if (!branch || !branch.is_active || !branch.restaurant_active) {
       throw new NotFoundException("Menu not found");
     }
+    assertPublicTenant(origin, this.config.restaurantBaseDomain, branch);
     await requireOperationalEntitlements(this.database.db, branch.restaurant_id, "menu");
     return branch;
   }
 
-  async categories(slug: string, query: MenuPageDto) {
-    const branch = await this.resolveBranch(slug);
+  async categories(slug: string, query: MenuPageDto, origin?: string) {
+    const branch = await this.resolveBranch(slug, origin);
     let select = this.database.db.selectFrom("categories").selectAll()
       .where("branch_id", "=", branch.id).where("archived_at", "is", null).where("is_active", "=", true);
     if (query.search) select = select.where(sql<boolean>`position(lower(${query.search}) in lower(name)) > 0`);
@@ -65,8 +70,8 @@ export class PublicMenuService {
       ? encodeDisplayCursor({ sortOrder: last.sort_order, id: last.id }) : null } };
   }
 
-  async list(slug: string, query: MenuPageDto): Promise<{ data: PublicMenuDto; meta: { hasMore: boolean; nextCursor: string | null } }> {
-    const branch = await this.resolveBranch(slug);
+  async list(slug: string, query: MenuPageDto, origin?: string): Promise<{ data: PublicMenuDto; meta: { hasMore: boolean; nextCursor: string | null } }> {
+    const branch = await this.resolveBranch(slug, origin);
     let select = this.database.db.selectFrom("products")
       .innerJoin("categories", (join) => join.onRef("categories.id", "=", "products.category_id")
         .onRef("categories.branch_id", "=", "products.branch_id"))

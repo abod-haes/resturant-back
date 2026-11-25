@@ -1,3 +1,6 @@
+import { assertPublicTenant } from "../../../common/tenancy/public-tenant";
+import { Inject } from "@nestjs/common";
+import { RUNTIME_CONFIG, type RuntimeConfig } from "../../../common/config/runtime-config";
 import { HttpException, Injectable, NotFoundException } from "@nestjs/common";
 import { randomBytes } from "node:crypto";
 import { sql } from "kysely";
@@ -18,15 +21,16 @@ function enabledTypes(tableEnabled: boolean, settings: Awaited<ReturnType<typeof
 }
 @Injectable()
 export class VisitsService {
-  constructor(private readonly database: DatabaseService) {}
+  constructor(private readonly database: DatabaseService, @Inject(RUNTIME_CONFIG) private readonly config: RuntimeConfig) {}
 
-  async create(qrToken: string): Promise<CreateVisitResponseDataDto> {
+  async create(qrToken: string, origin?: string): Promise<CreateVisitResponseDataDto> {
     return this.database.db.transaction().execute(async trx => {
       const initial = await requireActiveTableQr(trx, qrToken);
       // Same row lock as QR rotate and call processing, serializes issuance against revocation.
       await trx.selectFrom("restaurant_tables").select("id")
         .where("id", "=", initial.table_id).forUpdate().executeTakeFirstOrThrow();
       const table = await requireActiveTableQr(trx, qrToken);
+      assertPublicTenant(origin, this.config.restaurantBaseDomain, table);
       if (table.credential_id !== initial.credential_id) throw new NotFoundException("QR changed");
       const entitlements = await requireOperationalEntitlements(trx, table.restaurant_id, "menu");
       const settings = await effectiveCallSettings(trx, table.restaurant_id, table.branch_id);
@@ -52,9 +56,9 @@ export class VisitsService {
     });
   }
 
-  async status(token: string): Promise<VisitStatusDto> {
+  async status(token: string, origin?: string): Promise<VisitStatusDto> {
     return this.database.db.transaction().execute(async trx => {
-      const { session, table, entitlements, settings } = await requireLiveVisit(trx, token);
+      const { session, table, entitlements, settings } = await requireLiveVisit(trx, token, origin, this.config.restaurantBaseDomain);
       const expiry = new Date(Date.now() + VISIT_IDLE_MS);
       await trx.updateTable("visit_sessions")
         .set({ last_activity_at: new Date(), expires_at: expiry })

@@ -5,6 +5,7 @@ import { RUNTIME_CONFIG, type RuntimeConfig } from "../../../common/config/runti
 import type { AuthPrincipal } from "../../../common/auth/principal";
 import { requireOperationalEntitlements } from "../../../common/subscription/operational-entitlement";
 import { DatabaseService } from "../../../database/database.service";
+import { assertPublicTenant } from "../../../common/tenancy/public-tenant";
 import { requireActiveTableQr } from "../../../common/qr/active-table";
 import { effectiveCallSettings, callIsAvailable } from "../../../common/calls/call-settings";
 import {
@@ -103,8 +104,9 @@ export class QrService {
     });
   }
 
-  async resolvePublic(token: string): Promise<PublicTableContextDto> {
+  async resolvePublic(token: string, origin?: string): Promise<PublicTableContextDto> {
     const row = await requireActiveTableQr(this.database.db, token);
+    assertPublicTenant(origin, this.config.restaurantBaseDomain, row);
     const entitlements = await requireOperationalEntitlements(this.database.db, row.restaurant_id, "menu");
     const settings = await effectiveCallSettings(this.database.db, row.restaurant_id, row.branch_id);
     const callsAvailable = callIsAvailable("waiter", row.calls_enabled, settings, entitlements)

@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { UnauthorizedException } from "@nestjs/common";
 import type { Kysely, Transaction } from "kysely";
 import type { DatabaseTables } from "../../database/database.types";
+import { assertPublicTenant } from "../tenancy/public-tenant";
 import { requireSessionTable } from "../qr/active-table";
 import { requireOperationalEntitlements } from "../subscription/operational-entitlement";
 import { effectiveCallSettings } from "./call-settings";
@@ -17,7 +18,7 @@ export function visitHash(token: string): string {
 export function validVisitToken(value: string): boolean {
   return /^[A-Za-z0-9_-]{43}$/.test(value);
 }
-export async function requireLiveVisit(db: Db, token: string) {
+export async function requireLiveVisit(db: Db, token: string, origin?: string, baseDomain?: string | null) {
   if (!validVisitToken(token)) {
     throw new UnauthorizedException({ code: "SESSION_EXPIRED", message: "Visit session not found" });
   }
@@ -27,6 +28,7 @@ export async function requireLiveVisit(db: Db, token: string) {
     throw new UnauthorizedException({ code: "SESSION_EXPIRED", message: "Visit session expired" });
   }
   const table = await requireSessionTable(db, session.credential_id, session.table_id);
+  assertPublicTenant(origin, baseDomain, table);
   if (table.version !== session.credential_version ||
     table.branch_id !== session.branch_id || table.restaurant_id !== session.restaurant_id) {
     throw new UnauthorizedException({ code: "SESSION_EXPIRED", message: "Visit credential changed" });
