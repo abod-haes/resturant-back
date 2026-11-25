@@ -56,3 +56,5 @@ Initial endpoint inventory.
 Additive admin onboarding fields `subdomain` (optional for legacy clients) and `domainStatus` (`pending`/`ready`). Legacy slug unchanged. Admin PATCH may assign a missing subdomain once and mark readiness manually. No provisioning API. Deployment and client integration pending.
 
 Public lookup: GET /public/menu/restaurants/by-subdomain/:subdomain returns ready active restaurant and active branches, subject to menu entitlement. QR generation uses RESTAURANT_BASE_DOMAIN only for ready assigned domains; legacy URLs remain valid. QR context exposes nullable restaurant.subdomain. Branding persistence, origin enforcement and dashboard integration remain outstanding.
+
+Browser tenant-origin checks now apply during login, refresh and protected bearer requests, retaining legacy/mobile auth. Configure exact tenant HTTPS origins in CORS_ORIGINS manually; no wildcard expansion added. This does not establish physical presence or replace authenticated tenant scopes.

@@ -83,7 +83,7 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response): Promise<{ data: Omit<IssuedSession, "refreshToken"> & { refreshToken?: string } }> {
     const client = body.client ?? "web";
     if (client === "web" && origin) this.requireBrowserOrigin(origin);
-    const session = await this.auth.login(body.username, body.password);
+    const session = await this.auth.login(body.username, body.password, client === "web" ? origin : undefined);
     if (client === "web") this.setRefreshCookie(res, session.refreshToken);
     return this.response(session, client);
   }
@@ -98,7 +98,7 @@ export class AuthController {
     @Headers("origin") origin: string | undefined,
     @Res({ passthrough: true }) res: Response): Promise<{ data: Omit<IssuedSession, "refreshToken"> & { refreshToken?: string } }> {
     const credential = this.credential(body, req, origin);
-    const session = await this.auth.refresh(credential.token);
+    const session = await this.auth.refresh(credential.token, credential.client === "web" ? origin : undefined);
     if (credential.client === "web") this.setRefreshCookie(res, session.refreshToken);
     return this.response(session, credential.client);
   }
@@ -118,7 +118,7 @@ export class AuthController {
     } else {
       this.requireBrowserOrigin(origin);
       const cookie = this.cookieCredential(req);
-      const bearer = req.headers.authorization?.match(/^Bearer\\s+(.+)$/i)?.[1];
+      const bearer = req.headers.authorization?.match(/^Bearer\s+(.+)$/i)?.[1];
       if (bearer) {
         // Prefer the current authenticated browser session over a stale cookie.
         // No new privilege is granted: authenticate() verifies the bearer

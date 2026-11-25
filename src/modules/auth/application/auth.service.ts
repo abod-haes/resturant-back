@@ -1,4 +1,5 @@
 import { Inject, Injectable, UnauthorizedException, ForbiddenException, BadRequestException } from "@nestjs/common";
+import { subdomainFromOrigin } from "../../../common/tenancy/subdomain";
 import { JwtService } from "@nestjs/jwt";
 import { createHash, randomBytes } from "node:crypto";
 import { DatabaseService } from "../../../database/database.service";
@@ -48,6 +49,16 @@ export class AuthService {
     private readonly throttle: LoginThrottleService,
     @Inject(RUNTIME_CONFIG) private readonly config: RuntimeConfig,
   ) {}
+
+  async assertBrowserTenant(user: Pick<AuthUser, "restaurantId" | "role">, origin?: string): Promise<void> {
+    const subdomain = subdomainFromOrigin(origin, this.config.restaurantBaseDomain);
+    if (!subdomain) return;
+    if (user.role !== "RESTAURANT_OWNER" || !user.restaurantId) throw new UnauthorizedException("Invalid restaurant account");
+    const restaurant = await this.database.db.selectFrom("restaurants").select("id")
+      .where("id", "=", user.restaurantId).where("subdomain", "=", subdomain)
+      .where("domain_status", "=", "ready").where("is_active", "=", true).executeTakeFirst();
+    if (!restaurant) throw new UnauthorizedException("Invalid restaurant account");
+  }
 
   private hashToken(token: string): string {
     return createHash("sha256").update(token, "utf8").digest("hex");
@@ -111,7 +122,7 @@ export class AuthService {
     return { token, expiresAt: new Date(Date.now() + ACCESS_SECONDS * 1000).toISOString() };
   }
 
-  async login(username: string, password: string): Promise<IssuedSession> {
+  async login(username: string, password: string, origin?: string): Promise<IssuedSession> {
     await this.throttle.assertAllowed(username);
     const user = await this.findUserByUsername(username);
     // Perform an expensive password hash even when the account does not exist, to reduce enumeration timing.
@@ -122,6 +133,7 @@ export class AuthService {
       throw new UnauthorizedException("Invalid credentials");
     }
 
+    await this.assertBrowserTenant(this.toPublicUser(user), origin);
     const refreshToken = this.createRefreshToken();
     const expiresAt = new Date(Date.now() + REFRESH_DAYS * 86400 * 1000);
     const session = await this.database.db.insertInto("auth_sessions")
@@ -162,12 +174,20 @@ export class AuthService {
     return { ...this.toPublicUser(user), sessionId: session.id };
   }
 
-  async refresh(refreshToken: string): Promise<IssuedSession> {
+  async refresh(refreshToken: string, origin?: string): Promise<IssuedSession> {
     if (!isRefreshToken(refreshToken)) throw new UnauthorizedException("Invalid refresh credential");
     const oldHash = this.hashToken(refreshToken);
     const nextToken = this.createRefreshToken();
     const expiresAt = new Date(Date.now() + REFRESH_DAYS * 86400 * 1000);
 
+    if (subdomainFromOrigin(origin, this.config.restaurantBaseDomain)) {
+      const existing = await this.database.db.selectFrom("auth_sessions").select("user_id").where("refresh_hash", "=", oldHash).executeTakeFirst();
+      if (existing) {
+        const user = await this.findUserById(existing.user_id);
+        if (!user) throw new UnauthorizedException("Invalid refresh credential");
+        await this.assertBrowserTenant(this.toPublicUser(user), origin);
+      }
+    }
     const updated = await this.database.db.transaction().execute(async (trx) => {
       const session = await trx.updateTable("auth_sessions")
         .set({ refresh_hash: this.hashToken(nextToken), previous_refresh_hash: oldHash,
