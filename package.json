@@ -20,8 +20,7 @@
     "auth:bootstrap:primary": "node scripts/bootstrap-primary.mjs",
     "media:cleanup": "node dist/media-cleanup.js",
     "contract:export": "node dist/export-contract.js",
-    "db:seed:complete": "node scripts/seed-complete.mjs",
-    "db:seed:dar-halab": "node scripts/seed-dar-halab.mjs"
+    "db:seed:jubran": "node scripts/seed-jubran.mjs"
   },
   "dependencies": {
     "@nestjs/common": "^11.1.0",

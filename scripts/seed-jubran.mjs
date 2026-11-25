@@ -1,9 +1,5 @@
 #!/usr/bin/env node
-/**
- * Destructive opt-in replacement of restaurant demo data; transactionally rolled back on error.
- * Existing restaurant IDs are always reused by slug. Existing account passwords
- * remain unchanged unless BOTH an explicit reset flag and confirmation are provided.
- */
+/** Explicit destructive demo reset; never run automatically. */
 import "dotenv/config";
 import { createCipheriv, createHash, randomBytes } from "node:crypto";
 import { createRequire } from "node:module";
@@ -23,49 +19,107 @@ if (!/^[a-fA-F0-9]{64}$/.test(env.QR_TOKEN_ENCRYPTION_KEY ?? "")) {
   throw new Error("Set the existing Backend QR_TOKEN_ENCRYPTION_KEY (64 hex chars), never expose it to a frontend.");
 }
 const reset = false;
+const logoUrl = env.SEED_JUBRAN_LOGO_URL || null;
+if (logoUrl && (new URL(logoUrl).protocol !== "https:" || new URL(logoUrl).username || new URL(logoUrl).password || logoUrl.length > 2048)) throw new Error("Invalid HTTPS logo URL");
 if (env.SEED_REPLACE_CONFIRM !== "DELETE_ALL_RESTAURANT_DATA") throw new Error("Explicit replacement confirmation required");
 const dryRun = process.argv.includes("--dry-run");
-if (process.argv.some(arg => arg.startsWith("--") && !["--reset-demo-passwords", "--dry-run"].includes(arg))) {
-  throw new Error("Unknown option. Supported: --dry-run and --reset-demo-passwords");
+if (process.argv.some(arg => arg.startsWith("--") && !["--dry-run"].includes(arg))) {
+  throw new Error("Unknown option. Supported: --dry-run");
 }
 if (reset && env.SEED_RESET_DEMO_PASSWORDS_CONFIRM !== "RESET_ONLY_NAMED_DEMO_ACCOUNTS") {
   throw new Error("Password reset requires SEED_RESET_DEMO_PASSWORDS_CONFIRM=RESET_ONLY_NAMED_DEMO_ACCOUNTS");
 }
 const qrKey = Buffer.from(env.QR_TOKEN_ENCRYPTION_KEY, "hex");
 const { hashPassword } = require("../dist/common/crypto/password.js");
+// Illustrative demo menu, not verified restaurant prices.
 const menu = [
+  [
+    "الفطور",
+    [
+      [
+        "فطور جبران",
+        "صنف تجريبي — الفطور",
+        65000
+      ],
+      [
+        "بيض مقلي",
+        "صنف تجريبي — الفطور",
+        25000
+      ],
+      [
+        "بيض باللحمة",
+        "صنف تجريبي — الفطور",
+        45000
+      ],
+      [
+        "فول",
+        "صنف تجريبي — الفطور",
+        25000
+      ],
+      [
+        "فتة حمص",
+        "صنف تجريبي — الفطور",
+        35000
+      ],
+      [
+        "مناقيش زعتر",
+        "صنف تجريبي — الفطور",
+        15000
+      ],
+      [
+        "جبنة مشوية",
+        "صنف تجريبي — الفطور",
+        30000
+      ],
+      [
+        "لبنة",
+        "صنف تجريبي — الفطور",
+        22000
+      ]
+    ]
+  ],
   [
     "المقبلات الباردة",
     [
       [
         "حمص",
-        "حمص — المقبلات الباردة",
+        "صنف تجريبي — المقبلات الباردة",
         25000
       ],
       [
         "متبل",
-        "متبل — المقبلات الباردة",
+        "صنف تجريبي — المقبلات الباردة",
         25000
       ],
       [
         "بابا غنوج",
-        "بابا غنوج — المقبلات الباردة",
+        "صنف تجريبي — المقبلات الباردة",
         28000
       ],
       [
         "محمرة حلبية",
-        "محمرة حلبية — المقبلات الباردة",
+        "صنف تجريبي — المقبلات الباردة",
         30000
       ],
       [
         "ورق عنب",
-        "ورق عنب — المقبلات الباردة",
+        "صنف تجريبي — المقبلات الباردة",
         35000
       ],
       [
         "لبنة بالثوم",
-        "لبنة بالثوم — المقبلات الباردة",
+        "صنف تجريبي — المقبلات الباردة",
         22000
+      ],
+      [
+        "مخللات",
+        "صنف تجريبي — المقبلات الباردة",
+        15000
+      ],
+      [
+        "حمص باللحمة",
+        "صنف تجريبي — المقبلات الباردة",
+        45000
       ]
     ]
   ],
@@ -74,33 +128,38 @@ const menu = [
     [
       [
         "كبة مقلية",
-        "كبة مقلية — المقبلات الساخنة",
+        "صنف تجريبي — المقبلات الساخنة",
         45000
       ],
       [
         "سمبوسك جبنة",
-        "سمبوسك جبنة — المقبلات الساخنة",
+        "صنف تجريبي — المقبلات الساخنة",
         30000
       ],
       [
         "سمبوسك لحمة",
-        "سمبوسك لحمة — المقبلات الساخنة",
+        "صنف تجريبي — المقبلات الساخنة",
         35000
       ],
       [
         "بطاطا مقلية",
-        "بطاطا مقلية — المقبلات الساخنة",
+        "صنف تجريبي — المقبلات الساخنة",
         20000
       ],
       [
         "بطاطا حارة",
-        "بطاطا حارة — المقبلات الساخنة",
+        "صنف تجريبي — المقبلات الساخنة",
         25000
       ],
       [
         "جوانح دجاج",
-        "جوانح دجاج — المقبلات الساخنة",
+        "صنف تجريبي — المقبلات الساخنة",
         40000
+      ],
+      [
+        "سجق",
+        "صنف تجريبي — المقبلات الساخنة",
+        45000
       ]
     ]
   ],
@@ -109,138 +168,193 @@ const menu = [
     [
       [
         "فتوش",
-        "فتوش — السلطات",
+        "صنف تجريبي — السلطات",
         25000
       ],
       [
         "تبولة",
-        "تبولة — السلطات",
+        "صنف تجريبي — السلطات",
         25000
       ],
       [
         "سلطة خضراء",
-        "سلطة خضراء — السلطات",
+        "صنف تجريبي — السلطات",
         20000
       ],
       [
         "سلطة سيزر",
-        "سلطة سيزر — السلطات",
+        "صنف تجريبي — السلطات",
         40000
       ],
       [
         "سلطة جرجير",
-        "سلطة جرجير — السلطات",
+        "صنف تجريبي — السلطات",
         28000
+      ],
+      [
+        "سلطة يونانية",
+        "صنف تجريبي — السلطات",
+        35000
       ]
     ]
   ],
   [
-    "المشويات",
+    "المشاوي",
     [
       [
         "كباب حلبي",
-        "كباب حلبي — المشويات",
+        "صنف تجريبي — المشاوي",
         95000
       ],
       [
         "كباب بالكرز",
-        "كباب بالكرز — المشويات",
+        "صنف تجريبي — المشاوي",
         120000
       ],
       [
         "شيش طاووق",
-        "شيش طاووق — المشويات",
+        "صنف تجريبي — المشاوي",
         80000
       ],
       [
         "شقف لحم",
-        "شقف لحم — المشويات",
+        "صنف تجريبي — المشاوي",
         110000
       ],
       [
         "مشاوي مشكلة",
-        "مشاوي مشكلة — المشويات",
+        "صنف تجريبي — المشاوي",
         135000
       ],
       [
         "كباب خشخاش",
-        "كباب خشخاش — المشويات",
+        "صنف تجريبي — المشاوي",
         100000
       ],
       [
         "ريش غنم",
-        "ريش غنم — المشويات",
+        "صنف تجريبي — المشاوي",
         145000
       ],
       [
         "فروج مشوي",
-        "فروج مشوي — المشويات",
+        "صنف تجريبي — المشاوي",
         125000
       ]
     ]
   ],
   [
-    "الوجبات الرئيسية",
+    "الكبب",
     [
       [
-        "فريكة بالدجاج",
-        "فريكة بالدجاج — الوجبات الرئيسية",
-        85000
+        "كبة مشوية",
+        "صنف تجريبي — الكبب",
+        50000
       ],
       [
-        "أوزي باللحمة",
-        "أوزي باللحمة — الوجبات الرئيسية",
-        95000
+        "كبة بالصينية",
+        "صنف تجريبي — الكبب",
+        60000
       ],
       [
         "كبة لبنية",
-        "كبة لبنية — الوجبات الرئيسية",
+        "صنف تجريبي — الكبب",
         80000
       ],
       [
-        "مندي دجاج",
-        "مندي دجاج — الوجبات الرئيسية",
-        90000
+        "كبة سماقية",
+        "صنف تجريبي — الكبب",
+        85000
       ],
       [
-        "اسكالوب دجاج",
-        "اسكالوب دجاج — الوجبات الرئيسية",
-        75000
-      ],
-      [
-        "كوردون بلو",
-        "كوردون بلو — الوجبات الرئيسية",
-        95000
+        "كبة نية",
+        "صنف تجريبي — الكبب",
+        65000
       ]
     ]
   ],
   [
-    "السندويشات",
+    "الوجبات الغربية",
     [
       [
-        "شاورما دجاج",
-        "شاورما دجاج — السندويشات",
-        30000
-      ],
-      [
-        "شاورما لحمة",
-        "شاورما لحمة — السندويشات",
-        40000
-      ],
-      [
         "برغر لحم",
-        "برغر لحم — السندويشات",
+        "صنف تجريبي — الوجبات الغربية",
         45000
       ],
       [
+        "برغر دجاج",
+        "صنف تجريبي — الوجبات الغربية",
+        40000
+      ],
+      [
         "كريسبي",
-        "كريسبي — السندويشات",
+        "صنف تجريبي — الوجبات الغربية",
         40000
       ],
       [
         "فاهيتا",
-        "فاهيتا — السندويشات",
+        "صنف تجريبي — الوجبات الغربية",
         45000
+      ],
+      [
+        "اسكالوب دجاج",
+        "صنف تجريبي — الوجبات الغربية",
+        75000
+      ],
+      [
+        "كوردون بلو",
+        "صنف تجريبي — الوجبات الغربية",
+        95000
+      ],
+      [
+        "باستا ألفريدو",
+        "صنف تجريبي — الوجبات الغربية",
+        65000
+      ],
+      [
+        "ستيك دجاج",
+        "صنف تجريبي — الوجبات الغربية",
+        85000
+      ]
+    ]
+  ],
+  [
+    "البيتزا والمعجنات",
+    [
+      [
+        "مارغريتا",
+        "صنف تجريبي — البيتزا والمعجنات",
+        50000
+      ],
+      [
+        "بيتزا خضار",
+        "صنف تجريبي — البيتزا والمعجنات",
+        55000
+      ],
+      [
+        "بيتزا دجاج",
+        "صنف تجريبي — البيتزا والمعجنات",
+        65000
+      ],
+      [
+        "بيتزا بيبروني",
+        "صنف تجريبي — البيتزا والمعجنات",
+        70000
+      ],
+      [
+        "بيتزا مشكلة",
+        "صنف تجريبي — البيتزا والمعجنات",
+        75000
+      ],
+      [
+        "مناقيش جبنة",
+        "صنف تجريبي — البيتزا والمعجنات",
+        25000
+      ],
+      [
+        "صفيحة",
+        "صنف تجريبي — البيتزا والمعجنات",
+        35000
       ]
     ]
   ],
@@ -248,58 +362,98 @@ const menu = [
     "الحلويات",
     [
       [
-        "كنافة نابلسية",
-        "كنافة نابلسية — الحلويات",
+        "كنافة",
+        "صنف تجريبي — الحلويات",
         35000
       ],
       [
         "بقلاوة",
-        "بقلاوة — الحلويات",
+        "صنف تجريبي — الحلويات",
         40000
       ],
       [
         "بوظة عربية",
-        "بوظة عربية — الحلويات",
+        "صنف تجريبي — الحلويات",
         30000
       ],
       [
         "تشيز كيك",
-        "تشيز كيك — الحلويات",
+        "صنف تجريبي — الحلويات",
+        35000
+      ],
+      [
+        "كيك شوكولا",
+        "صنف تجريبي — الحلويات",
         35000
       ]
     ]
   ],
   [
-    "المشروبات",
+    "المشروبات الساخنة",
     [
       [
-        "عصير برتقال",
-        "عصير برتقال — المشروبات",
-        20000
-      ],
-      [
-        "ليمون ونعناع",
-        "ليمون ونعناع — المشروبات",
-        20000
-      ],
-      [
-        "كوكتيل فواكه",
-        "كوكتيل فواكه — المشروبات",
-        30000
-      ],
-      [
         "قهوة تركية",
-        "قهوة تركية — المشروبات",
+        "صنف تجريبي — المشروبات الساخنة",
         12000
       ],
       [
         "شاي",
-        "شاي — المشروبات",
+        "صنف تجريبي — المشروبات الساخنة",
         8000
       ],
       [
+        "إسبريسو",
+        "صنف تجريبي — المشروبات الساخنة",
+        15000
+      ],
+      [
+        "كابتشينو",
+        "صنف تجريبي — المشروبات الساخنة",
+        22000
+      ],
+      [
+        "لاتيه",
+        "صنف تجريبي — المشروبات الساخنة",
+        22000
+      ],
+      [
+        "هوت شوكليت",
+        "صنف تجريبي — المشروبات الساخنة",
+        25000
+      ]
+    ]
+  ],
+  [
+    "المشروبات الباردة والعصائر",
+    [
+      [
+        "عصير برتقال",
+        "صنف تجريبي — المشروبات الباردة والعصائر",
+        20000
+      ],
+      [
+        "ليمون ونعناع",
+        "صنف تجريبي — المشروبات الباردة والعصائر",
+        20000
+      ],
+      [
+        "كوكتيل فواكه",
+        "صنف تجريبي — المشروبات الباردة والعصائر",
+        30000
+      ],
+      [
+        "موهيتو",
+        "صنف تجريبي — المشروبات الباردة والعصائر",
+        25000
+      ],
+      [
+        "آيس لاتيه",
+        "صنف تجريبي — المشروبات الباردة والعصائر",
+        25000
+      ],
+      [
         "مياه معدنية",
-        "مياه معدنية — المشروبات",
+        "صنف تجريبي — المشروبات الباردة والعصائر",
         5000
       ]
     ]
@@ -309,28 +463,140 @@ const menu = [
     [
       [
         "تفاحتين",
-        "تفاحتين — الأراكيل",
+        "صنف تجريبي — الأراكيل",
         40000
       ],
       [
         "عنب ونعناع",
-        "عنب ونعناع — الأراكيل",
+        "صنف تجريبي — الأراكيل",
         40000
       ],
       [
         "ليمون ونعناع",
-        "ليمون ونعناع — الأراكيل",
+        "صنف تجريبي — الأراكيل",
         40000
       ],
       [
+        "نعناع",
+        "صنف تجريبي — الأراكيل",
+        40000
+      ],
+      [
+        "بطيخ ونعناع",
+        "صنف تجريبي — الأراكيل",
+        45000
+      ],
+      [
         "أركيلة مميزة",
-        "أركيلة مميزة — الأراكيل",
+        "صنف تجريبي — الأراكيل",
         55000
       ]
     ]
   ]
 ];
-const restaurants = [{slug:"dar-halab",name:"مطعم دار حلب",owner:"darhalab.owner",branches:[{slug:"dar-halab-shahbaa",name:"الشهباء",floors:[["الأرضي",[["داخلي",15]]],["الأول",[["داخلي",10],["تراس",5]]]],employees:[["omar","عمر الأحمد","waiter"],["khaled","خالد الحسن","waiter"],["yousef","يوسف المصري","hookah"],["mahmoud","محمود الحلبي","hookah"]]},{slug:"dar-halab-furqan",name:"الفرقان",floors:[["الأرضي",[["داخلي",12],["تراس",8]]]],employees:[["ali","علي العلي","waiter"],["mustafa","مصطفى العمر","waiter"],["anas","أنس الخطيب","hookah"],["ibrahim","إبراهيم السيد","hookah"]]}]}];
+const restaurants = [
+  {
+    "slug": "jubran",
+    "name": "مطعم جبران",
+    "owner": "jubran.owner",
+    "branches": [
+      {
+        "slug": "jubran-mocambo",
+        "name": "الموكامبو",
+        "floors": [
+          [
+            "الأرضي",
+            [
+              [
+                "الصالة الداخلية",
+                20
+              ],
+              [
+                "الجلسات الخارجية",
+                10
+              ]
+            ]
+          ],
+          [
+            "الأول",
+            [
+              [
+                "صالة العائلات",
+                12
+              ],
+              [
+                "التراس",
+                8
+              ]
+            ]
+          ]
+        ],
+        "employees": [
+          [
+            "jubran.waiter.1",
+            "غارسون 1",
+            "waiter"
+          ],
+          [
+            "jubran.waiter.2",
+            "غارسون 2",
+            "waiter"
+          ],
+          [
+            "jubran.waiter.3",
+            "غارسون 3",
+            "waiter"
+          ],
+          [
+            "jubran.waiter.4",
+            "غارسون 4",
+            "waiter"
+          ],
+          [
+            "jubran.waiter.5",
+            "غارسون 5",
+            "waiter"
+          ],
+          [
+            "jubran.waiter.6",
+            "غارسون 6",
+            "waiter"
+          ],
+          [
+            "jubran.waiter.7",
+            "غارسون 7",
+            "waiter"
+          ],
+          [
+            "jubran.waiter.8",
+            "غارسون 8",
+            "waiter"
+          ],
+          [
+            "jubran.hookah.1",
+            "موظف أراكيل 1",
+            "hookah"
+          ],
+          [
+            "jubran.hookah.2",
+            "موظف أراكيل 2",
+            "hookah"
+          ],
+          [
+            "jubran.hookah.3",
+            "موظف أراكيل 3",
+            "hookah"
+          ],
+          [
+            "jubran.hookah.4",
+            "موظف أراكيل 4",
+            "hookah"
+          ]
+        ]
+      }
+    ]
+  }
+];
 const snapshot = {
   maxBranches: 5, maxTables: 100, maxEmployees: 30,
   features: { menu: true, waiter_calls: true, hookah_calls: true, analytics: true },
@@ -383,8 +649,8 @@ async function ensureRestaurant(client, restaurant) {
   if (current) return current.id;
   summary.restaurants++;
   return (await single(client,
-    "INSERT INTO restaurants(name,slug,is_active) VALUES($1,$2,true) RETURNING id",
-    [restaurant.name,restaurant.slug])).id;
+    "INSERT INTO restaurants(name,slug,is_active,subdomain,domain_status,logo_url,primary_color,secondary_color,font_family) VALUES($1,$2,true,$2,'pending',$3,'#D4AF37','#111111','cairo') RETURNING id",
+    [restaurant.name,restaurant.slug,logoUrl])).id;
 }
 async function ensureBranch(client, restaurantId, slug, name) {
   const row = await single(client, "SELECT id,restaurant_id FROM branches WHERE slug=$1 FOR UPDATE", [slug]);
@@ -482,7 +748,7 @@ async function run() {
     const existingAdmins = await client.query("SELECT username FROM users WHERE role='PRIMARY_ADMIN'");
     if (existingAdmins.rows.some(x => x.username !== "platform.admin"))
       throw new Error("Another primary administrator exists; refusing a competing admin.");
-    const adminId = await ensureUser(client,"platform.admin","أحمد خالد المصري","PRIMARY_ADMIN");
+    const adminId = await ensureUser(client,"platform.admin","مسؤول المنصة","PRIMARY_ADMIN");
     let plan = await single(client,"SELECT id FROM plans WHERE name=$1 FOR UPDATE",["باقة المعاينة الكاملة"]);
     if (!plan) {
       plan = await single(client,`INSERT INTO plans
@@ -493,7 +759,7 @@ async function run() {
     }
     for (const restaurant of restaurants) {
       const restaurantId = await ensureRestaurant(client,restaurant);
-      await ensureUser(client,restaurant.owner,"محمد عمر الحلبي","RESTAURANT_OWNER",restaurantId);
+      await ensureUser(client,restaurant.owner,"مالك مطعم جبران - تجريبي","RESTAURANT_OWNER",restaurantId);
       await ensureSubscription(client,restaurantId,plan.id,adminId);
       for (const branch of restaurant.branches) {
       const branchId = await ensureBranch(client,restaurantId,branch.slug,branch.name);
@@ -534,7 +800,7 @@ async function run() {
       }
     }
     }
-    if(summary.tables!==50 || summary.qrCredentials!==50 || summary.products!==100 || summary.users!==10) throw new Error("Unexpected seed counts");
+    if(summary.tables!==50 || summary.qrCredentials!==50 || summary.products!==80 || summary.users!==14 || summary.categories!==12 || summary.branches!==1 || summary.floors!==2 || summary.areas!==4) throw new Error("Unexpected seed counts");
     await client.query(dryRun ? "ROLLBACK" : "COMMIT");
     transaction=false;
     console.log(dryRun ? "DRY RUN successful: all changes rolled back." : "Replacement seed committed.");
@@ -542,7 +808,7 @@ async function run() {
     if (generated.length && !dryRun) {
       console.log("ONE-TIME CREDENTIALS - store privately now; never post or commit:");
       console.table(generated);
-      console.log("Existing credentials not listed above were preserved.");
+      console.log("All old database accounts were replaced. Domain remains pending until manual routing is verified.");
     } else if (!dryRun) {
       console.log("All accounts already exist; passwords unchanged. For intentional demo-account rotation, use --reset-demo-passwords with separate confirmation.");
     }
