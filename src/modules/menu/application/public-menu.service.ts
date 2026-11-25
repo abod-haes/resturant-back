@@ -3,23 +3,28 @@ import { sql } from "kysely";
 import { DatabaseService } from "../../../database/database.service";
 import { decodeDisplayCursor, encodeDisplayCursor } from "../../../common/pagination/keyset";
 import { requireOperationalEntitlements } from "../../../common/subscription/operational-entitlement";
-import type { CategoryDto, MenuPageDto, PublicMenuDto, PublicRestaurantDto } from "../presentation/menu.dto";
+import type { CategoryDto, MenuPageDto, PublicMenuDto, PublicRestaurantDto, PublicRestaurantIdentityDto } from "../presentation/menu.dto";
 import { imagesForProducts, productDto } from "./products.service";
 
 @Injectable()
 export class PublicMenuService {
   constructor(private readonly database: DatabaseService) {}
 
-  async restaurantBySubdomain(subdomain: string): Promise<PublicRestaurantDto> {
+  async restaurantIdentity(subdomain: string): Promise<PublicRestaurantIdentityDto> {
     const restaurant = await this.database.db.selectFrom("restaurants")
       .select(["id", "name", "subdomain", "logo_url", "primary_color", "secondary_color"]).where("subdomain", "=", subdomain)
       .where("is_active", "=", true).where("domain_status", "=", "ready").executeTakeFirst();
     if (!restaurant || !restaurant.subdomain) throw new NotFoundException("Restaurant not found");
+    return { id: restaurant.id, name: restaurant.name, subdomain: restaurant.subdomain, branding: { logoUrl: restaurant.logo_url, primaryColor: restaurant.primary_color, secondaryColor: restaurant.secondary_color } };
+  }
+
+  async restaurantBySubdomain(subdomain: string): Promise<PublicRestaurantDto> {
+    const restaurant = await this.restaurantIdentity(subdomain);
     await requireOperationalEntitlements(this.database.db, restaurant.id, "menu");
     const branches = await this.database.db.selectFrom("branches").select(["id", "name", "slug"])
       .where("restaurant_id", "=", restaurant.id).where("is_active", "=", true)
       .orderBy("created_at", "asc").orderBy("id", "asc").execute();
-    return { id: restaurant.id, name: restaurant.name, subdomain: restaurant.subdomain, branding: { logoUrl: restaurant.logo_url, primaryColor: restaurant.primary_color, secondaryColor: restaurant.secondary_color }, branches };
+    return { ...restaurant, branches };
   }
 
   private async resolveBranch(slug: string) {

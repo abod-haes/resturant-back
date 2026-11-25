@@ -143,13 +143,17 @@ export class PublicRestaurantBranchDto {
   @ApiProperty() name!: string;
   @ApiProperty() slug!: string;
 }
-export class PublicRestaurantDto {
+export class PublicRestaurantIdentityDto {
   @ApiProperty({ type: BrandingDto }) branding!: BrandingDto;
   @ApiProperty({ format: "uuid" }) id!: string;
   @ApiProperty() name!: string;
   @ApiProperty() subdomain!: string;
+}
+export class PublicRestaurantDto extends PublicRestaurantIdentityDto {
   @ApiProperty({ type: [PublicRestaurantBranchDto] }) branches!: PublicRestaurantBranchDto[];
 }
 export class PublicRestaurantResponseDto {
   @ApiProperty({ type: PublicRestaurantDto }) data!: PublicRestaurantDto;
 }
+
+export class PublicRestaurantIdentityResponseDto { @ApiProperty({ type: PublicRestaurantIdentityDto }) data!: PublicRestaurantIdentityDto; }

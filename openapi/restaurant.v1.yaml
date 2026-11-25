@@ -2,7 +2,7 @@ openapi: 3.1.0
 info:
   title: Restaurant Platform API
   version: 0.12.0-draft
-  description: "Versioned reference with all 97 implemented HTTP path/method pairs, checked against executable Nest Swagger. Some response schemas are summary-only; for exact DTO types use runtime /api/docs-json or the generated CI OpenAPI artifact."
+  description: "Versioned reference with all 98 implemented HTTP path/method pairs, checked against executable Nest Swagger. Some response schemas are summary-only; for exact DTO types use runtime /api/docs-json or the generated CI OpenAPI artifact."
 servers:
   - url: /api/v1
 components:
@@ -2132,6 +2132,29 @@ paths:
         '403': { description: No subscription/feature }
         '404': { description: Source or target not within tenant }
         '409': { description: MENU_TARGET_NOT_EMPTY, MENU_CURRENCY_MISMATCH }
+  /public/menu/restaurants/by-subdomain/{subdomain}/identity:
+    get:
+      operationId: getPublicRestaurantIdentity
+      tags: [Public menu]
+      parameters:
+        - { in: path, name: subdomain, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Public identity only, independent of menu subscription
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    required: [id, name, subdomain, branding]
+                    properties:
+                      id: { type: string, format: uuid }
+                      name: { type: string }
+                      subdomain: { type: string }
+                      branding: { $ref: '#/components/schemas/RestaurantBranding' }
+        '404': { description: Restaurant unavailable }
   /public/menu/restaurants/by-subdomain/{subdomain}:
     get:
       operationId: getPublicRestaurantBySubdomain
