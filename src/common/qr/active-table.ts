@@ -23,7 +23,7 @@ export async function requireActiveTableQr(db: QueryDatabase, token: string) {
       "floors.is_active as floor_active", "floors.archived_at as floor_archived",
       "branches.id as branch_id", "branches.name as branch_name", "branches.slug",
       "branches.is_active as branch_active", "restaurants.id as restaurant_id",
-      "restaurants.name as restaurant_name", "restaurants.is_active as restaurant_active",
+      "restaurants.name as restaurant_name", "restaurants.subdomain as restaurant_subdomain", "restaurants.is_active as restaurant_active",
     ])
     .where("qr_credentials.token_hash", "=", hashQrToken(token))
     .where("qr_credentials.revoked_at", "is", null).executeTakeFirst();

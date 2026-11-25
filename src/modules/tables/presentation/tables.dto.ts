@@ -111,7 +111,7 @@ export class QrCodeDataDto {
 }
 export class QrCodeResponseDto { @ApiProperty({ type: QrCodeDataDto }) data!: QrCodeDataDto; }
 export class PublicTableContextDto {
-  @ApiProperty() restaurant!: { name: string };
+  @ApiProperty() restaurant!: { name: string; subdomain: string | null };
   @ApiProperty() branch!: { name: string; slug: string };
   @ApiProperty() table!: { id: string; label: string };
   @ApiProperty() menuPath!: string;

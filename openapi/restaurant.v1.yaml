@@ -2,7 +2,7 @@ openapi: 3.1.0
 info:
   title: Restaurant Platform API
   version: 0.12.0-draft
-  description: "Versioned reference with all 96 implemented HTTP path/method pairs, checked against executable Nest Swagger. Some response schemas are summary-only; for exact DTO types use runtime /api/docs-json or the generated CI OpenAPI artifact."
+  description: "Versioned reference with all 97 implemented HTTP path/method pairs, checked against executable Nest Swagger. Some response schemas are summary-only; for exact DTO types use runtime /api/docs-json or the generated CI OpenAPI artifact."
 servers:
   - url: /api/v1
 components:
@@ -2125,6 +2125,39 @@ paths:
         '403': { description: No subscription/feature }
         '404': { description: Source or target not within tenant }
         '409': { description: MENU_TARGET_NOT_EMPTY, MENU_CURRENCY_MISMATCH }
+  /public/menu/restaurants/by-subdomain/{subdomain}:
+    get:
+      operationId: getPublicRestaurantBySubdomain
+      tags: [Public menu]
+      parameters:
+        - { in: path, name: subdomain, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Ready restaurant and active branches
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    required: [id, name, subdomain, branches]
+                    properties:
+                      id: { type: string, format: uuid }
+                      name: { type: string }
+                      subdomain: { type: string }
+                      branches:
+                        type: array
+                        items:
+                          type: object
+                          required: [id, name, slug]
+                          properties:
+                            id: { type: string, format: uuid }
+                            name: { type: string }
+                            slug: { type: string }
+        '403': { description: Subscription or menu unavailable }
+        '404': { description: Restaurant not found or domain pending }
   /public/menu/{slug}:
     get:
       operationId: getPublicMenu

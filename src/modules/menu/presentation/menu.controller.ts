@@ -12,7 +12,7 @@ import { PublicMenuService } from "../application/public-menu.service";
 import {
   CategoryListDto, CategoryResponseDto, CopyMenuDto, CopyMenuResponseDto, CreateCategoryDto,
   CreateProductDto, MenuPageDto, PatchCategoryDto, PatchProductDto,
-  OwnerProductListQueryDto, ProductListDto, ProductResponseDto, PublicMenuResponseDto,
+  OwnerProductListQueryDto, ProductListDto, ProductResponseDto, PublicMenuResponseDto, PublicRestaurantResponseDto,
 } from "./menu.dto";
 
 function principal(req: AuthenticatedRequest) {
@@ -111,6 +111,10 @@ export class MenuCopyController {
 @Controller("public/menu")
 export class PublicMenuController {
   constructor(private readonly service: PublicMenuService) {}
+  @Get("restaurants/by-subdomain/:subdomain") @ApiOkResponse({ type: PublicRestaurantResponseDto })
+  async restaurant(@Param("subdomain") subdomain: string): Promise<PublicRestaurantResponseDto> {
+    return { data: await this.service.restaurantBySubdomain(subdomain) };
+  }
   @Get(":slug") @ApiOperation({ summary: "Paginated public catalog, without table call credentials" })
   @ApiOkResponse({ type: PublicMenuResponseDto })
   async list(@Param("slug") slug: string, @Query() query: MenuPageDto): Promise<PublicMenuResponseDto> {

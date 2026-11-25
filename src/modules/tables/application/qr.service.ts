@@ -20,6 +20,14 @@ export class QrService {
     @Inject(RUNTIME_CONFIG) private readonly config: RuntimeConfig,
   ) {}
 
+  private async customerOrigin(restaurantId: string, fallback: string): Promise<string> {
+    if (!this.config.restaurantBaseDomain) return fallback;
+    const restaurant = await this.database.db.selectFrom("restaurants").select(["subdomain", "domain_status"])
+      .where("id", "=", restaurantId).executeTakeFirst();
+    return restaurant?.subdomain && restaurant.domain_status === "ready"
+      ? `https://${restaurant.subdomain}.${this.config.restaurantBaseDomain}` : fallback;
+  }
+
   private async ownerTable(principal: AuthPrincipal, tableId: string) {
     if (!principal.restaurantId) throw new ForbiddenException("Restaurant scope required");
     const table = await this.database.db.selectFrom("restaurant_tables").selectAll()
@@ -39,7 +47,7 @@ export class QrService {
     if (!credential) throw new ConflictException({
       code: "QR_REVOKED", message: "QR token is revoked",
     });
-    return { url: customerQrUrl(origin, decryptQrToken(credential.token_box, key)),
+    return { url: customerQrUrl(await this.customerOrigin(table.restaurant_id, origin), decryptQrToken(credential.token_box, key)),
       version: credential.version, enabled: table.qr_enabled && table.is_active };
   }
 
@@ -69,7 +77,7 @@ export class QrService {
         request_id: requestId ?? null, metadata: { branchId: table.branch_id, version },
       }).execute();
       // Rotation deliberately preserves the previous enabled/disabled state.
-      return { url: customerQrUrl(origin, token), version,
+      return { url: customerQrUrl(await this.customerOrigin(table.restaurant_id, origin), token), version,
         enabled: table.qr_enabled && table.is_active };
     });
   }
@@ -102,7 +110,7 @@ export class QrService {
     const callsAvailable = callIsAvailable("waiter", row.calls_enabled, settings, entitlements)
       || callIsAvailable("hookah", row.calls_enabled, settings, entitlements);
     return {
-      restaurant: { name: row.restaurant_name },
+      restaurant: { name: row.restaurant_name, subdomain: row.restaurant_subdomain },
       branch: { name: row.branch_name, slug: row.slug },
       table: { id: row.table_id, label: row.table_label },
       menuPath: "/api/v1/public/menu/" + row.slug,
@@ -135,6 +143,7 @@ export class QrService {
     if (selectedIds && rows.length !== selectedIds.length) {
       throw new NotFoundException("One or more selected tables are not active and accessible");
     }
+    const customerOrigin = await this.customerOrigin(principal.restaurantId!, origin);
     const items: { id: string; label: string; url: string; restaurantName: string }[] = [];
     for (const table of rows) {
       const credential = await this.database.db.selectFrom("qr_credentials")
@@ -143,7 +152,7 @@ export class QrService {
       if (!credential) throw new ConflictException({ code: "QR_REVOKED", message: "QR revoked" });
       items.push({
         id: table.id, label: table.label, restaurantName: table.restaurant_name,
-        url: customerQrUrl(origin, decryptQrToken(credential.token_box, key)),
+        url: customerQrUrl(customerOrigin, decryptQrToken(credential.token_box, key)),
       });
     }
     return items;
