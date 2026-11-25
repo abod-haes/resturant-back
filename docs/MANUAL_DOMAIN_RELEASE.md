@@ -5,4 +5,4 @@ Backend RESTAURANT_BASE_DOMAIN=abdulrahman-hares.com. Keep CUSTOMER_APP_ORIGIN a
 Vite build VITE_RESTAURANT_BASE_DOMAIN=abdulrahman-hares.com.
 For each restaurant assign subdomain in Admin, add customer route / and owner route /dashboard (stripPath=false, port 80, HTTPS Let's Encrypt). Check route priority, assets, TLS and nested refresh before marking ready. No additional DNS record needed if wildcard A is already correct.
 Regression: legacy owner and QR links, single/multiple branches, wrong restaurant credentials, wrong-origin QR/menu/session/call, expired subscription with login still accessible, inactive branch, cooldown, QR rotate, print, default and custom identity. Origin checks are browser routing constraints, not proof of presence. Token-based legacy access remains supported.
-Outstanding: logo file upload, font selection, runtime contract verification and real deployment smoke checks.
+Outstanding: logo file upload, runtime contract verification and real deployment smoke checks.

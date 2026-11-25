@@ -27,6 +27,7 @@ export interface RestaurantsTable extends Timestamped {
   logo_url: Generated<string | null>;
   primary_color: Generated<string | null>;
   secondary_color: Generated<string | null>;
+  font_family: Generated<"cairo" | "system" | null>;
   is_active: Generated<boolean>;
 }
 

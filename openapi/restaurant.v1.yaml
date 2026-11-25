@@ -33,6 +33,7 @@ components:
     RestaurantBranding:
       type: object
       properties:
+        fontFamily: { type: [string, 'null'], enum: [cairo, system, null] }
         logoUrl: { type: [string, "null"], maxLength: 2048 }
         primaryColor: { type: [string, "null"], pattern: "^#[0-9a-fA-F]{6}$" }
         secondaryColor: { type: [string, "null"], pattern: "^#[0-9a-fA-F]{6}$" }
