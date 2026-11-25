@@ -1,3 +1,4 @@
+import { BrandingDto } from "../../../common/tenancy/branding.dto";
 import { Type } from "class-transformer";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import {
@@ -124,7 +125,7 @@ export class CopyMenuResultDto {
 }
 export class CopyMenuResponseDto { @ApiProperty({ type: CopyMenuResultDto }) data!: CopyMenuResultDto; }
 
-export class PublicMenuRestaurantDto { @ApiProperty() name!: string; }
+export class PublicMenuRestaurantDto { @ApiProperty() name!: string; @ApiProperty({ type: BrandingDto }) branding!: BrandingDto; }
 export class PublicMenuBranchDto { @ApiProperty() name!: string; @ApiProperty() slug!: string; @ApiProperty({ nullable: true }) currency!: string | null; }
 export class PublicMenuDto {
   @ApiProperty({ type: PublicMenuRestaurantDto }) restaurant!: PublicMenuRestaurantDto;
@@ -143,6 +144,7 @@ export class PublicRestaurantBranchDto {
   @ApiProperty() slug!: string;
 }
 export class PublicRestaurantDto {
+  @ApiProperty({ type: BrandingDto }) branding!: BrandingDto;
   @ApiProperty({ format: "uuid" }) id!: string;
   @ApiProperty() name!: string;
   @ApiProperty() subdomain!: string;

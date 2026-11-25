@@ -58,6 +58,9 @@ function rethrowDomainConflict(error: unknown): never {
 }
 
 type RestaurantRow = {
+  logo_url: string | null;
+  primary_color: string | null;
+  secondary_color: string | null;
   subdomain: string | null;
   domain_status: "pending" | "ready";
   id: string;
@@ -80,6 +83,7 @@ function toSummary(row: RestaurantRow): RestaurantSummaryDto {
     slug: row.slug,
     subdomain: row.subdomain,
     domainStatus: row.domain_status,
+    branding: { logoUrl: row.logo_url, primaryColor: row.primary_color, secondaryColor: row.secondary_color },
     isActive: row.is_active,
     createdAt: row.created_at.toISOString(),
     branchCount: row.branch_count,
@@ -102,7 +106,7 @@ export class RestaurantAdminService {
         .on("users.role", "=", "RESTAURANT_OWNER"))
       .select([
         "restaurants.id", "restaurants.name", "restaurants.slug",
-        "restaurants.is_active", "restaurants.created_at", "restaurants.subdomain", "restaurants.domain_status",
+        "restaurants.is_active", "restaurants.created_at", "restaurants.subdomain", "restaurants.domain_status", "restaurants.logo_url", "restaurants.primary_color", "restaurants.secondary_color",
         "users.id as owner_id", "users.display_name as owner_name",
         "users.username as owner_username",
         sql<number>`(select count(*)::int from branches b where b.restaurant_id = restaurants.id and b.is_active)`.as("branch_count"),
@@ -243,11 +247,14 @@ export class RestaurantAdminService {
   }
 
   async update(id: string, changes: UpdateRestaurantDto, actor: AuthPrincipal, requestId: string | undefined): Promise<RestaurantDetailsDto> {
-    const patch: { name?: string; is_active?: boolean; subdomain?: string; domain_status?: "pending" | "ready" } = {};
+    const patch: { name?: string; is_active?: boolean; subdomain?: string; domain_status?: "pending" | "ready"; logo_url?: string | null; primary_color?: string | null; secondary_color?: string | null } = {};
     if (changes.name !== undefined) patch.name = changes.name.trim();
     if (changes.isActive !== undefined) patch.is_active = changes.isActive;
     if (changes.subdomain != null) { validateSubdomain(changes.subdomain); patch.subdomain = changes.subdomain; }
     if (changes.domainStatus != null) patch.domain_status = changes.domainStatus;
+    if (changes.branding?.logoUrl !== undefined) patch.logo_url = changes.branding.logoUrl;
+    if (changes.branding?.primaryColor !== undefined) patch.primary_color = changes.branding.primaryColor;
+    if (changes.branding?.secondaryColor !== undefined) patch.secondary_color = changes.branding.secondaryColor;
     if (Object.keys(patch).length === 0) throw new BadRequestException("At least one field is required");
 
     try { await this.database.db.transaction().execute(async (trx) => {

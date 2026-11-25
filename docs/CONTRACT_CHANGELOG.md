@@ -58,3 +58,5 @@ Additive admin onboarding fields `subdomain` (optional for legacy clients) and `
 Public lookup: GET /public/menu/restaurants/by-subdomain/:subdomain returns ready active restaurant and active branches, subject to menu entitlement. QR generation uses RESTAURANT_BASE_DOMAIN only for ready assigned domains; legacy URLs remain valid. QR context exposes nullable restaurant.subdomain. Branding persistence, origin enforcement and dashboard integration remain outstanding.
 
 Browser tenant-origin checks now apply during login, refresh and protected bearer requests, retaining legacy/mobile auth. Configure exact tenant HTTPS origins in CORS_ORIGINS manually; no wildcard expansion added. This does not establish physical presence or replace authenticated tenant scopes.
+
+Restaurant branding: additive nullable logoUrl (HTTPS URL), primaryColor and secondaryColor (#RRGGBB). Admin PATCH supports partial branding updates; null clears a value. Public menu and tenant lookup return branding. Existing restaurants have null branding and retain default UI. Upload and owner UI are not part of this commit.

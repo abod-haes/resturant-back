@@ -1,3 +1,4 @@
+import { BrandingDto, BrandingPatchDto } from "../../../common/tenancy/branding.dto";
 import { SUBDOMAIN_PATTERN } from "../../../common/tenancy/subdomain";
 import { Type } from "class-transformer";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
@@ -58,6 +59,10 @@ export class CreateRestaurantDto {
 }
 
 export class UpdateRestaurantDto {
+  @ApiPropertyOptional({ type: BrandingPatchDto })
+  @IsOptional() @ValidateNested() @Type(() => BrandingPatchDto)
+  branding?: BrandingPatchDto;
+
   @ApiPropertyOptional({ description: "Assign once to a legacy restaurant", maxLength: 63, pattern: SUBDOMAIN_PATTERN.source })
   @IsOptional() @IsString() @Matches(SUBDOMAIN_PATTERN)
   subdomain?: string;
@@ -129,6 +134,7 @@ export class RestaurantOwnerDto {
 }
 
 export class RestaurantSummaryDto {
+  @ApiProperty({ type: BrandingDto }) branding!: BrandingDto;
   @ApiProperty({ type: String, nullable: true }) subdomain!: string | null;
   @ApiProperty({ enum: ["pending", "ready"] }) domainStatus!: "pending" | "ready";
   @ApiProperty({ format: "uuid" }) id!: string;

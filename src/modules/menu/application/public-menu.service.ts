@@ -12,14 +12,14 @@ export class PublicMenuService {
 
   async restaurantBySubdomain(subdomain: string): Promise<PublicRestaurantDto> {
     const restaurant = await this.database.db.selectFrom("restaurants")
-      .select(["id", "name", "subdomain"]).where("subdomain", "=", subdomain)
+      .select(["id", "name", "subdomain", "logo_url", "primary_color", "secondary_color"]).where("subdomain", "=", subdomain)
       .where("is_active", "=", true).where("domain_status", "=", "ready").executeTakeFirst();
     if (!restaurant || !restaurant.subdomain) throw new NotFoundException("Restaurant not found");
     await requireOperationalEntitlements(this.database.db, restaurant.id, "menu");
     const branches = await this.database.db.selectFrom("branches").select(["id", "name", "slug"])
       .where("restaurant_id", "=", restaurant.id).where("is_active", "=", true)
       .orderBy("created_at", "asc").orderBy("id", "asc").execute();
-    return { id: restaurant.id, name: restaurant.name, subdomain: restaurant.subdomain, branches };
+    return { id: restaurant.id, name: restaurant.name, subdomain: restaurant.subdomain, branding: { logoUrl: restaurant.logo_url, primaryColor: restaurant.primary_color, secondaryColor: restaurant.secondary_color }, branches };
   }
 
   private async resolveBranch(slug: string) {
@@ -28,6 +28,7 @@ export class PublicMenuService {
       .select([
         "branches.id", "branches.name", "branches.slug", "branches.currency",
         "branches.restaurant_id", "restaurants.name as restaurant_name",
+        "restaurants.logo_url", "restaurants.primary_color", "restaurants.secondary_color",
         "branches.is_active", "restaurants.is_active as restaurant_active",
       ])
       .where("branches.slug", "=", slug).executeTakeFirst();
@@ -84,7 +85,7 @@ export class PublicMenuService {
     const last = page.at(-1);
     return {
       data: {
-        restaurant: { name: branch.restaurant_name },
+        restaurant: { name: branch.restaurant_name, branding: { logoUrl: branch.logo_url, primaryColor: branch.primary_color, secondaryColor: branch.secondary_color } },
         branch: { name: branch.name, slug: branch.slug, currency: branch.currency },
         products: page.map((row) => productDto(row, images.get(row.id) ?? [])),
         categories: categories.map((row) => ({

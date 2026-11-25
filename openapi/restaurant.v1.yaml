@@ -30,6 +30,12 @@ components:
       properties:
         nextCursor: { type: [string, "null"] }
         hasMore: { type: boolean }
+    RestaurantBranding:
+      type: object
+      properties:
+        logoUrl: { type: [string, "null"], maxLength: 2048 }
+        primaryColor: { type: [string, "null"], pattern: "^#[0-9a-fA-F]{6}$" }
+        secondaryColor: { type: [string, "null"], pattern: "^#[0-9a-fA-F]{6}$" }
     RestaurantSummary:
       type: object
       required: [id, name, slug, isActive, createdAt, branchCount, subscriptionStatus, planName, owner, subdomain, domainStatus]
@@ -37,6 +43,7 @@ components:
         id: { type: string, format: uuid }
         name: { type: string }
         slug: { type: string }
+        branding: { $ref: "#/components/schemas/RestaurantBranding" }
         subdomain: { type: [string, 'null'] }
         domainStatus: { type: string, enum: [pending, ready] }
         isActive: { type: boolean }
@@ -2142,11 +2149,12 @@ paths:
                 properties:
                   data:
                     type: object
-                    required: [id, name, subdomain, branches]
+                    required: [id, name, subdomain, branches, branding]
                     properties:
                       id: { type: string, format: uuid }
                       name: { type: string }
                       subdomain: { type: string }
+                      branding: { $ref: "#/components/schemas/RestaurantBranding" }
                       branches:
                         type: array
                         items:
@@ -3699,6 +3707,7 @@ paths:
         '404': { description: Account absent or not PLATFORM_ADMIN }
  }
                 domainStatus: { type: string, enum: [pending, ready] }
+                branding: { $ref: "#/components/schemas/RestaurantBranding" }
       responses:
         '200': { description: Updated restaurant details }
         '409': { description: SUBDOMAIN_TAKEN or SUBDOMAIN_IMMUTABLE }
