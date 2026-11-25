@@ -1,5 +1,5 @@
 import {
-  ConflictException, Inject, Injectable, NotFoundException, ServiceUnavailableException,
+  ConflictException, ForbiddenException, Inject, Injectable, NotFoundException, ServiceUnavailableException,
 } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
 import { sql, type Selectable } from "kysely";
@@ -84,6 +84,43 @@ export class MediaService {
     return toMedia(completed);
   }
 
+  /** Platform-only logo upload. Reuses validated image processing and durable media lifecycle. */
+  async uploadRestaurantLogo(principal: AuthPrincipal, restaurantId: string, file?: Express.Multer.File, requestId?: string): Promise<MediaDto> {
+    if (principal.role !== "PRIMARY_ADMIN" && principal.role !== "PLATFORM_ADMIN") throw new ForbiddenException("Platform admin required");
+    const config = this.ensureStorage();
+    const processed = await processMedia("image", file);
+    const id = randomUUID();
+    const objectKey = "r/" + restaurantId + "/" + id + ".webp";
+    const publicUrl = config.publicOrigin + "/" + objectKey;
+    const branchId = await this.database.db.transaction().execute(async trx => {
+      const restaurant = await trx.selectFrom("restaurants").select("id").where("id", "=", restaurantId).forUpdate().executeTakeFirst();
+      if (!restaurant) throw new NotFoundException("Restaurant not found");
+      const branch = await trx.selectFrom("branches").select("id").where("restaurant_id", "=", restaurantId).orderBy("created_at", "asc").orderBy("id", "asc").executeTakeFirst();
+      if (!branch) throw new NotFoundException("Restaurant branch not found");
+      const active = await trx.selectFrom("media_assets").select(sql<number>`count(*)::int`.as("count")).where("restaurant_id", "=", restaurantId).where("status", "!=", "deleted").executeTakeFirstOrThrow();
+      if (active.count >= MAX_MEDIA_ASSETS) throw new ConflictException({ code: "MEDIA_LIBRARY_LIMIT", message: "Restaurant media library limit reached" });
+      await trx.insertInto("media_assets").values({
+        id, restaurant_id: restaurantId, branch_id: branch.id, kind: "image",
+        object_key: objectKey, public_url: publicUrl, original_name: processed.originalName,
+        content_type: processed.contentType, byte_size: processed.body.length,
+        width: processed.width, height: processed.height, status: "uploading",
+      }).execute();
+      return branch.id;
+    });
+    try { await this.storage.put(objectKey, processed.body, processed.contentType); }
+    catch {
+      await this.database.db.updateTable("media_assets").set({ status: "deleting" }).where("id", "=", id).where("status", "=", "uploading").execute();
+      throw new ServiceUnavailableException({ code: "MEDIA_UPLOAD_FAILED", message: "Object storage upload failed" });
+    }
+    const completed = await this.database.db.transaction().execute(async trx => {
+      await trx.selectFrom("restaurants").select("id").where("id", "=", restaurantId).forUpdate().executeTakeFirstOrThrow();
+      const asset = await trx.updateTable("media_assets").set({ status: "ready" }).where("id", "=", id).where("status", "=", "uploading").returningAll().executeTakeFirstOrThrow();
+      await trx.insertInto("audit_logs").values({ actor_user_id: principal.id, restaurant_id: restaurantId, action: "restaurant.logo.uploaded", entity_type: "media_asset", entity_id: id, request_id: requestId ?? null, metadata: { branchId, contentType: processed.contentType } }).execute();
+      return asset;
+    });
+    return toMedia(completed);
+  }
+
   async list(principal: AuthPrincipal, branchId: string, query: MediaListQueryDto) {
     const tenant = ownerTenant(principal);
     await requireMediaBranch(this.database.db, principal, branchId);
@@ -137,8 +174,9 @@ export class MediaService {
           eb("media_asset_id", "=", assetId),
           ...(asset.public_url ? [eb("url", "=", asset.public_url)] : []),
         ])).limit(1).executeTakeFirst();
-      if (attached) throw new ConflictException({
-        code: "MEDIA_IN_USE", message: "Remove media from products before deleting it",
+      const logo = asset.public_url ? await trx.selectFrom("restaurants").select("id").where("logo_url", "=", asset.public_url).executeTakeFirst() : undefined;
+      if (attached || logo) throw new ConflictException({
+        code: "MEDIA_IN_USE", message: "Remove media from products or restaurant branding before deleting it",
       });
       await trx.updateTable("media_assets").set({ status: "deleting" })
         .where("id", "=", assetId).execute();
@@ -191,7 +229,8 @@ export class MediaService {
             eb("media_asset_id", "=", asset.id),
             ...(asset.public_url ? [eb("url", "=", asset.public_url)] : []),
           ])).limit(1).executeTakeFirst();
-        if (attached) return null;
+        const logo = asset.public_url ? await trx.selectFrom("restaurants").select("id").where("logo_url", "=", asset.public_url).executeTakeFirst() : undefined;
+        if (attached || logo) return null;
         if (asset.status !== "deleting") await trx.updateTable("media_assets")
           .set({ status: "deleting" }).where("id", "=", asset.id).execute();
         return asset.object_key;

@@ -1,3 +1,4 @@
+import { ParsePostgresUuidPipe } from "../../../common/http/parse-postgres-uuid.pipe";
 import {
   Body, Controller, Delete, Get, Param, ParseUUIDPipe, Post, Put, Query, Req,
   Res, UnauthorizedException, UploadedFile, UseInterceptors,
@@ -106,5 +107,18 @@ export class ProductGalleryController {
   async replace(@Param("branchId", uuid()) branchId: string, @Param("productId", uuid()) productId: string,
     @Body() body: ReplaceGalleryDto, @Req() req: AuthenticatedRequest): Promise<GalleryResponseDto> {
     return { data: await this.service.replace(principal(req), branchId, productId, body, req.requestId) };
+  }
+}
+
+@ApiTags("Platform restaurant branding")
+@ApiBearerAuth()
+@Roles("PRIMARY_ADMIN", "PLATFORM_ADMIN")
+@Controller("admin/restaurants/:restaurantId/branding")
+export class AdminBrandingMediaController {
+  constructor(private readonly service: MediaService) {}
+  @Post("logo") @UseInterceptors(upload) @ApiConsumes("multipart/form-data") @ApiBody(fileSchema)
+  @ApiCreatedResponse({ type: MediaResponseDto })
+  async logo(@Param("restaurantId", new ParsePostgresUuidPipe()) restaurantId: string, @UploadedFile() file: Express.Multer.File | undefined, @Req() req: AuthenticatedRequest): Promise<MediaResponseDto> {
+    return { data: await this.service.uploadRestaurantLogo(principal(req), restaurantId, file, req.requestId) };
   }
 }

@@ -2,7 +2,7 @@ openapi: 3.1.0
 info:
   title: Restaurant Platform API
   version: 0.12.0-draft
-  description: "Versioned reference with all 98 implemented HTTP path/method pairs, checked against executable Nest Swagger. Some response schemas are summary-only; for exact DTO types use runtime /api/docs-json or the generated CI OpenAPI artifact."
+  description: "Versioned reference with all 99 implemented HTTP path/method pairs, checked against executable Nest Swagger. Some response schemas are summary-only; for exact DTO types use runtime /api/docs-json or the generated CI OpenAPI artifact."
 servers:
   - url: /api/v1
 components:
@@ -1022,6 +1022,26 @@ paths:
                             daysRemaining: { type: integer, minimum: 1 }
         '401': { description: Unauthorized }
         '403': { description: Forbidden }
+  /admin/restaurants/{restaurantId}/branding/logo:
+    post:
+      operationId: uploadRestaurantLogo
+      tags: [Platform restaurant branding]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: path, name: restaurantId, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary }
+      responses:
+        '201': { description: Processed image uploaded; save returned URL in branding }
+        '403': { description: Platform admin required }
+        '404': { description: Restaurant not found }
   /admin/restaurants/{id}:
     parameters:
       - in: path
