@@ -1,0 +1,29 @@
+{
+  "schemaVersion": "1.0.0",
+  "owner": {
+    "data": {
+      "id": "123e4567-e89b-42d3-a456-426614174000",
+      "name": "Demo restaurant",
+      "subdomain": "demo",
+      "branding": {
+        "logoUrl": null,
+        "primaryColor": "#D4AF37",
+        "secondaryColor": "#111111",
+        "fontFamily": "cairo"
+      }
+    }
+  },
+  "employeePendingDomain": {
+    "data": {
+      "id": "123e4567-e89b-42d3-a456-426614174001",
+      "name": "Second restaurant",
+      "subdomain": null,
+      "branding": {
+        "logoUrl": null,
+        "primaryColor": "#174C35",
+        "secondaryColor": null,
+        "fontFamily": "system"
+      }
+    }
+  }
+}

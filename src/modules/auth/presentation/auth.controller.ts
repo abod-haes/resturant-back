@@ -6,8 +6,8 @@ import { Inject } from "@nestjs/common";
 import { RUNTIME_CONFIG, type RuntimeConfig } from "../../../common/config/runtime-config";
 import { AuthService, type IssuedSession } from "../application/auth.service";
 import type { AuthenticatedRequest } from "./auth.guards";
-import { AllowAuthenticated, AllowInitialPassword, Public } from "../../../common/auth/policy.decorators";
-import { ChangePasswordDto, ChangedResponseDto, LoginDto, LoginResponseDto, MeResponseDto, RefreshDto } from "./auth.dto";
+import { AllowAuthenticated, AllowInitialPassword, Public, Roles } from "../../../common/auth/policy.decorators";
+import { ChangePasswordDto, ChangedResponseDto, LoginDto, LoginResponseDto, MeResponseDto, RefreshDto, AuthenticatedRestaurantIdentityResponseDto } from "./auth.dto";
 
 const COOKIE_NAME = "restaurant_refresh";
 
@@ -157,6 +157,19 @@ export class AuthController {
       department: req.principal.department,
       mustChangePassword: req.principal.mustChangePassword,
     } };
+  }
+
+  @Roles("RESTAURANT_OWNER", "EMPLOYEE")
+  @AllowInitialPassword()
+  @Get("restaurant-identity")
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "Get branding of the authenticated user's restaurant" })
+  @ApiResponse({ status: 200, type: AuthenticatedRestaurantIdentityResponseDto })
+  @ApiResponse({ status: 401, description: "Authentication required" })
+  @ApiResponse({ status: 403, description: "Insufficient permissions or restaurant unavailable" })
+  async restaurantIdentity(@Req() req: AuthenticatedRequest): Promise<AuthenticatedRestaurantIdentityResponseDto> {
+    if (!req.principal) throw new UnauthorizedException();
+    return { data: await this.auth.restaurantIdentity(req.principal) };
   }
 
   @AllowAuthenticated()

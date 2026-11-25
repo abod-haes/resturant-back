@@ -12,6 +12,14 @@ components:
       scheme: bearer
       bearerFormat: JWT
   schemas:
+    AuthenticatedRestaurantIdentity:
+      type: object
+      required: [id, name, subdomain, branding]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        subdomain: { type: [string, 'null'] }
+        branding: { $ref: '#/components/schemas/RestaurantBranding' }
     ApiError:
       type: object
       required: [error, requestId]
@@ -1712,6 +1720,24 @@ paths:
       responses:
         '200': { description: Current user scope and password-change state }
         '401': { description: Missing or revoked session }
+  /auth/restaurant-identity:
+    get:
+      operationId: authRestaurantIdentity
+      tags: [Authentication]
+      security: [{ bearerAuth: [] }]
+      description: Owner or employee only. Restaurant scope is taken from the authenticated principal; no restaurant ID input. Does not require a ready public domain or active subscription.
+      responses:
+        '200':
+          description: Current restaurant identity
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/AuthenticatedRestaurantIdentity' }
+        '401': { description: Missing or revoked session }
+        '403': { description: Insufficient permissions or restaurant unavailable }
   /auth/change-password:
     post:
       operationId: authChangePassword

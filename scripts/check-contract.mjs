@@ -42,6 +42,7 @@ function walk(node) {
 }
 walk(doc);
 for (const [path, method] of [
+  ["/auth/restaurant-identity","get"],
   ["/admin/platform-admins","post"], ["/admin/platform-admins","get"],
   ["/admin/platform-admins/{id}","get"], ["/admin/platform-admins/{id}","patch"],
   ["/admin/platform-admins/{id}/reset-password","post"],
@@ -57,7 +58,7 @@ for (const [path, method] of [
 ]) {
   if (!doc.paths[path]?.[method]) throw new Error("Missing contract: " + method + " " + path);
 }
-for (const path of ["/owner/events","/employee/events","/employee/devices"]) {
+for (const path of ["/auth/restaurant-identity","/owner/events","/employee/events","/employee/devices"]) {
   const method = path.endsWith("devices") ? "post" : "get";
   if (!doc.paths[path][method].security?.some(x => Object.hasOwn(x, "bearerAuth"))) {
     throw new Error("Bearer security missing from " + path);

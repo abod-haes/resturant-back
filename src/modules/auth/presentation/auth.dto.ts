@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { IsIn, IsOptional, IsString, Matches, MaxLength, MinLength } from "class-validator";
+import { BrandingDto } from "../../../common/tenancy/branding.dto";
 import type { PlatformRole, Department } from "../../../database/database.types";
 
 export class LoginDto {
@@ -70,4 +71,15 @@ export class MeResponseDto {
 
 export class ChangedResponseDto {
   @ApiProperty({ type: Object }) data!: { changed: boolean };
+}
+
+export class AuthenticatedRestaurantIdentityDto {
+  @ApiProperty({ format: "uuid" }) id!: string;
+  @ApiProperty() name!: string;
+  @ApiProperty({ type: String, nullable: true }) subdomain!: string | null;
+  @ApiProperty({ type: BrandingDto }) branding!: BrandingDto;
+}
+
+export class AuthenticatedRestaurantIdentityResponseDto {
+  @ApiProperty({ type: AuthenticatedRestaurantIdentityDto }) data!: AuthenticatedRestaurantIdentityDto;
 }

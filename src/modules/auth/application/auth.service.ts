@@ -4,6 +4,7 @@ import { JwtService } from "@nestjs/jwt";
 import { createHash, randomBytes } from "node:crypto";
 import { DatabaseService } from "../../../database/database.service";
 import { RUNTIME_CONFIG, type RuntimeConfig } from "../../../common/config/runtime-config";
+import type { AuthenticatedRestaurantIdentityDto } from "../presentation/auth.dto";
 import type { AuthPrincipal, AuthUser } from "../domain/auth.types";
 import { hashPassword, verifyPassword } from "../domain/password";
 import { LoginThrottleService } from "./login-throttle.service";
@@ -58,6 +59,25 @@ export class AuthService {
       .where("id", "=", user.restaurantId).where("subdomain", "=", subdomain)
       .where("domain_status", "=", "ready").where("is_active", "=", true).executeTakeFirst();
     if (!restaurant) throw new UnauthorizedException("Invalid restaurant account");
+  }
+
+  async restaurantIdentity(principal: AuthPrincipal): Promise<AuthenticatedRestaurantIdentityDto> {
+    if (!principal.restaurantId || (principal.role !== "RESTAURANT_OWNER" && principal.role !== "EMPLOYEE")) {
+      throw new ForbiddenException("Restaurant account required");
+    }
+    const restaurant = await this.database.db.selectFrom("restaurants")
+      .select(["id", "name", "subdomain", "logo_url", "primary_color", "secondary_color", "font_family"])
+      .where("id", "=", principal.restaurantId)
+      .where("is_active", "=", true)
+      .executeTakeFirst();
+    if (!restaurant) throw new ForbiddenException("Restaurant unavailable");
+    return {
+      id: restaurant.id, name: restaurant.name, subdomain: restaurant.subdomain,
+      branding: {
+        logoUrl: restaurant.logo_url, primaryColor: restaurant.primary_color,
+        secondaryColor: restaurant.secondary_color, fontFamily: restaurant.font_family,
+      },
+    };
   }
 
   private hashToken(token: string): string {
