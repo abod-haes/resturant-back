@@ -1,6 +1,7 @@
 import {
   BadRequestException, ConflictException, Injectable, NotFoundException,
 } from "@nestjs/common";
+import { isAssignableSubdomain } from "../../../common/tenancy/subdomain";
 import { randomUUID } from "node:crypto";
 import { POSTGRES_UUID_PATTERN } from "../../../common/http/parse-postgres-uuid.pipe";
 import { sql } from "kysely";
@@ -46,7 +47,19 @@ function isUsernameConflict(error: unknown): boolean {
     "constraint" in error && error.constraint === "users_username_ci_unique";
 }
 
+function validateSubdomain(value: string): void {
+  if (!isAssignableSubdomain(value)) throw new BadRequestException({ code: "VALIDATION_ERROR", message: "Invalid or reserved subdomain" });
+}
+function rethrowDomainConflict(error: unknown): never {
+  if (typeof error === "object" && error !== null && "code" in error && error.code === "23505" && "constraint" in error && error.constraint === "restaurants_subdomain_unique") {
+    throw new ConflictException({ code: "SUBDOMAIN_TAKEN", message: "Subdomain is already in use" });
+  }
+  throw error;
+}
+
 type RestaurantRow = {
+  subdomain: string | null;
+  domain_status: "pending" | "ready";
   id: string;
   name: string;
   slug: string;
@@ -65,6 +78,8 @@ function toSummary(row: RestaurantRow): RestaurantSummaryDto {
     id: row.id,
     name: row.name,
     slug: row.slug,
+    subdomain: row.subdomain,
+    domainStatus: row.domain_status,
     isActive: row.is_active,
     createdAt: row.created_at.toISOString(),
     branchCount: row.branch_count,
@@ -87,7 +102,7 @@ export class RestaurantAdminService {
         .on("users.role", "=", "RESTAURANT_OWNER"))
       .select([
         "restaurants.id", "restaurants.name", "restaurants.slug",
-        "restaurants.is_active", "restaurants.created_at",
+        "restaurants.is_active", "restaurants.created_at", "restaurants.subdomain", "restaurants.domain_status",
         "users.id as owner_id", "users.display_name as owner_name",
         "users.username as owner_username",
         sql<number>`(select count(*)::int from branches b where b.restaurant_id = restaurants.id and b.is_active)`.as("branch_count"),
@@ -97,6 +112,7 @@ export class RestaurantAdminService {
   }
 
   async create(payload: CreateRestaurantDto, actor: AuthPrincipal, requestId: string | undefined) {
+    if (payload.subdomain != null) validateSubdomain(payload.subdomain);
     const passwordHash = await hashPassword(payload.owner.initialPassword);
     const id = randomUUID();
     const ownerId = randomUUID();
@@ -107,7 +123,7 @@ export class RestaurantAdminService {
     try {
       return await this.database.db.transaction().execute(async (trx) => {
         await trx.insertInto("restaurants").values({
-          id, name: payload.name.trim(), slug, is_active: true,
+          id, name: payload.name.trim(), slug, is_active: true, subdomain: payload.subdomain ?? null,
         }).execute();
         await trx.insertInto("branches").values({
           id: branchId, restaurant_id: id, name: payload.initialBranch.name.trim(),
@@ -123,13 +139,13 @@ export class RestaurantAdminService {
           action: "restaurant.created", entity_type: "restaurant", entity_id: id,
           request_id: requestId ?? null, metadata: { ownerId, branchId },
         }).execute();
-        return { id, name: payload.name.trim(), ownerId, branchId };
+        return { id, name: payload.name.trim(), ownerId, branchId, subdomain: payload.subdomain ?? null, domainStatus: "pending" as const };
       });
     } catch (error: unknown) {
       if (isUsernameConflict(error)) {
         throw new ConflictException({ code: "OWNER_USERNAME_TAKEN", message: "Owner username is already in use" });
       }
-      throw error;
+      rethrowDomainConflict(error);
     }
   }
 
@@ -227,12 +243,18 @@ export class RestaurantAdminService {
   }
 
   async update(id: string, changes: UpdateRestaurantDto, actor: AuthPrincipal, requestId: string | undefined): Promise<RestaurantDetailsDto> {
-    const patch: { name?: string; is_active?: boolean } = {};
+    const patch: { name?: string; is_active?: boolean; subdomain?: string; domain_status?: "pending" | "ready" } = {};
     if (changes.name !== undefined) patch.name = changes.name.trim();
     if (changes.isActive !== undefined) patch.is_active = changes.isActive;
+    if (changes.subdomain != null) { validateSubdomain(changes.subdomain); patch.subdomain = changes.subdomain; }
+    if (changes.domainStatus != null) patch.domain_status = changes.domainStatus;
     if (Object.keys(patch).length === 0) throw new BadRequestException("At least one field is required");
 
-    await this.database.db.transaction().execute(async (trx) => {
+    try { await this.database.db.transaction().execute(async (trx) => {
+      const current = await trx.selectFrom("restaurants").select(["subdomain", "domain_status"]).where("id", "=", id).forUpdate().executeTakeFirst();
+      if (!current) throw new NotFoundException("Restaurant not found");
+      if (current.subdomain && patch.subdomain && current.subdomain !== patch.subdomain) throw new ConflictException({ code: "SUBDOMAIN_IMMUTABLE", message: "Subdomain cannot be changed" });
+      if ((patch.domain_status ?? current.domain_status) === "ready" && !(patch.subdomain ?? current.subdomain)) throw new BadRequestException("Subdomain required before marking ready");
       const updated = await trx.updateTable("restaurants")
         .set(patch)
         .where("id", "=", id)
@@ -244,7 +266,7 @@ export class RestaurantAdminService {
         request_id: requestId ?? null,
         metadata: { fields: Object.keys(patch).sort() },
       }).execute();
-    });
+    }); } catch (error: unknown) { rethrowDomainConflict(error); }
     return this.get(id);
   }
 }

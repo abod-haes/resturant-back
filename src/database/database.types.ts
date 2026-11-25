@@ -22,6 +22,8 @@ export interface RestaurantsTable extends Timestamped {
   id: Generated<string>;
   name: string;
   slug: string;
+  subdomain: Generated<string | null>;
+  domain_status: Generated<"pending" | "ready">;
   is_active: Generated<boolean>;
 }
 

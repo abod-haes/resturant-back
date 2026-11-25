@@ -51,3 +51,6 @@ Added implementation-level request/response conventions, cursor pagination defau
 Normalized fixtures and stateful mock engine across consumers, without runtime synchronization.
 ## v1.0.0-draft
 Initial endpoint inventory.
+
+## Manual subdomain tenancy (development branch)
+Additive admin onboarding fields `subdomain` (optional for legacy clients) and `domainStatus` (`pending`/`ready`). Legacy slug unchanged. Admin PATCH may assign a missing subdomain once and mark readiness manually. No provisioning API. Deployment and client integration pending.

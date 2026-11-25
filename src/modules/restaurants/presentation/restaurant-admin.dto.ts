@@ -1,3 +1,4 @@
+import { SUBDOMAIN_PATTERN } from "../../../common/tenancy/subdomain";
 import { Type } from "class-transformer";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import {
@@ -33,6 +34,10 @@ export class InitialBranchDto {
 }
 
 export class CreateRestaurantDto {
+  @ApiPropertyOptional({ example: "alsham", maxLength: 63, pattern: SUBDOMAIN_PATTERN.source })
+  @IsOptional() @IsString() @Matches(SUBDOMAIN_PATTERN)
+  subdomain?: string;
+
   @ApiProperty({ example: "Basil Restaurant" })
   @IsString()
   @MaxLength(200)
@@ -53,6 +58,14 @@ export class CreateRestaurantDto {
 }
 
 export class UpdateRestaurantDto {
+  @ApiPropertyOptional({ description: "Assign once to a legacy restaurant", maxLength: 63, pattern: SUBDOMAIN_PATTERN.source })
+  @IsOptional() @IsString() @Matches(SUBDOMAIN_PATTERN)
+  subdomain?: string;
+
+  @ApiPropertyOptional({ enum: ["pending", "ready"] })
+  @IsOptional() @IsIn(["pending", "ready"])
+  domainStatus?: "pending" | "ready";
+
   @ApiPropertyOptional({ example: "New Restaurant Name" })
   @IsOptional()
   @IsString()
@@ -97,6 +110,8 @@ export class RestaurantListQueryDto {
 }
 
 export class OnboardingDataDto {
+  @ApiProperty({ type: String, nullable: true }) subdomain!: string | null;
+  @ApiProperty({ enum: ["pending", "ready"] }) domainStatus!: "pending" | "ready";
   @ApiProperty({ format: "uuid" }) id!: string;
   @ApiProperty() name!: string;
   @ApiProperty({ format: "uuid" }) ownerId!: string;
@@ -114,6 +129,8 @@ export class RestaurantOwnerDto {
 }
 
 export class RestaurantSummaryDto {
+  @ApiProperty({ type: String, nullable: true }) subdomain!: string | null;
+  @ApiProperty({ enum: ["pending", "ready"] }) domainStatus!: "pending" | "ready";
   @ApiProperty({ format: "uuid" }) id!: string;
   @ApiProperty() name!: string;
   @ApiProperty() slug!: string;
