@@ -176,8 +176,9 @@ export class MediaService {
           ...(asset.public_url ? [eb("url", "=", asset.public_url)] : []),
         ])).limit(1).executeTakeFirst();
       const logo = asset.public_url ? await trx.selectFrom("restaurants").select("id").where("logo_url", "=", asset.public_url).executeTakeFirst() : undefined;
-      if (attached || logo) throw new ConflictException({
-        code: "MEDIA_IN_USE", message: "Remove media from products or restaurant branding before deleting it",
+      const category = await trx.selectFrom("categories").select("id").where("image_media_id", "=", assetId).limit(1).executeTakeFirst();
+      if (attached || logo || category) throw new ConflictException({
+        code: "MEDIA_IN_USE", message: "Remove media from products, categories or restaurant branding before deleting it",
       });
       await trx.updateTable("media_assets").set({ status: "deleting" })
         .where("id", "=", assetId).execute();
@@ -212,7 +213,8 @@ export class MediaService {
         eb.and([eb("status", "=", "uploading"), eb("created_at", "<", abandoned)]),
         eb.and([eb("status", "=", "ready"), eb("kind", "=", "image"), eb("created_at", "<", unused),
           sql<boolean>`not exists (select 1 from product_images pi where pi.media_asset_id = media_assets.id or pi.url = media_assets.public_url)`,
-          sql<boolean>`not exists (select 1 from restaurants r where r.logo_url = media_assets.public_url)`]),
+          sql<boolean>`not exists (select 1 from restaurants r where r.logo_url = media_assets.public_url)`,
+          sql<boolean>`not exists (select 1 from categories c where c.image_media_id = media_assets.id)`]),
       ])).orderBy("created_at", "asc").limit(100).execute();
     let deleted = 0, failed = 0;
     for (const candidate of candidates) {
@@ -233,7 +235,8 @@ export class MediaService {
             ...(asset.public_url ? [eb("url", "=", asset.public_url)] : []),
           ])).limit(1).executeTakeFirst();
         const logo = asset.public_url ? await trx.selectFrom("restaurants").select("id").where("logo_url", "=", asset.public_url).executeTakeFirst() : undefined;
-        if (attached || logo) return null;
+        const category = await trx.selectFrom("categories").select("id").where("image_media_id", "=", asset.id).limit(1).executeTakeFirst();
+        if (attached || logo || category) return null;
         if (asset.status !== "deleting") await trx.updateTable("media_assets")
           .set({ status: "deleting" }).where("id", "=", asset.id).execute();
         return asset.object_key;
