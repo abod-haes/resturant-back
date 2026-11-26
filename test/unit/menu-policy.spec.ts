@@ -36,6 +36,12 @@ describe("Branch menu boundary policies", () => {
     expect(() => verifyMediaUrls([{ url: "https://images.example.test/img.webp" }], ["https://images.example.test"]))
       .not.toThrow();
   });
+  it("accepts managed image identifiers and rejects ambiguous input", () => {
+    const mediaId = "9c5b5fb3-c17b-4c4a-aaf1-95959ebdcc29";
+    expect(() => verifyMediaUrls([{ mediaId }], [])).not.toThrow();
+    expect(() => verifyMediaUrls([{}], [])).toThrow();
+    expect(() => verifyMediaUrls([{ mediaId, url: "https://images.example.test/a.webp" }], ["https://images.example.test"])).toThrow();
+  });
   it("validates a configured HTTPS CDN allowlist at startup", () => {
     expect(parseRuntimeConfig({ ...configEnv, MEDIA_ALLOWED_ORIGINS: "https://images.example.test" }).mediaAllowedOrigins)
       .toEqual(["https://images.example.test"]);

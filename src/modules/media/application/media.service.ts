@@ -210,7 +210,9 @@ export class MediaService {
       .select(["id", "restaurant_id"]).where(eb => eb.or([
         eb("status", "=", "deleting"),
         eb.and([eb("status", "=", "uploading"), eb("created_at", "<", abandoned)]),
-        eb.and([eb("status", "=", "ready"), eb("kind", "=", "image"), eb("created_at", "<", unused)]),
+        eb.and([eb("status", "=", "ready"), eb("kind", "=", "image"), eb("created_at", "<", unused),
+          sql<boolean>`not exists (select 1 from product_images pi where pi.media_asset_id = media_assets.id or pi.url = media_assets.public_url)`,
+          sql<boolean>`not exists (select 1 from restaurants r where r.logo_url = media_assets.public_url)`]),
       ])).orderBy("created_at", "asc").limit(100).execute();
     let deleted = 0, failed = 0;
     for (const candidate of candidates) {

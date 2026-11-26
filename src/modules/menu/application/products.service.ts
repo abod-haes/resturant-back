@@ -187,8 +187,8 @@ export class ProductsService {
     for (const image of images) {
       const query = db.selectFrom("media_assets").select(["id", "restaurant_id", "kind", "status", "public_url"]);
       const asset = image.mediaId
-        ? await query.where("id", "=", image.mediaId).forUpdate().executeTakeFirst()
-        : await query.where("public_url", "=", image.url!).forUpdate().executeTakeFirst();
+        ? await query.where("id", "=", image.mediaId).where("restaurant_id", "=", restaurantId).forUpdate().executeTakeFirst()
+        : await query.where("public_url", "=", image.url!).executeTakeFirst();
       if (asset) {
         if (asset.restaurant_id !== restaurantId || asset.kind !== "image" || asset.status !== "ready" || !asset.public_url) {
           throw new NotFoundException("Media asset not found");
@@ -198,7 +198,7 @@ export class ProductsService {
         resolved.push({ mediaId: asset.id, url: asset.public_url, alt: image.alt ?? null });
       } else {
         if (image.mediaId || !image.url) throw new NotFoundException("Media asset not found");
-        if (this.config.mediaStorage && image.url.startsWith(this.config.mediaStorage.publicOrigin + "/r/")) {
+        if (this.config.mediaStorage && new URL(image.url).origin === this.config.mediaStorage.publicOrigin) {
           throw new NotFoundException("Media asset not found");
         }
         resolved.push({ mediaId: null, url: image.url, alt: image.alt ?? null });

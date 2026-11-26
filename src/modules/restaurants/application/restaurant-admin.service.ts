@@ -213,17 +213,26 @@ export class RestaurantAdminService {
     if (changes.branding?.primaryColor !== undefined) patch.primary_color = changes.branding.primaryColor;
     if (changes.branding?.secondaryColor !== undefined) patch.secondary_color = changes.branding.secondaryColor;
     if (changes.branding?.fontFamily !== undefined) patch.font_family = changes.branding.fontFamily;
-    if (Object.keys(patch).length === 0) throw new BadRequestException("At least one field is required");
+    const logoMediaId = changes.branding?.logoMediaId;
+    if (logoMediaId != null && changes.branding?.logoUrl !== undefined) throw new BadRequestException("Provide either logoMediaId or logoUrl");
+    if (Object.keys(patch).length === 0 && !logoMediaId) throw new BadRequestException("At least one field is required");
 
     try { await this.database.db.transaction().execute(async (trx) => {
       const current = await trx.selectFrom("restaurants").select(["subdomain", "domain_status"]).where("id", "=", id).forUpdate().executeTakeFirst();
       if (!current) throw new NotFoundException("Restaurant not found");
       if (current.subdomain && patch.subdomain && current.subdomain !== patch.subdomain) throw new ConflictException({ code: "SUBDOMAIN_IMMUTABLE", message: "Subdomain cannot be changed" });
       if ((patch.domain_status ?? current.domain_status) === "ready" && !(patch.subdomain ?? current.subdomain)) throw new BadRequestException("Subdomain required before marking ready");
+      if (logoMediaId) {
+        const asset = await trx.selectFrom("media_assets").select("public_url")
+          .where("id", "=", logoMediaId).where("restaurant_id", "=", id)
+          .where("kind", "=", "image").where("status", "=", "ready").forUpdate().executeTakeFirst();
+        if (!asset?.public_url) throw new NotFoundException("Media asset not found");
+        patch.logo_url = asset.public_url;
+      }
       if (patch.logo_url) {
         const managed = await trx.selectFrom("media_assets").select(["restaurant_id", "kind", "status"]).where("public_url", "=", patch.logo_url).executeTakeFirst();
         if (managed && (managed.restaurant_id !== id || managed.kind !== "image" || managed.status !== "ready")) throw new BadRequestException("Invalid restaurant logo asset");
-        if (this.config.mediaStorage && patch.logo_url.startsWith(this.config.mediaStorage.publicOrigin + "/r/") && !managed) throw new BadRequestException("Invalid restaurant logo asset");
+        if (this.config.mediaStorage && new URL(patch.logo_url).origin === this.config.mediaStorage.publicOrigin && !managed) throw new BadRequestException("Invalid restaurant logo asset");
       }
       const updated = await trx.updateTable("restaurants")
         .set(patch)
