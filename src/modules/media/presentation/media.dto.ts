@@ -44,6 +44,7 @@ export class GalleryImageDto {
   @ApiProperty({ format: "uuid" }) id!: string;
   @ApiProperty({ format: "uuid", nullable: true }) mediaId!: string | null;
   @ApiProperty() url!: string;
+  @ApiPropertyOptional({ type: String, nullable: true }) path?: string | null;
   @ApiProperty({ nullable: true }) alt!: string | null;
   @ApiProperty() sortOrder!: number;
   @ApiProperty() isPrimary!: boolean;

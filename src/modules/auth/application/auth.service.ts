@@ -1,3 +1,4 @@
+import { managedImagePath } from "../../../common/tenancy/managed-image-path";
 import { Inject, Injectable, UnauthorizedException, ForbiddenException, BadRequestException } from "@nestjs/common";
 import { subdomainFromOrigin } from "../../../common/tenancy/subdomain";
 import { JwtService } from "@nestjs/jwt";
@@ -74,7 +75,7 @@ export class AuthService {
     return {
       id: restaurant.id, name: restaurant.name, subdomain: restaurant.subdomain,
       branding: {
-        logoUrl: restaurant.logo_url, primaryColor: restaurant.primary_color,
+        logoUrl: restaurant.logo_url, logoPath: managedImagePath(restaurant.logo_url, restaurant.id, this.config.mediaStorage?.publicOrigin), primaryColor: restaurant.primary_color,
         secondaryColor: restaurant.secondary_color, fontFamily: restaurant.font_family,
       },
     };

@@ -1,5 +1,7 @@
+import { RUNTIME_CONFIG, type RuntimeConfig } from "../../../common/config/runtime-config";
+import { managedImagePath } from "../../../common/tenancy/managed-image-path";
 import {
-  BadRequestException, ConflictException, Injectable, NotFoundException,
+  BadRequestException, ConflictException, Inject, Injectable, NotFoundException,
 } from "@nestjs/common";
 import { isAssignableSubdomain } from "../../../common/tenancy/subdomain";
 import { randomUUID } from "node:crypto";
@@ -77,14 +79,14 @@ type RestaurantRow = {
   plan_name: string | null;
 };
 
-function toSummary(row: RestaurantRow): RestaurantSummaryDto {
+function toSummary(row: RestaurantRow, publicOrigin?: string): RestaurantSummaryDto {
   return {
     id: row.id,
     name: row.name,
     slug: row.slug,
     subdomain: row.subdomain,
     domainStatus: row.domain_status,
-    branding: { logoUrl: row.logo_url, primaryColor: row.primary_color, secondaryColor: row.secondary_color, fontFamily: row.font_family },
+    branding: { logoUrl: row.logo_url, logoPath: managedImagePath(row.logo_url, row.id, publicOrigin), primaryColor: row.primary_color, secondaryColor: row.secondary_color, fontFamily: row.font_family },
     isActive: row.is_active,
     createdAt: row.created_at.toISOString(),
     branchCount: row.branch_count,
@@ -98,7 +100,7 @@ function toSummary(row: RestaurantRow): RestaurantSummaryDto {
 
 @Injectable()
 export class RestaurantAdminService {
-  constructor(private readonly database: DatabaseService) {}
+  constructor(private readonly database: DatabaseService, @Inject(RUNTIME_CONFIG) private readonly config: RuntimeConfig) {}
 
   private selection() {
     return this.database.db.selectFrom("restaurants")
@@ -184,7 +186,7 @@ export class RestaurantAdminService {
     const nextCursor = hasMore && last
       ? Buffer.from(JSON.stringify({ timestamp: last.cursor_timestamp, id: last.id })).toString("base64url")
       : null;
-    return { data: page.map(toSummary), meta: { nextCursor, hasMore } };
+    return { data: page.map(row => toSummary(row, this.config.mediaStorage?.publicOrigin)), meta: { nextCursor, hasMore } };
   }
 
   async get(id: string): Promise<RestaurantDetailsDto> {
@@ -196,7 +198,7 @@ export class RestaurantAdminService {
       .orderBy("created_at", "asc")
       .orderBy("id", "asc")
       .executeTakeFirst();
-    return { ...toSummary(restaurant), initialBranch: initialBranch
+    return { ...toSummary(restaurant, this.config.mediaStorage?.publicOrigin), initialBranch: initialBranch
       ? { id: initialBranch.id, name: initialBranch.name,
           slug: initialBranch.slug, isActive: initialBranch.is_active } : null };
   }
@@ -221,6 +223,7 @@ export class RestaurantAdminService {
       if (patch.logo_url) {
         const managed = await trx.selectFrom("media_assets").select(["restaurant_id", "kind", "status"]).where("public_url", "=", patch.logo_url).executeTakeFirst();
         if (managed && (managed.restaurant_id !== id || managed.kind !== "image" || managed.status !== "ready")) throw new BadRequestException("Invalid restaurant logo asset");
+        if (this.config.mediaStorage && patch.logo_url.startsWith(this.config.mediaStorage.publicOrigin + "/r/") && !managed) throw new BadRequestException("Invalid restaurant logo asset");
       }
       const updated = await trx.updateTable("restaurants")
         .set(patch)

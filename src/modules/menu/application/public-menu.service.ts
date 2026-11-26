@@ -1,3 +1,4 @@
+import { managedImagePath } from "../../../common/tenancy/managed-image-path";
 import { Inject } from "@nestjs/common";
 import { RUNTIME_CONFIG, type RuntimeConfig } from "../../../common/config/runtime-config";
 import { assertPublicTenant } from "../../../common/tenancy/public-tenant";
@@ -18,7 +19,7 @@ export class PublicMenuService {
       .select(["id", "name", "subdomain", "logo_url", "primary_color", "secondary_color", "font_family"]).where("subdomain", "=", subdomain)
       .where("is_active", "=", true).where("domain_status", "=", "ready").executeTakeFirst();
     if (!restaurant || !restaurant.subdomain) throw new NotFoundException("Restaurant not found");
-    return { id: restaurant.id, name: restaurant.name, subdomain: restaurant.subdomain, branding: { logoUrl: restaurant.logo_url, primaryColor: restaurant.primary_color, secondaryColor: restaurant.secondary_color, fontFamily: restaurant.font_family } };
+    return { id: restaurant.id, name: restaurant.name, subdomain: restaurant.subdomain, branding: { logoUrl: restaurant.logo_url, logoPath: managedImagePath(restaurant.logo_url, restaurant.id, this.config.mediaStorage?.publicOrigin), primaryColor: restaurant.primary_color, secondaryColor: restaurant.secondary_color, fontFamily: restaurant.font_family } };
   }
 
   async restaurantBySubdomain(subdomain: string): Promise<PublicRestaurantDto> {
@@ -88,14 +89,14 @@ export class PublicMenuService {
       .limit(query.limit + 1).execute();
     const hasMore = result.length > query.limit;
     const page = result.slice(0, query.limit);
-    const images = await imagesForProducts(this.database.db, page.map((row) => row.id));
+    const images = await imagesForProducts(this.database.db, page.map((row) => row.id), this.config.mediaStorage?.publicOrigin);
     const categoryIds = [...new Set(page.map((row) => row.category_id))];
     const categories = categoryIds.length ? await this.database.db.selectFrom("categories").selectAll()
       .where("id", "in", categoryIds).execute() : [];
     const last = page.at(-1);
     return {
       data: {
-        restaurant: { name: branch.restaurant_name, branding: { logoUrl: branch.logo_url, primaryColor: branch.primary_color, secondaryColor: branch.secondary_color, fontFamily: branch.font_family } },
+        restaurant: { name: branch.restaurant_name, branding: { logoUrl: branch.logo_url, logoPath: managedImagePath(branch.logo_url, branch.restaurant_id, this.config.mediaStorage?.publicOrigin), primaryColor: branch.primary_color, secondaryColor: branch.secondary_color, fontFamily: branch.font_family } },
         branch: { name: branch.name, slug: branch.slug, currency: branch.currency },
         products: page.map((row) => productDto(row, images.get(row.id) ?? [])),
         categories: categories.map((row) => ({

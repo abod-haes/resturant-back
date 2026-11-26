@@ -23,6 +23,7 @@ export class BrandingPatchDto {
 export class BrandingDto {
   @ApiProperty({ type: String, enum: ["cairo", "system"], nullable: true }) fontFamily!: RestaurantFont | null;
   @ApiProperty({ type: String, nullable: true }) logoUrl!: string | null;
+  @ApiPropertyOptional({ type: String, nullable: true }) logoPath?: string | null;
   @ApiProperty({ type: String, nullable: true }) primaryColor!: string | null;
   @ApiProperty({ type: String, nullable: true }) secondaryColor!: string | null;
 }

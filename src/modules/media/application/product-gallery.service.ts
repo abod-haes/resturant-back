@@ -1,4 +1,6 @@
-import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import { RUNTIME_CONFIG, type RuntimeConfig } from "../../../common/config/runtime-config";
+import { managedImagePath } from "../../../common/tenancy/managed-image-path";
+import { BadRequestException, Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { DatabaseService } from "../../../database/database.service";
 import type { AuthPrincipal } from "../../../common/auth/principal";
 import { lockMediaTenant, ownerTenant, requireMediaBranch } from "./media-access";
@@ -6,7 +8,7 @@ import type { GalleryImageDto, ReplaceGalleryDto } from "../presentation/media.d
 
 @Injectable()
 export class ProductGalleryService {
-  constructor(private readonly database: DatabaseService) {}
+  constructor(private readonly database: DatabaseService, @Inject(RUNTIME_CONFIG) private readonly config: RuntimeConfig) {}
 
   async list(principal: AuthPrincipal, branchId: string, productId: string): Promise<GalleryImageDto[]> {
     const tenant = ownerTenant(principal);
@@ -20,7 +22,7 @@ export class ProductGalleryService {
       .where("product_id", "=", productId).where("restaurant_id", "=", tenant)
       .orderBy("sort_order", "asc").execute();
     return rows.map(row => ({
-      id: row.id, mediaId: row.media_asset_id, url: row.url, alt: row.alt,
+      id: row.id, mediaId: row.media_asset_id, url: row.url, path: row.media_asset_id ? managedImagePath(row.url, tenant, this.config.mediaStorage?.publicOrigin, row.media_asset_id) : null, alt: row.alt,
       sortOrder: row.sort_order, isPrimary: row.sort_order === 0,
     }));
   }

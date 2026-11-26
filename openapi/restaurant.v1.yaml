@@ -43,6 +43,7 @@ components:
       properties:
         fontFamily: { type: [string, 'null'], enum: [cairo, system, null] }
         logoUrl: { type: [string, "null"], maxLength: 2048 }
+        logoPath: { type: [string, "null"], readOnly: true }
         primaryColor: { type: [string, "null"], pattern: "^#[0-9a-fA-F]{6}$" }
         secondaryColor: { type: [string, "null"], pattern: "^#[0-9a-fA-F]{6}$" }
     RestaurantSummary:
@@ -156,6 +157,7 @@ components:
         id: { type: string, format: uuid }
         mediaId: { type: [string, "null"], format: uuid }
         url: { type: string, format: uri, description: Approved HTTPS CDN origin only }
+        path: { type: [string, "null"] }
         alt: { type: [string, "null"] }
         sortOrder: { type: integer }
     Product:
@@ -354,6 +356,7 @@ components:
         id: { type: string, format: uuid }
         mediaId: { type: [string, "null"], format: uuid }
         url: { type: string, format: uri }
+        path: { type: [string, "null"] }
         alt: { type: [string, "null"], maxLength: 200 }
         sortOrder: { type: integer, minimum: 0, maximum: 7 }
         isPrimary: { type: boolean }

@@ -1,3 +1,4 @@
+import { managedImagePath } from "../../../common/tenancy/managed-image-path";
 import {
   BadRequestException, ConflictException, Injectable, Inject, NotFoundException,
 } from "@nestjs/common";
@@ -24,15 +25,15 @@ export function productDto(row: ProductRow, images: ProductImageDto[]): ProductD
   };
 }
 
-export async function imagesForProducts(db: DatabaseService["db"], ids: string[]): Promise<Map<string, ProductImageDto[]>> {
+export async function imagesForProducts(db: DatabaseService["db"], ids: string[], publicOrigin?: string): Promise<Map<string, ProductImageDto[]>> {
   const byId = new Map<string, ProductImageDto[]>();
   if (!ids.length) return byId;
   const images = await db.selectFrom("product_images")
-    .select(["id", "product_id", "url", "alt", "sort_order", "media_asset_id"])
+    .select(["id", "product_id", "restaurant_id", "url", "alt", "sort_order", "media_asset_id"])
     .where("product_id", "in", ids).orderBy("sort_order", "asc").execute();
   for (const image of images) {
     const existing = byId.get(image.product_id) ?? [];
-    existing.push({ id: image.id, url: image.url, alt: image.alt, sortOrder: image.sort_order, ...(image.media_asset_id ? { mediaId: image.media_asset_id } : {}) });
+    existing.push({ id: image.id, url: image.url, path: image.media_asset_id ? managedImagePath(image.url, image.restaurant_id, publicOrigin, image.media_asset_id) : null, alt: image.alt, sortOrder: image.sort_order, ...(image.media_asset_id ? { mediaId: image.media_asset_id } : {}) });
     byId.set(image.product_id, existing);
   }
   return byId;
@@ -49,7 +50,7 @@ export class ProductsService {
   constructor(private readonly database: DatabaseService, @Inject(RUNTIME_CONFIG) private readonly config: RuntimeConfig) {}
 
   private async imageList(productId: string): Promise<ProductImageDto[]> {
-    const images = await imagesForProducts(this.database.db, [productId]);
+    const images = await imagesForProducts(this.database.db, [productId], this.config.mediaStorage?.publicOrigin);
     return images.get(productId) ?? [];
   }
 
@@ -74,7 +75,7 @@ export class ProductsService {
       .limit(query.limit + 1).execute();
     const hasMore = result.length > query.limit;
     const page = result.slice(0, query.limit);
-    const images = await imagesForProducts(this.database.db, page.map((p) => p.id));
+    const images = await imagesForProducts(this.database.db, page.map((p) => p.id), this.config.mediaStorage?.publicOrigin);
     const last = page.at(-1);
     return { data: page.map((p) => productDto(p, images.get(p.id) ?? [])),
       meta: { hasMore, nextCursor: hasMore && last
