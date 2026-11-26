@@ -161,14 +161,22 @@ export class MediaService {
   }
 
   async remove(principal: AuthPrincipal, branchId: string, assetId: string, requestId?: string) {
-    const tenant = ownerTenant(principal);
+    return this.removeUnreferenced(principal, ownerTenant(principal), branchId, assetId, requestId);
+  }
+
+  async removeRestaurantImage(principal: AuthPrincipal, restaurantId: string, assetId: string, requestId?: string) {
+    if (principal.role !== "PRIMARY_ADMIN" && principal.role !== "PLATFORM_ADMIN" && !(principal.role === "RESTAURANT_OWNER" && principal.restaurantId === restaurantId)) throw new ForbiddenException("Restaurant branding access denied");
+    return this.removeUnreferenced(principal, restaurantId, null, assetId, requestId);
+  }
+
+  private async removeUnreferenced(principal: AuthPrincipal, tenant: string, branchId: string | null, assetId: string, requestId?: string) {
     this.ensureStorage();
     const objectKey = await this.database.db.transaction().execute(async trx => {
-      await lockMediaTenant(trx, principal);
-      await requireMediaBranch(trx, principal, branchId);
-      const asset = await trx.selectFrom("media_assets").selectAll().where("id", "=", assetId)
-        .where("restaurant_id", "=", tenant).where("branch_id", "=", branchId)
-        .where("status", "=", "ready").forUpdate().executeTakeFirst();
+      if (branchId) { await lockMediaTenant(trx, principal); await requireMediaBranch(trx, principal, branchId); }
+      else await trx.selectFrom("restaurants").select("id").where("id", "=", tenant).forUpdate().executeTakeFirstOrThrow();
+      let query = trx.selectFrom("media_assets").selectAll().where("id", "=", assetId).where("restaurant_id", "=", tenant).where("status", "=", "ready");
+      query = branchId ? query.where("branch_id", "=", branchId) : query.where("kind", "=", "image");
+      const asset = await query.forUpdate().executeTakeFirst();
       if (!asset) throw new NotFoundException("Media asset not found");
       const attached = await trx.selectFrom("product_images").select("id")
         .where(eb => eb.or([
