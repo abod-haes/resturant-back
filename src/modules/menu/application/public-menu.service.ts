@@ -8,6 +8,7 @@ import { DatabaseService } from "../../../database/database.service";
 import { decodeDisplayCursor, encodeDisplayCursor } from "../../../common/pagination/keyset";
 import { requireOperationalEntitlements } from "../../../common/subscription/operational-entitlement";
 import type { CategoryDto, MenuPageDto, PublicMenuDto, PublicRestaurantDto, PublicRestaurantIdentityDto } from "../presentation/menu.dto";
+import { categoryDto } from "./categories.service";
 import { imagesForProducts, productDto } from "./products.service";
 
 @Injectable()
@@ -63,10 +64,7 @@ export class PublicMenuService {
     const hasMore = result.length > query.limit;
     const rows = result.slice(0, query.limit);
     const last = rows.at(-1);
-    const data: CategoryDto[] = rows.map((row) => ({
-      id: row.id, branchId: row.branch_id, name: row.name, description: row.description,
-      sortOrder: row.sort_order, isActive: row.is_active, createdAt: row.created_at.toISOString(),
-    }));
+    const data: CategoryDto[] = rows.map(row => categoryDto(row, this.config.mediaStorage?.publicOrigin));
     return { data, meta: { hasMore, nextCursor: hasMore && last
       ? encodeDisplayCursor({ sortOrder: last.sort_order, id: last.id }) : null } };
   }
@@ -99,10 +97,7 @@ export class PublicMenuService {
         restaurant: { name: branch.restaurant_name, branding: { logoUrl: branch.logo_url, logoPath: managedImagePath(branch.logo_url, branch.restaurant_id, this.config.mediaStorage?.publicOrigin), primaryColor: branch.primary_color, secondaryColor: branch.secondary_color, fontFamily: branch.font_family } },
         branch: { name: branch.name, slug: branch.slug, currency: branch.currency },
         products: page.map((row) => productDto(row, images.get(row.id) ?? [])),
-        categories: categories.map((row) => ({
-          id: row.id, branchId: row.branch_id, name: row.name, description: row.description,
-          sortOrder: row.sort_order, isActive: row.is_active, createdAt: row.created_at.toISOString(),
-        })),
+        categories: categories.map(row => categoryDto(row, this.config.mediaStorage?.publicOrigin)),
       },
       meta: { hasMore, nextCursor: hasMore && last
         ? encodeDisplayCursor({ sortOrder: last.sort_order, id: last.id }) : null },
