@@ -942,6 +942,61 @@ paths:
                   data: { $ref: '#/components/schemas/ManagedMedia' }
         '403': { description: Platform admin required }
         '404': { description: Restaurant not found }
+  /owner/restaurant/branding/logo:
+    post:
+      operationId: uploadOwnerLogo
+      tags: [Owner branding]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary }
+      responses:
+        '201':
+          description: Processed image uploaded
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/ManagedMedia' }
+        '403': { description: Restaurant owner required }
+        '404': { description: Restaurant not found }
+  /owner/restaurant/branding:
+    patch:
+      operationId: updateOwnerBranding
+      tags: [Owner branding]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                logoMediaId: { type: string, format: uuid }
+                logoUrl: { type: string, nullable: true, format: uri }
+                primaryColor: { type: string, nullable: true, pattern: '^#[0-9a-fA-F]{6}$' }
+                secondaryColor: { type: string, nullable: true, pattern: '^#[0-9a-fA-F]{6}$' }
+                fontFamily: { type: string, nullable: true, enum: [cairo, system] }
+      responses:
+        '200':
+          description: Updated restaurant identity
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/AuthenticatedRestaurantIdentity' }
+        '403': { description: Restaurant owner required }
+
   /admin/restaurants/{id}:
     parameters:
       - in: path
