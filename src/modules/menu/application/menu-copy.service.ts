@@ -55,6 +55,7 @@ export class MenuCopyService {
         const created = await trx.insertInto("categories").values({
           restaurant_id: target.restaurant_id, branch_id: targetBranchId,
           name: category.name, description: category.description,
+          image_media_id: category.image_media_id, image_url: category.image_url,
           sort_order: category.sort_order, is_active: category.is_active, archived_at: null,
         }).returning("id").executeTakeFirstOrThrow();
         categoryMap.set(category.id, created.id);
