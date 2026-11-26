@@ -979,9 +979,11 @@ paths:
           application/json:
             schema:
               type: object
+              minProperties: 1
+              additionalProperties: false
               properties:
                 logoMediaId: { type: string, format: uuid }
-                logoUrl: { type: string, nullable: true, format: uri }
+                logoUrl: { type: string, nullable: true, enum: [null], description: Remove current logo; use logoMediaId for replacement }
                 primaryColor: { type: string, nullable: true, pattern: '^#[0-9a-fA-F]{6}$' }
                 secondaryColor: { type: string, nullable: true, pattern: '^#[0-9a-fA-F]{6}$' }
                 fontFamily: { type: string, nullable: true, enum: [cairo, system] }
@@ -995,6 +997,7 @@ paths:
                 required: [data]
                 properties:
                   data: { $ref: '#/components/schemas/AuthenticatedRestaurantIdentity' }
+        '400': { description: Invalid branding patch }
         '403': { description: Restaurant owner required }
 
   /admin/restaurants/{id}:
