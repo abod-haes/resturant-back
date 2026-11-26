@@ -300,7 +300,30 @@ export interface MediaAssetsTable {
   updated_at: Generated<Date>;
 }
 
+export interface EmployeeWebPushSubscriptionsTable {
+  id: Generated<string>;
+  user_id: string;
+  session_id: string;
+  endpoint_hash: string;
+  subscription_box: string;
+  expires_at: Date | null;
+  is_active: Generated<boolean>;
+  last_seen_at: Generated<Date>;
+  created_at: Generated<Date>;
+}
+export interface WebPushDeliveriesTable extends Timestamped {
+  id: Generated<string>;
+  outbox_id: string;
+  subscription_id: string;
+  state: Generated<PushDeliveryStatus>;
+  attempts: Generated<number>;
+  next_attempt_at: Generated<Date>;
+  lease_until: Date | null;
+  last_error_code: string | null;
+}
 export interface DatabaseTables {
+  employee_web_push_subscriptions: EmployeeWebPushSubscriptionsTable;
+  web_push_deliveries: WebPushDeliveriesTable;
   restaurants: RestaurantsTable;
   branches: BranchesTable;
   categories: CategoriesTable;
