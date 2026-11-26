@@ -154,6 +154,7 @@ components:
       required: [id, url, alt, sortOrder]
       properties:
         id: { type: string, format: uuid }
+        mediaId: { type: [string, "null"], format: uuid }
         url: { type: string, format: uri, description: Approved HTTPS CDN origin only }
         alt: { type: [string, "null"] }
         sortOrder: { type: integer }
@@ -203,8 +204,12 @@ components:
           maxItems: 8
           items:
             type: object
-            required: [url]
+            additionalProperties: false
+            oneOf:
+              - required: [url]
+              - required: [mediaId]
             properties:
+              mediaId: { type: string, format: uuid }
               url: { type: string, format: uri, description: Allowed HTTPS origin, no query/hash }
               alt: { type: [string, "null"] }
     Floor:
@@ -329,12 +334,13 @@ components:
         createdAt: { type: string, format: date-time }
     ManagedMedia:
       type: object
-      required: [id, branchId, kind, url, name, contentType, byteSize, width, height, createdAt]
+      required: [id, branchId, kind, url, path, name, contentType, byteSize, width, height, createdAt]
       properties:
         id: { type: string, format: uuid }
         branchId: { type: string, format: uuid }
         kind: { type: string, enum: [image, document] }
         url: { type: [string, "null"], description: Only images have an HTTPS public CDN URL }
+        path: { type: [string, "null"], description: Relative public image path; null for private documents }
         name: { type: string, maxLength: 200 }
         contentType: { type: string, enum: [image/webp, application/pdf] }
         byteSize: { type: integer, minimum: 1 }
@@ -2020,8 +2026,12 @@ paths:
                   maxItems: 8
                   items:
                     type: object
-                    required: [url]
+                    additionalProperties: false
+                    oneOf:
+                      - required: [url]
+                      - required: [mediaId]
                     properties:
+                      mediaId: { type: string, format: uuid }
                       url: { type: string, format: uri, description: Approved HTTPS origin only }
                       alt: { type: [string, "null"] }
       responses:

@@ -13,6 +13,7 @@ export class MediaDto {
   @ApiProperty({ format: "uuid" }) branchId!: string;
   @ApiProperty({ enum: ["image","document"] }) kind!: "image" | "document";
   @ApiProperty({ nullable: true }) url!: string | null;
+  @ApiProperty({ type: String, nullable: true, description: "Relative public image path; null for private documents" }) path!: string | null;
   @ApiProperty() name!: string;
   @ApiProperty() contentType!: string;
   @ApiProperty() byteSize!: number;

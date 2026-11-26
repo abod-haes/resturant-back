@@ -179,12 +179,34 @@ export class ProductsService {
 
   private async replaceImages(db: DatabaseService["db"], productId: string, branchId: string, restaurantId: string,
     images: readonly ProductImageInputDto[]): Promise<void> {
-    await db.deleteFrom("product_images").where("product_id", "=", productId).execute();
-    for (const [sortOrder, image] of images.entries()) {
-      await db.insertInto("product_images").values({
-        product_id: productId, branch_id: branchId, restaurant_id: restaurantId, media_asset_id: null, url: image.url,
-        alt: image.alt ?? null, sort_order: sortOrder,
-      }).execute();
+    // The caller holds the restaurant row lock, shared with media cleanup.
+    // Resolve managed assets before deleting the previous gallery.
+    const resolved: { mediaId: string | null; url: string; alt: string | null }[] = [];
+    const seen = new Set<string>();
+    for (const image of images) {
+      const query = db.selectFrom("media_assets").select(["id", "restaurant_id", "kind", "status", "public_url"]);
+      const asset = image.mediaId
+        ? await query.where("id", "=", image.mediaId).forUpdate().executeTakeFirst()
+        : await query.where("public_url", "=", image.url!).forUpdate().executeTakeFirst();
+      if (asset) {
+        if (asset.restaurant_id !== restaurantId || asset.kind !== "image" || asset.status !== "ready" || !asset.public_url) {
+          throw new NotFoundException("Media asset not found");
+        }
+        if (seen.has(asset.id)) throw new BadRequestException({ code: "MEDIA_DUPLICATED", message: "Duplicate media in gallery" });
+        seen.add(asset.id);
+        resolved.push({ mediaId: asset.id, url: asset.public_url, alt: image.alt ?? null });
+      } else {
+        if (image.mediaId || !image.url) throw new NotFoundException("Media asset not found");
+        if (this.config.mediaStorage && image.url.startsWith(this.config.mediaStorage.publicOrigin + "/r/")) {
+          throw new NotFoundException("Media asset not found");
+        }
+        resolved.push({ mediaId: null, url: image.url, alt: image.alt ?? null });
+      }
     }
+    await db.deleteFrom("product_images").where("product_id", "=", productId).execute();
+    if (resolved.length) await db.insertInto("product_images").values(resolved.map((image, sortOrder) => ({
+      product_id: productId, branch_id: branchId, restaurant_id: restaurantId,
+      media_asset_id: image.mediaId, url: image.url, alt: image.alt, sort_order: sortOrder,
+    }))).execute();
   }
 }

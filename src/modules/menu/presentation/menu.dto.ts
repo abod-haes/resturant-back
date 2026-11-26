@@ -47,9 +47,11 @@ export class CategoryListDto {
   @ApiProperty({ type: MenuPageMetaDto }) meta!: MenuPageMetaDto;
 }
 export class ProductImageInputDto {
-  @ApiProperty({ example: "https://images.example.test/products/item.webp" })
-  @IsString() @MaxLength(2048) @IsUrl({ protocols: ["https"], require_protocol: true, require_tld: true })
-  url!: string;
+  @ApiPropertyOptional({ format: "uuid", description: "Ready image asset owned by the restaurant" })
+  @IsOptional() @IsUUID("4") mediaId?: string;
+  @ApiPropertyOptional({ example: "https://images.example.test/products/item.webp", description: "Legacy approved HTTPS URL; use exactly one of url or mediaId" })
+  @IsOptional() @IsString() @MaxLength(2048) @IsUrl({ protocols: ["https"], require_protocol: true, require_tld: true })
+  url?: string;
   @ApiPropertyOptional({ nullable: true }) @IsOptional() @IsString() @MaxLength(200) alt?: string | null;
 }
 export class CreateProductDto {

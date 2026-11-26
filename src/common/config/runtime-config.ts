@@ -185,7 +185,7 @@ export function parseRuntimeConfig(env: NodeJS.ProcessEnv): RuntimeConfig {
     databaseConnectTimeoutMs: positiveInteger(env.DB_CONNECT_TIMEOUT_MS ?? "2000", "DB_CONNECT_TIMEOUT_MS", 60000),
     corsOrigins: Object.freeze(corsOrigins),
     authCrossSiteCookie,
-    mediaAllowedOrigins: Object.freeze(mediaAllowedOrigins),
+    mediaAllowedOrigins: Object.freeze([...new Set([...mediaAllowedOrigins, ...(mediaPublicOrigin ? [mediaPublicOrigin] : [])])]),
     mediaStorage,
     qrEncryptionKey,
     customerAppOrigin,

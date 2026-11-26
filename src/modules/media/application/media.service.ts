@@ -17,6 +17,7 @@ type MediaRow = Selectable<MediaAssetsTable>;
 function toMedia(row: MediaRow): MediaDto {
   return {
     id: row.id, branchId: row.branch_id, kind: row.kind, url: row.public_url,
+    path: row.kind === "image" && row.public_url ? "/" + row.object_key : null,
     name: row.original_name, contentType: row.content_type,
     byteSize: row.byte_size, width: row.width, height: row.height,
     createdAt: row.created_at.toISOString(),
