@@ -87,7 +87,7 @@ export class MediaService {
 
   /** Platform-only logo upload. Reuses validated image processing and durable media lifecycle. */
   async uploadRestaurantLogo(principal: AuthPrincipal, restaurantId: string, file?: Express.Multer.File, requestId?: string): Promise<MediaDto> {
-    if (principal.role !== "PRIMARY_ADMIN" && principal.role !== "PLATFORM_ADMIN") throw new ForbiddenException("Platform admin required");
+    if (principal.role !== "PRIMARY_ADMIN" && principal.role !== "PLATFORM_ADMIN" && !(principal.role === "RESTAURANT_OWNER" && principal.restaurantId === restaurantId)) throw new ForbiddenException("Restaurant branding access denied");
     const config = this.ensureStorage();
     const processed = await processMedia("image", file);
     const id = randomUUID();
