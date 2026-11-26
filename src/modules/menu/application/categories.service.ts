@@ -127,7 +127,7 @@ export class CategoriesService {
     await this.database.db.transaction().execute(async (trx) => {
       await lockTenantForMenuWrite(trx, principal);
       const branch = await requireOwnerBranch(trx, principal, branchId);
-      const row = await trx.updateTable("categories").set({ archived_at: new Date(), is_active: false })
+      const row = await trx.updateTable("categories").set({ archived_at: new Date(), is_active: false, image_media_id: null, image_url: null })
         .where("id", "=", id).where("branch_id", "=", branchId)
         .where("archived_at", "is", null).returning("id").executeTakeFirst();
       if (!row) throw new NotFoundException("Category not found");
