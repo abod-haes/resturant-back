@@ -1938,6 +1938,7 @@ paths:
               minProperties: 1
               additionalProperties: false
               properties:
+                imageMediaId: { type: [string, "null"], format: uuid, description: Omit to preserve or null to remove }
                 name: { type: string, maxLength: 160 }
                 description: { type: [string, "null"], maxLength: 1000 }
                 sortOrder: { type: integer, minimum: 0, maximum: 1000000 }
