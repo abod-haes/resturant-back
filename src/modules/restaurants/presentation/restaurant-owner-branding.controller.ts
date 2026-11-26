@@ -1,4 +1,4 @@
-import { Body, Controller, Patch, Req, UnauthorizedException } from "@nestjs/common";
+import { BadRequestException, Body, Controller, Patch, Req, UnauthorizedException } from "@nestjs/common";
 import { ApiBearerAuth, ApiOkResponse, ApiTags } from "@nestjs/swagger";
 import { Roles } from "../../../common/auth/policy.decorators";
 import type { AuthenticatedRequest } from "../../../common/auth/authenticated-request";
@@ -26,6 +26,7 @@ export class RestaurantOwnerBrandingController {
   async update(@Body() branding: BrandingPatchDto, @Req() request: AuthenticatedRequest): Promise<OwnerIdentityResponseDto> {
     const actor = request.principal;
     if (!actor?.restaurantId || actor.role !== "RESTAURANT_OWNER") throw new UnauthorizedException();
+    if (branding.logoUrl != null) throw new BadRequestException("Use logoMediaId to attach a restaurant logo");
     const updated = await this.service.update(actor.restaurantId, { branding }, actor, request.requestId);
     return { data: { id: updated.id, name: updated.name, subdomain: updated.subdomain, branding: updated.branding } };
   }
