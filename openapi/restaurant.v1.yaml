@@ -144,6 +144,9 @@ components:
       type: object
       required: [id, branchId, name, description, sortOrder, isActive, createdAt]
       properties:
+        imageMediaId: { type: [string, "null"], format: uuid }
+        imageUrl: { type: [string, "null"], format: uri }
+        imagePath: { type: [string, "null"] }
         id: { type: string, format: uuid }
         branchId: { type: string, format: uuid }
         name: { type: string }
@@ -184,6 +187,7 @@ components:
       additionalProperties: false
       required: [name]
       properties:
+        imageMediaId: { type: [string, "null"], format: uuid, description: Ready restaurant image; null removes it }
         name: { type: string, maxLength: 160 }
         description: { type: [string, "null"], maxLength: 1000 }
         sortOrder: { type: integer, minimum: 0, maximum: 1000000 }
@@ -938,6 +942,64 @@ paths:
                   data: { $ref: '#/components/schemas/ManagedMedia' }
         '403': { description: Platform admin required }
         '404': { description: Restaurant not found }
+  /owner/restaurant/branding/logo:
+    post:
+      operationId: uploadOwnerLogo
+      tags: [Owner branding]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary }
+      responses:
+        '201':
+          description: Processed image uploaded
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/ManagedMedia' }
+        '403': { description: Restaurant owner required }
+        '404': { description: Restaurant not found }
+  /owner/restaurant/branding:
+    patch:
+      operationId: updateOwnerBranding
+      tags: [Owner branding]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              minProperties: 1
+              additionalProperties: false
+              properties:
+                logoMediaId: { type: string, format: uuid }
+                logoUrl: { type: string, nullable: true, enum: [null], description: Remove current logo; use logoMediaId for replacement }
+                primaryColor: { type: string, nullable: true, pattern: '^#[0-9a-fA-F]{6}$' }
+                secondaryColor: { type: string, nullable: true, pattern: '^#[0-9a-fA-F]{6}$' }
+                fontFamily: { type: string, nullable: true, enum: [cairo, system] }
+      responses:
+        '200':
+          description: Updated restaurant identity
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/AuthenticatedRestaurantIdentity' }
+        '400': { description: Invalid branding patch }
+        '403': { description: Restaurant owner required }
+
   /admin/restaurants/{id}:
     parameters:
       - in: path
@@ -1934,6 +1996,7 @@ paths:
               minProperties: 1
               additionalProperties: false
               properties:
+                imageMediaId: { type: [string, "null"], format: uuid, description: Omit to preserve or null to remove }
                 name: { type: string, maxLength: 160 }
                 description: { type: [string, "null"], maxLength: 1000 }
                 sortOrder: { type: integer, minimum: 0, maximum: 1000000 }

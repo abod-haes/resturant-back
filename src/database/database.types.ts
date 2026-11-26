@@ -46,6 +46,8 @@ export interface CategoriesTable extends Timestamped {
   branch_id: string;
   name: string;
   description: string | null;
+  image_media_id: Generated<string | null>;
+  image_url: Generated<string | null>;
   sort_order: Generated<number>;
   is_active: Generated<boolean>;
   archived_at: Date | null;

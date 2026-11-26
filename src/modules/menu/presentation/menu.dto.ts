@@ -21,18 +21,25 @@ export class MenuPageMetaDto {
   @ApiProperty() hasMore!: boolean;
 }
 export class CreateCategoryDto {
+  @ApiPropertyOptional({ type: String, format: "uuid", nullable: true, description: "Ready restaurant image; null removes it" })
+  @IsOptional() @IsUUID("4") imageMediaId?: string | null;
   @ApiProperty() @IsString() @MaxLength(160) @Matches(/\S/u) name!: string;
   @ApiPropertyOptional({ nullable: true }) @IsOptional() @IsString() @MaxLength(1000) description?: string | null;
   @ApiPropertyOptional({ minimum: 0 }) @IsOptional() @IsInt() @Min(0) @Max(1000000) sortOrder?: number;
   @ApiPropertyOptional() @IsOptional() @IsBoolean() isActive?: boolean;
 }
 export class PatchCategoryDto {
+  @ApiPropertyOptional({ type: String, format: "uuid", nullable: true, description: "Ready restaurant image; null removes it" })
+  @IsOptional() @IsUUID("4") imageMediaId?: string | null;
   @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(160) @Matches(/\S/u) name?: string;
   @ApiPropertyOptional({ nullable: true }) @IsOptional() @IsString() @MaxLength(1000) description?: string | null;
   @ApiPropertyOptional({ minimum: 0 }) @IsOptional() @IsInt() @Min(0) @Max(1000000) sortOrder?: number;
   @ApiPropertyOptional() @IsOptional() @IsBoolean() isActive?: boolean;
 }
 export class CategoryDto {
+  @ApiPropertyOptional({ type: String, format: "uuid", nullable: true }) imageMediaId?: string | null;
+  @ApiPropertyOptional({ type: String, nullable: true }) imageUrl?: string | null;
+  @ApiPropertyOptional({ type: String, nullable: true }) imagePath?: string | null;
   @ApiProperty({ format: "uuid" }) id!: string;
   @ApiProperty({ format: "uuid" }) branchId!: string;
   @ApiProperty() name!: string;

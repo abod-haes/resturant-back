@@ -170,6 +170,7 @@ export class ProductsService {
         .where("id", "=", productId).where("branch_id", "=", branchId)
         .where("archived_at", "is", null).returning("id").executeTakeFirst();
       if (!result) throw new NotFoundException("Product not found");
+      await trx.deleteFrom("product_images").where("product_id", "=", productId).execute();
       await trx.insertInto("audit_logs").values({
         actor_user_id: principal.id, restaurant_id: branch.restaurant_id,
         action: "menu.product.archived", entity_type: "product", entity_id: productId,

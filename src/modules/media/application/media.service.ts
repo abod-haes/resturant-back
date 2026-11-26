@@ -87,7 +87,7 @@ export class MediaService {
 
   /** Platform-only logo upload. Reuses validated image processing and durable media lifecycle. */
   async uploadRestaurantLogo(principal: AuthPrincipal, restaurantId: string, file?: Express.Multer.File, requestId?: string): Promise<MediaDto> {
-    if (principal.role !== "PRIMARY_ADMIN" && principal.role !== "PLATFORM_ADMIN") throw new ForbiddenException("Platform admin required");
+    if (principal.role !== "PRIMARY_ADMIN" && principal.role !== "PLATFORM_ADMIN" && !(principal.role === "RESTAURANT_OWNER" && principal.restaurantId === restaurantId)) throw new ForbiddenException("Restaurant branding access denied");
     const config = this.ensureStorage();
     const processed = await processMedia("image", file);
     const id = randomUUID();
@@ -161,14 +161,22 @@ export class MediaService {
   }
 
   async remove(principal: AuthPrincipal, branchId: string, assetId: string, requestId?: string) {
-    const tenant = ownerTenant(principal);
+    return this.removeUnreferenced(principal, ownerTenant(principal), branchId, assetId, requestId);
+  }
+
+  async removeRestaurantImage(principal: AuthPrincipal, restaurantId: string, assetId: string, requestId?: string) {
+    if (principal.role !== "PRIMARY_ADMIN" && principal.role !== "PLATFORM_ADMIN" && !(principal.role === "RESTAURANT_OWNER" && principal.restaurantId === restaurantId)) throw new ForbiddenException("Restaurant branding access denied");
+    return this.removeUnreferenced(principal, restaurantId, null, assetId, requestId);
+  }
+
+  private async removeUnreferenced(principal: AuthPrincipal, tenant: string, branchId: string | null, assetId: string, requestId?: string) {
     this.ensureStorage();
     const objectKey = await this.database.db.transaction().execute(async trx => {
-      await lockMediaTenant(trx, principal);
-      await requireMediaBranch(trx, principal, branchId);
-      const asset = await trx.selectFrom("media_assets").selectAll().where("id", "=", assetId)
-        .where("restaurant_id", "=", tenant).where("branch_id", "=", branchId)
-        .where("status", "=", "ready").forUpdate().executeTakeFirst();
+      if (branchId) { await lockMediaTenant(trx, principal); await requireMediaBranch(trx, principal, branchId); }
+      else await trx.selectFrom("restaurants").select("id").where("id", "=", tenant).forUpdate().executeTakeFirstOrThrow();
+      let query = trx.selectFrom("media_assets").selectAll().where("id", "=", assetId).where("restaurant_id", "=", tenant).where("status", "=", "ready");
+      query = branchId ? query.where("branch_id", "=", branchId) : query.where("kind", "=", "image");
+      const asset = await query.forUpdate().executeTakeFirst();
       if (!asset) throw new NotFoundException("Media asset not found");
       const attached = await trx.selectFrom("product_images").select("id")
         .where(eb => eb.or([
@@ -176,8 +184,9 @@ export class MediaService {
           ...(asset.public_url ? [eb("url", "=", asset.public_url)] : []),
         ])).limit(1).executeTakeFirst();
       const logo = asset.public_url ? await trx.selectFrom("restaurants").select("id").where("logo_url", "=", asset.public_url).executeTakeFirst() : undefined;
-      if (attached || logo) throw new ConflictException({
-        code: "MEDIA_IN_USE", message: "Remove media from products or restaurant branding before deleting it",
+      const category = await trx.selectFrom("categories").select("id").where("image_media_id", "=", assetId).limit(1).executeTakeFirst();
+      if (attached || logo || category) throw new ConflictException({
+        code: "MEDIA_IN_USE", message: "Remove media from products, categories or restaurant branding before deleting it",
       });
       await trx.updateTable("media_assets").set({ status: "deleting" })
         .where("id", "=", assetId).execute();
@@ -212,7 +221,8 @@ export class MediaService {
         eb.and([eb("status", "=", "uploading"), eb("created_at", "<", abandoned)]),
         eb.and([eb("status", "=", "ready"), eb("kind", "=", "image"), eb("created_at", "<", unused),
           sql<boolean>`not exists (select 1 from product_images pi where pi.media_asset_id = media_assets.id or pi.url = media_assets.public_url)`,
-          sql<boolean>`not exists (select 1 from restaurants r where r.logo_url = media_assets.public_url)`]),
+          sql<boolean>`not exists (select 1 from restaurants r where r.logo_url = media_assets.public_url)`,
+          sql<boolean>`not exists (select 1 from categories c where c.image_media_id = media_assets.id)`]),
       ])).orderBy("created_at", "asc").limit(100).execute();
     let deleted = 0, failed = 0;
     for (const candidate of candidates) {
@@ -233,7 +243,8 @@ export class MediaService {
             ...(asset.public_url ? [eb("url", "=", asset.public_url)] : []),
           ])).limit(1).executeTakeFirst();
         const logo = asset.public_url ? await trx.selectFrom("restaurants").select("id").where("logo_url", "=", asset.public_url).executeTakeFirst() : undefined;
-        if (attached || logo) return null;
+        const category = await trx.selectFrom("categories").select("id").where("image_media_id", "=", asset.id).limit(1).executeTakeFirst();
+        if (attached || logo || category) return null;
         if (asset.status !== "deleting") await trx.updateTable("media_assets")
           .set({ status: "deleting" }).where("id", "=", asset.id).execute();
         return asset.object_key;
