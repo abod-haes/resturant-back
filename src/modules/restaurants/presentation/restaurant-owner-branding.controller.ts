@@ -4,7 +4,15 @@ import { Roles } from "../../../common/auth/policy.decorators";
 import type { AuthenticatedRequest } from "../../../common/auth/authenticated-request";
 import { BrandingPatchDto } from "../../../common/tenancy/branding.dto";
 import { RestaurantAdminService } from "../application/restaurant-admin.service";
-import { RestaurantDetailsResponseDto } from "./restaurant-admin.dto";
+import { BrandingDto } from "../../../common/tenancy/branding.dto";
+import { ApiProperty } from "@nestjs/swagger";
+class OwnerIdentityDto {
+  @ApiProperty() id!: string;
+  @ApiProperty() name!: string;
+  @ApiProperty({ type: String, nullable: true }) subdomain!: string | null;
+  @ApiProperty({ type: BrandingDto }) branding!: BrandingDto;
+}
+class OwnerIdentityResponseDto { @ApiProperty({ type: OwnerIdentityDto }) data!: OwnerIdentityDto; }
 
 @ApiTags("Owner branding")
 @ApiBearerAuth()
@@ -14,10 +22,11 @@ export class RestaurantOwnerBrandingController {
   constructor(private readonly service: RestaurantAdminService) {}
 
   @Patch()
-  @ApiOkResponse({ type: RestaurantDetailsResponseDto })
-  async update(@Body() branding: BrandingPatchDto, @Req() request: AuthenticatedRequest): Promise<RestaurantDetailsResponseDto> {
+  @ApiOkResponse({ type: OwnerIdentityResponseDto })
+  async update(@Body() branding: BrandingPatchDto, @Req() request: AuthenticatedRequest): Promise<OwnerIdentityResponseDto> {
     const actor = request.principal;
     if (!actor?.restaurantId || actor.role !== "RESTAURANT_OWNER") throw new UnauthorizedException();
-    return { data: await this.service.update(actor.restaurantId, { branding }, actor, request.requestId) };
+    const updated = await this.service.update(actor.restaurantId, { branding }, actor, request.requestId);
+    return { data: { id: updated.id, name: updated.name, subdomain: updated.subdomain, branding: updated.branding } };
   }
 }
