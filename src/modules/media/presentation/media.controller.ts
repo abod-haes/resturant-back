@@ -116,6 +116,10 @@ export class ProductGalleryController {
 @Controller("admin/restaurants/:restaurantId/branding")
 export class AdminBrandingMediaController {
   constructor(private readonly service: MediaService) {}
+  @Delete("logo/:id")
+  async discard(@Param("restaurantId", new ParsePostgresUuidPipe()) restaurantId: string, @Param("id", uuid()) id: string, @Req() req: AuthenticatedRequest) {
+    return { data: await this.service.removeRestaurantImage(principal(req), restaurantId, id, req.requestId) };
+  }
   @Post("logo") @UseInterceptors(upload) @ApiConsumes("multipart/form-data") @ApiBody(fileSchema)
   @ApiCreatedResponse({ type: MediaResponseDto })
   async logo(@Param("restaurantId", new ParsePostgresUuidPipe()) restaurantId: string, @UploadedFile() file: Express.Multer.File | undefined, @Req() req: AuthenticatedRequest): Promise<MediaResponseDto> {
@@ -129,6 +133,12 @@ export class AdminBrandingMediaController {
 @Controller("owner/restaurant/branding")
 export class OwnerBrandingMediaController {
   constructor(private readonly service: MediaService) {}
+  @Delete("logo/:id")
+  async discard(@Param("id", uuid()) id: string, @Req() req: AuthenticatedRequest) {
+    const actor = principal(req);
+    if (!actor.restaurantId) throw new UnauthorizedException();
+    return { data: await this.service.removeRestaurantImage(actor, actor.restaurantId, id, req.requestId) };
+  }
   @Post("logo") @UseInterceptors(upload) @ApiConsumes("multipart/form-data") @ApiBody(fileSchema)
   @ApiCreatedResponse({ type: MediaResponseDto })
   async logo(@UploadedFile() file: Express.Multer.File | undefined, @Req() req: AuthenticatedRequest): Promise<MediaResponseDto> {
