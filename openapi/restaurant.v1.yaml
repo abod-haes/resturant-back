@@ -144,6 +144,9 @@ components:
       type: object
       required: [id, branchId, name, description, sortOrder, isActive, createdAt]
       properties:
+        imageMediaId: { type: [string, "null"], format: uuid }
+        imageUrl: { type: [string, "null"], format: uri }
+        imagePath: { type: [string, "null"] }
         id: { type: string, format: uuid }
         branchId: { type: string, format: uuid }
         name: { type: string }
@@ -184,6 +187,7 @@ components:
       additionalProperties: false
       required: [name]
       properties:
+        imageMediaId: { type: [string, "null"], format: uuid, description: Ready restaurant image; null removes it }
         name: { type: string, maxLength: 160 }
         description: { type: [string, "null"], maxLength: 1000 }
         sortOrder: { type: integer, minimum: 0, maximum: 1000000 }
