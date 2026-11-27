@@ -48,6 +48,7 @@ export class PushDispatcherService {
           .select("users.id")
           .where("users.id", "=", row.recipient_user_id)
           .where("users.role", "=", "EMPLOYEE")
+          .where("users.must_change_password","=",false)
           .where("users.department", "=", row.type)
           .where("users.restaurant_id", "=", row.restaurant_id)
           .where("users.is_active", "=", true).where("users.archived_at", "is", null)
@@ -58,6 +59,7 @@ export class PushDispatcherService {
         const shift = staff && await trx.selectFrom("employee_shifts").select("id")
           .where("user_id", "=", row.recipient_user_id)
           .where("branch_id", "=", row.branch_id)
+          .where("department","=",row.type)
           .where("ended_at", "is", null).where("auto_end_at", ">", now)
           .executeTakeFirst();
         if (expired || !staff || !shift) {
@@ -138,17 +140,17 @@ export class PushDispatcherService {
         "branches.is_active as branch_active",
         "employee_push_devices.channel as device_channel", "employee_push_devices.user_id as device_user_id",
         "employee_push_devices.session_id", "employee_push_devices.expires_at as device_expires_at",
-        "users.role", "users.department", "users.branch_id as employee_branch_id", "users.restaurant_id as employee_restaurant_id",
+        "users.role", "users.department", "users.must_change_password", "branches.restaurant_id as branch_restaurant_id", "users.branch_id as employee_branch_id", "users.restaurant_id as employee_restaurant_id",
       ]).where("push_deliveries.id", "=", claim.id).executeTakeFirstOrThrow();
     const now = new Date();
     const stillOnShift = await this.database.db.selectFrom("employee_shifts")
       .select("id").where("user_id", "=", record.recipient_user_id)
-      .where("branch_id", "=", record.branch_id).where("ended_at", "is", null)
+      .where("branch_id", "=", record.branch_id).where("department","=",record.type).where("ended_at", "is", null)
       .where("auto_end_at", ">", now).executeTakeFirst();
     let ticket: PushTicket;
     let deactivateWeb = false;
     const webSession = claim.channel === "web_push" && record.session_id ? await this.database.db.selectFrom("auth_sessions").select("id").where("id","=",record.session_id).where("user_id","=",record.recipient_user_id).where("revoked_at","is",null).where("expires_at",">",now).executeTakeFirst() : null;
-    if (record.device_channel !== claim.channel || record.device_user_id !== record.recipient_user_id || record.role !== "EMPLOYEE" || record.department !== record.type || record.employee_branch_id !== record.branch_id || record.employee_restaurant_id !== record.restaurant_id || (claim.channel === "web_push" && (!webSession || !this.config.webPush || (record.device_expires_at && record.device_expires_at <= now))) || !record.device_active || !record.employee_active || !record.branch_active || record.employee_archived ||
+    if (record.device_channel !== claim.channel || record.device_user_id !== record.recipient_user_id || record.role !== "EMPLOYEE" || record.must_change_password || record.branch_restaurant_id !== record.restaurant_id || record.department !== record.type || record.employee_branch_id !== record.branch_id || record.employee_restaurant_id !== record.restaurant_id || (claim.channel === "web_push" && (!webSession || !this.config.webPush || (record.device_expires_at && record.device_expires_at <= now))) || !record.device_active || !record.employee_active || !record.branch_active || record.employee_archived ||
       !stillOnShift || now.getTime() - record.created_at.getTime() >= MAX_PUSH_AGE_MS) {
       ticket = { ok: false, retryable: false, errorCode: "RECIPIENT_NOT_ELIGIBLE" };
     } else {
