@@ -35,3 +35,8 @@ Pending acceptance: install pinned dependencies, verify provider redirect behavi
 - Reviewed channel filtering in registry, dispatch eligibility, session revocation trigger, bounded retries and Expo-only receipt handling. This is source inspection, not runtime regression evidence.
 - Web Push provider payload now uses a generic body without table details (d05ac6b). Authenticated calls API remains authoritative.
 - Main synchronization, migration/retention compatibility, contract validation, build and device acceptance remain pending. No merge or deployment performed.
+
+## Final source inventory update — 2026-11-27
+- Contract bounds and success literals documented in 6e84b26; DTO validation and Swagger metadata updated in 1443820. Generated contract and runtime validation remain unverified.
+- Migration fe5bef9 adds a BEFORE DELETE trigger to deactivate and detach web devices when an auth session is removed while preserving delivery rows; active web devices still require a session. PostgreSQL migration and deletion/concurrency acceptance remain pending.
+- Comparison at fe5bef9: 54 feature commits ahead, 5 main commits behind. Main synchronization remains a release blocker. No merge, deployment or database execution performed.
