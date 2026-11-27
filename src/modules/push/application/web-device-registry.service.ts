@@ -12,7 +12,7 @@ export class WebDeviceRegistryService {
  async register(principal: AuthPrincipal, subscription: WebSubscription) {
   if (principal.role !== "EMPLOYEE" || !principal.restaurantId || !principal.branchId || !principal.department || principal.mustChangePassword) throw new ForbiddenException();
   const key = this.config.pushTokenEncryptionKey;
-  if (!key) throw new ServiceUnavailableException("Web push not configured");
+  if (!key || !this.config.webPush) throw new ServiceUnavailableException("Web push not configured");
   if (!validateWebSubscription(subscription)) throw new ForbiddenException("Invalid web subscription");
   const hash = webEndpointHash(subscription.endpoint);
   const box = sealWebSubscription(subscription, key);
