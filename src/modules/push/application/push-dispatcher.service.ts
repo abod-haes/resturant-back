@@ -178,6 +178,8 @@ export class PushDispatcherService {
       && now.getTime() - record.created_at.getTime() < MAX_PUSH_AGE_MS;
     const state = ticket.ok ? "accepted" as const : retry ? "pending" as const : "failed" as const;
     await this.database.db.transaction().execute(async trx => {
+      // Serialize aggregation with expansion and other delivery completions.
+      await trx.selectFrom("call_outbox").select("id").where("id","=",record.outbox_id).forUpdate().executeTakeFirstOrThrow();
       const changed = await trx.updateTable("push_deliveries").set({
         state, lease_until: null,
         ticket_id: ticket.ok && claim.channel === "expo" ? ticket.id : null,
@@ -187,6 +189,9 @@ export class PushDispatcherService {
       }).where("id", "=", claim.id).where("state", "=", "pending")
         .where("attempts", "=", claim.attempts).returning("id").executeTakeFirst();
       if (!changed) return;
+      if (!ticket.ok && (ticket.errorCode === "DeviceNotRegistered" || deactivateWeb)) {
+        await trx.updateTable("employee_push_devices").set({is_active:false}).where("id","=",claim.device_id).where("token_box","=",record.token_box).execute();
+      }
       const summary = await trx.selectFrom("push_deliveries")
         .select([
           sql<number>`count(*) filter (where state='accepted')::int`.as("accepted"),
@@ -197,16 +202,12 @@ export class PushDispatcherService {
           .where("id", "=", record.outbox_id).execute();
       } else if (summary.pending === 0 && !retry) {
         await trx.updateTable("call_outbox").set({ state: "failed" })
-          .where("id", "=", record.outbox_id).execute();
+          .where("id", "=", record.outbox_id).where("state","=","pending").execute();
       }
     });
     if (!ticket.ok) {
       this.logger.warn(JSON.stringify({ event: "push_send_failed", code: ticket.errorCode,
         retry, deliveryId: claim.id }));
-      if (ticket.errorCode === "DeviceNotRegistered" || deactivateWeb) {
-        await this.database.db.updateTable("employee_push_devices")
-          .set({ is_active: false }).where("id", "=", claim.device_id).where("token_box","=",record.token_box).execute();
-      }
     }
     return true;
   }
