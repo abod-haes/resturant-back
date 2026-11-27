@@ -24,6 +24,8 @@ interface AccessClaims {
 }
 
 interface UserRecord {
+  display_name: string;
+  username: string;
   id: string;
   role: AuthUser["role"];
   restaurant_id: string | null;
@@ -92,6 +94,8 @@ export class AuthService {
   private toPublicUser(user: UserRecord): AuthUser {
     return {
       id: user.id,
+      name: user.display_name,
+      username: user.username,
       role: user.role,
       restaurantId: user.restaurant_id,
       branchId: user.branch_id,
@@ -111,7 +115,7 @@ export class AuthService {
       .leftJoin("restaurants", "restaurants.id", "users.restaurant_id")
       .leftJoin("branches", "branches.id", "users.branch_id")
       .select([
-        "users.id", "users.role", "users.restaurant_id", "users.branch_id",
+        "users.id", "users.display_name", "users.username", "users.role", "users.restaurant_id", "users.branch_id",
         "users.department", "users.password_hash", "users.must_change_password",
         "users.is_active", "restaurants.is_active as restaurant_active",
         "branches.is_active as branch_active",
@@ -125,7 +129,7 @@ export class AuthService {
       .leftJoin("restaurants", "restaurants.id", "users.restaurant_id")
       .leftJoin("branches", "branches.id", "users.branch_id")
       .select([
-        "users.id", "users.role", "users.restaurant_id", "users.branch_id",
+        "users.id", "users.display_name", "users.username", "users.role", "users.restaurant_id", "users.branch_id",
         "users.department", "users.password_hash", "users.must_change_password",
         "users.is_active", "restaurants.is_active as restaurant_active",
         "branches.is_active as branch_active",
