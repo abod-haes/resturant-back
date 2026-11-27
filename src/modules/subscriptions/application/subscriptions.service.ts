@@ -201,13 +201,14 @@ export class SubscriptionsService {
   /** Present display labels in mutations as well as collection/detail responses. */
   async withNames(subscription: SubscriptionDto): Promise<SubscriptionDto> {
     const [restaurant, plan] = await Promise.all([
-      this.database.db.selectFrom("restaurants").select("name")
+      this.database.db.selectFrom("restaurants").select(["name", "is_active"])
         .where("id", "=", subscription.restaurantId).executeTakeFirst(),
       this.database.db.selectFrom("plans").select("name")
         .where("id", "=", subscription.planId).executeTakeFirst(),
     ]);
     return {
       ...subscription,
+      canOperate: subscription.canOperate && restaurant?.is_active === true,
       ...(restaurant ? { restaurantName: restaurant.name } : {}),
       ...(plan ? { planName: plan.name } : {}),
     };
@@ -218,7 +219,7 @@ export class SubscriptionsService {
     let builder = this.database.db.selectFrom("subscriptions as s")
       .innerJoin("restaurants as r", "r.id", "s.restaurant_id")
       .innerJoin("plans as p", "p.id", "s.plan_id")
-      .selectAll("s").select(["r.name as restaurant_name", "p.name as plan_name"])
+      .selectAll("s").select(["r.name as restaurant_name", "p.name as plan_name", "r.is_active as restaurant_active"])
       .select(sql<string>`to_char(s.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`.as("cursor_timestamp"));
     if (query.restaurantId) builder = builder.where("s.restaurant_id", "=", query.restaurantId);
     if (query.planId) builder = builder.where("s.plan_id", "=", query.planId);
@@ -239,7 +240,7 @@ export class SubscriptionsService {
     const page = rows.slice(0, query.limit);
     const last = page.at(-1);
     return {
-      data: page.map(row => ({ ...serialize(row), restaurantName: row.restaurant_name, planName: row.plan_name })),
+      data: page.map(row => { const view = serialize(row); return { ...view, canOperate: view.canOperate && row.restaurant_active, restaurantName: row.restaurant_name, planName: row.plan_name }; }),
       meta: { hasMore, nextCursor: hasMore && last ? Buffer.from(JSON.stringify({
         timestamp: last.cursor_timestamp, id: last.id,
       })).toString("base64url") : null },
@@ -249,11 +250,13 @@ export class SubscriptionsService {
     const rows = await this.database.db.selectFrom("subscriptions as s")
       .innerJoin("restaurants as r", "r.id", "s.restaurant_id")
       .innerJoin("plans as p", "p.id", "s.plan_id")
-      .selectAll("s").select(["r.name as restaurant_name", "p.name as plan_name"])
+      .selectAll("s").select(["r.name as restaurant_name", "p.name as plan_name", "r.is_active as restaurant_active"])
       .where("s.restaurant_id", "=", restaurantId)
       .orderBy(sql<number>`CASE WHEN s.status = 'active' THEN 0 ELSE 1 END`, "asc")
       .orderBy("s.created_at", "desc").limit(1).execute();
-    return rows.length ? { ...serialize(rows[0]), restaurantName: rows[0].restaurant_name, planName: rows[0].plan_name } : null;
+    if (!rows.length) return null;
+    const view = serialize(rows[0]);
+    return { ...view, canOperate: view.canOperate && rows[0].restaurant_active, restaurantName: rows[0].restaurant_name, planName: rows[0].plan_name };
   }
 
   async assertOperational(restaurantId: string, feature?: FeatureKey): Promise<void> {
