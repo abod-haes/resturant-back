@@ -10,7 +10,9 @@ export function validateWebSubscription(value: WebSubscription): boolean {
  try {
   const url = new URL(value.endpoint);
   const host = url.hostname;
-  const allowed = host === "fcm.googleapis.com" || host === "updates.push.services.mozilla.com" || host === "web.push.apple.com" || host.endsWith(".push.apple.com") || host === "wns2-par02p.notify.windows.com" || host.endsWith(".notify.windows.com");
+  // Reject ambiguous endpoint syntax before handing the URL to the provider client.
+  if (/[\x00-\x20\x7f\\]/.test(value.endpoint) || url.pathname === "/" || url.pathname.startsWith("//")) return false;
+  const allowed = host === "fcm.googleapis.com" || host === "updates.push.services.mozilla.com" || host === "web.push.apple.com" || host.endsWith(".push.apple.com") || host.endsWith(".notify.windows.com");
   if (!allowed || url.protocol !== "https:" || url.port || url.username || url.password || url.hash || url.href !== value.endpoint || value.endpoint.length > 2048) return false;
   if (!/^[A-Za-z0-9_-]{87}$/.test(value.keys.p256dh) || !/^[A-Za-z0-9_-]{22}$/.test(value.keys.auth)) return false;
   const publicKey = Buffer.from(value.keys.p256dh, "base64url");
