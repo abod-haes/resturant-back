@@ -17,3 +17,11 @@ export class WebPushDeviceDto {
 export class WebPushDeviceResponseDto {
  @ApiProperty({type:WebPushDeviceDto}) data!: WebPushDeviceDto;
 }
+
+export class WebPushConfigDto {
+ @ApiProperty() enabled!: boolean;
+ @ApiProperty({type:String,nullable:true}) publicKey!: string|null;
+}
+export class WebPushConfigResponseDto {
+ @ApiProperty({type:WebPushConfigDto}) data!: WebPushConfigDto;
+}
