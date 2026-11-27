@@ -12,6 +12,26 @@ components:
       scheme: bearer
       bearerFormat: JWT
   schemas:
+    AuthUser:
+      type: object
+      required: [id, role, restaurantId, branchId, department, mustChangePassword]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        username: { type: string }
+        role: { type: string, enum: [PRIMARY_ADMIN, PLATFORM_ADMIN, RESTAURANT_OWNER, EMPLOYEE] }
+        restaurantId: { type: [string, 'null'], format: uuid }
+        branchId: { type: [string, 'null'], format: uuid }
+        department: { type: [string, 'null'], enum: [waiter, hookah, null] }
+        mustChangePassword: { type: boolean }
+    AuthSession:
+      type: object
+      required: [accessToken, expiresAt, user]
+      properties:
+        accessToken: { type: string }
+        expiresAt: { type: string, format: date-time }
+        user: { $ref: '#/components/schemas/AuthUser' }
+        refreshToken: { type: string, description: Returned only for mobile clients }
     AuthenticatedRestaurantIdentity:
       type: object
       required: [id, name, subdomain, branding]
@@ -1921,7 +1941,15 @@ paths:
                 password: { type: string, minLength: 1, maxLength: 128, writeOnly: true }
                 client: { type: string, enum: [web, mobile], default: web }
       responses:
-        '200': { description: Session issued }
+        '200':
+          description: Session issued
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/AuthSession' }
         '400': { description: Validation failure }
         '401': { description: Invalid username, password or inactive user }
         '429': { description: Login throttled }
@@ -1939,7 +1967,15 @@ paths:
               properties:
                 refreshToken: { type: string, description: Mobile clients only }
       responses:
-        '200': { description: Rotated session }
+        '200':
+          description: Rotated session
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/AuthSession' }
         '401': { description: Invalid or replayed refresh credential }
   /auth/logout:
     post:
@@ -1955,7 +1991,15 @@ paths:
       tags: [Authentication]
       security: [{ bearerAuth: [] }]
       responses:
-        '200': { description: Current user scope and password-change state }
+        '200':
+          description: Current user scope and password-change state
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/AuthUser' }
         '401': { description: Missing or revoked session }
   /auth/restaurant-identity:
     get:
