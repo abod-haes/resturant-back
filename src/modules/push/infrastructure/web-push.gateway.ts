@@ -15,7 +15,7 @@ export class WebPushGateway {
   if(!validateWebSubscription(subscription))return {ok:false,errorCode:"WEB_SUBSCRIPTION_INVALID",retryable:false,deactivate:true};
   if(!Number.isFinite(ttlSeconds)||ttlSeconds<1)return {ok:false,errorCode:"CALL_EXPIRED",retryable:false,deactivate:false};
   try{
-   const payload=JSON.stringify({eventType:"call.created",callId:message.callId,tag:"call-"+message.callId,title:message.type==="waiter"?"استدعاء نادل":"استدعاء أركيلة",body:"طلب جديد من "+message.tableLabel,type:message.type});
+   const payload=JSON.stringify({eventType:"call.created",callId:message.callId,tag:"call-"+message.callId,title:message.type==="waiter"?"استدعاء نادل":"استدعاء أركيلة",body:"لديك استدعاء جديد. افتح التطبيق للاطلاع على التفاصيل.",type:message.type});
    await webPush.sendNotification(subscription,payload,{vapidDetails:vapid,TTL:Math.min(120,Math.floor(ttlSeconds)),urgency:"high",topic:createHash("sha256").update(message.callId).digest("base64url").slice(0,32),timeout:5000});
    return {ok:true};
   }catch(error:unknown){
