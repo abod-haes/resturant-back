@@ -36,9 +36,9 @@ export class WebDeviceRegistryService {
           .where("revoked_at","is",null).where("expires_at",">",now)))
       ])).execute();
     const current = await trx.selectFrom("employee_push_devices").selectAll().where("token_hash","=",hash).where("channel","=","web_push").forUpdate().executeTakeFirst();
-    if (current && current.user_id !== principal.id) throw new ConflictException("Subscription belongs to another employee");
+    if (current && current.user_id !== principal.id) throw new ConflictException({code:"DEVICE_ALREADY_REGISTERED",message:"Subscription belongs to another employee"});
     const count = await trx.selectFrom("employee_push_devices").select(sql<number>`count(*)::int`.as("count")).where("user_id","=",principal.id).where("channel","=","web_push").where("is_active","=",true).executeTakeFirstOrThrow();
-    if ((!current || !current.is_active) && count.count >= 5) throw new ConflictException("Web device limit reached");
+    if ((!current || !current.is_active) && count.count >= 5) throw new ConflictException({code:"WEB_DEVICE_LIMIT_REACHED",message:"Web device limit reached"});
     const values = {session_id:principal.sessionId,token_box:box,expires_at:subscription.expirationTime === null ? null : new Date(subscription.expirationTime),is_active:true,last_seen_at:now};
     const row = current ? await trx.updateTable("employee_push_devices").set(values).where("id","=",current.id).returning("id").executeTakeFirstOrThrow() : await trx.insertInto("employee_push_devices").values({...values,user_id:principal.id,channel:"web_push",platform:"web",token_hash:hash}).returning("id").executeTakeFirstOrThrow();
     return {id:row.id,isActive:true};
