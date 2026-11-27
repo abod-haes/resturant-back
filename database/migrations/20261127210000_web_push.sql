@@ -20,3 +20,17 @@ ALTER TABLE push_deliveries DROP CONSTRAINT push_deliveries_receipt_status_check
 ALTER TABLE push_deliveries ADD CONSTRAINT push_deliveries_receipt_status_check CHECK (
  (channel='expo' AND receipt_status IN ('waiting','ok','error','expired')) OR
  (channel='web_push' AND receipt_status='not_required'));
+
+-- Revoke browser delivery credentials atomically with session revocation.
+CREATE FUNCTION deactivate_revoked_web_push_devices() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  IF NEW.revoked_at IS NOT NULL AND OLD.revoked_at IS NULL THEN
+    UPDATE employee_push_devices SET is_active=false
+      WHERE channel='web_push' AND session_id=NEW.id AND is_active=true;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+CREATE TRIGGER auth_sessions_revoke_web_push
+  AFTER UPDATE OF revoked_at ON auth_sessions
+  FOR EACH ROW EXECUTE FUNCTION deactivate_revoked_web_push_devices();
