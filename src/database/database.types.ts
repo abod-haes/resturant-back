@@ -238,7 +238,7 @@ export interface CallOutboxTable { id: Generated<string>; call_id: string; recip
 export interface OwnerAlertsTable { id: Generated<string>; restaurant_id: string; branch_id: string; call_id: string; type: "no_staff"; created_at: Generated<Date>; viewed_at: Date | null; }
 export type RealtimeEventType = "call.created" | "owner.alert.created" | "shift.updated";
 export type PushDeliveryStatus = "pending" | "accepted" | "failed";
-export type PushReceiptStatus = "waiting" | "ok" | "error" | "expired";
+export type PushReceiptStatus = "waiting" | "ok" | "error" | "expired" | "not_required";
 
 export interface EmployeePushDevicesTable {
   id: Generated<string>;
