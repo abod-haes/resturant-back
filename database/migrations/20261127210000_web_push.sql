@@ -34,3 +34,10 @@ $$;
 CREATE TRIGGER auth_sessions_revoke_web_push
   AFTER UPDATE OF revoked_at ON auth_sessions
   FOR EACH ROW EXECUTE FUNCTION deactivate_revoked_web_push_devices();
+
+-- Enforce channel consistency for every delivery, including legacy Expo rows.
+ALTER TABLE employee_push_devices ADD CONSTRAINT push_device_id_channel_unique UNIQUE (id,channel);
+ALTER TABLE push_deliveries ADD CONSTRAINT push_delivery_device_channel_fk
+ FOREIGN KEY (device_id,channel) REFERENCES employee_push_devices(id,channel) ON DELETE RESTRICT;
+ALTER TABLE push_deliveries ADD CONSTRAINT push_delivery_web_no_ticket_check
+ CHECK (channel='expo' OR ticket_id IS NULL);
