@@ -20,7 +20,7 @@ export class WebDeviceRegistryService {
   const {restaurantId,branchId,department} = principal;
   try {
    return await this.database.db.transaction().execute(async trx => {
-    const user = await trx.selectFrom("users").select("id").where("id","=",principal.id).where("role","=","EMPLOYEE").where("restaurant_id","=",restaurantId).where("branch_id","=",branchId).where("department","=",department).where("is_active","=",true).where("archived_at","is",null).forUpdate().executeTakeFirst();
+    const user = await trx.selectFrom("users").select("id").where("id","=",principal.id).where("role","=","EMPLOYEE").where("restaurant_id","=",restaurantId).where("branch_id","=",branchId).where("department","=",department).where("is_active","=",true).where("must_change_password","=",false).where("archived_at","is",null).forUpdate().executeTakeFirst();
     if (!user) throw new ForbiddenException();
     const session = await trx.selectFrom("auth_sessions").select("id").where("id","=",principal.sessionId).where("user_id","=",principal.id).where("revoked_at","is",null).where("expires_at",">",now).forUpdate().executeTakeFirst();
     if (!session) throw new ForbiddenException();
