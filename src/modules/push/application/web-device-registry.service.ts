@@ -25,6 +25,16 @@ export class WebDeviceRegistryService {
     const session = await trx.selectFrom("auth_sessions").select("id").where("id","=",principal.sessionId).where("user_id","=",principal.id).where("revoked_at","is",null).where("expires_at",">",now).executeTakeFirst();
     if (!session) throw new ForbiddenException();
     await requireOperationalEntitlements(trx,restaurantId,principal.department === "waiter" ? "waiter_calls" : "hookah_calls");
+    // Expired credentials and revoked sessions must not consume device slots.
+    await trx.updateTable("employee_push_devices").set({is_active:false})
+      .where("user_id","=",principal.id).where("channel","=","web_push").where("is_active","=",true)
+      .where(eb=>eb.or([
+        eb("expires_at","<=",now),
+        eb.not(eb.exists(eb.selectFrom("auth_sessions").select("id")
+          .whereRef("auth_sessions.id","=","employee_push_devices.session_id")
+          .whereRef("auth_sessions.user_id","=","employee_push_devices.user_id")
+          .where("revoked_at","is",null).where("expires_at",">",now)))
+      ])).execute();
     const current = await trx.selectFrom("employee_push_devices").selectAll().where("token_hash","=",hash).where("channel","=","web_push").forUpdate().executeTakeFirst();
     if (current && current.user_id !== principal.id) throw new ConflictException("Subscription belongs to another employee");
     const count = await trx.selectFrom("employee_push_devices").select(sql<number>`count(*)::int`.as("count")).where("user_id","=",principal.id).where("channel","=","web_push").where("is_active","=",true).executeTakeFirstOrThrow();
