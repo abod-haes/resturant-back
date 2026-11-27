@@ -6,13 +6,13 @@ ALTER TABLE employee_push_devices ADD COLUMN channel varchar(12) NOT NULL DEFAUL
  ADD COLUMN session_id uuid, ADD COLUMN expires_at timestamptz;
 ALTER TABLE employee_push_devices ADD CONSTRAINT push_device_channel_check CHECK (
  (channel='expo' AND platform IN ('android','ios') AND session_id IS NULL AND expires_at IS NULL)
- OR (channel='web_push' AND platform='web' AND session_id IS NOT NULL));
+ OR (channel='web_push' AND platform='web' AND (session_id IS NOT NULL OR NOT is_active)));
 ALTER TABLE employee_push_devices ADD CONSTRAINT push_device_box_check CHECK (
  (channel='expo' AND length(token_box) BETWEEN 50 AND 900)
  OR (channel='web_push' AND length(token_box) BETWEEN 50 AND 8192));
 ALTER TABLE employee_push_devices ADD CONSTRAINT push_device_session_owner_fk
  FOREIGN KEY(session_id,user_id) REFERENCES auth_sessions(id,user_id) ON DELETE RESTRICT;
-CREATE INDEX push_device_web_session_idx ON employee_push_devices(session_id) WHERE channel='web_push' AND is_active;
+CREATE INDEX push_device_web_session_idx ON employee_push_devices(session_id) WHERE session_id IS NOT NULL;
 ALTER TABLE push_deliveries ADD COLUMN channel varchar(12) NOT NULL DEFAULT 'expo' CHECK(channel IN ('expo','web_push'));
 
 -- Web Push has provider acceptance but no Expo-style delivery receipt.
@@ -41,3 +41,16 @@ ALTER TABLE push_deliveries ADD CONSTRAINT push_delivery_device_channel_fk
  FOREIGN KEY (device_id,channel) REFERENCES employee_push_devices(id,channel) ON DELETE RESTRICT;
 ALTER TABLE push_deliveries ADD CONSTRAINT push_delivery_web_no_ticket_check
  CHECK (channel='expo' OR ticket_id IS NULL);
+
+-- Detach retired sessions while preserving device and delivery history.
+-- The restrictive FK remains a backstop; active web devices must have a session.
+CREATE FUNCTION detach_deleted_web_push_sessions() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  UPDATE employee_push_devices SET is_active=false, session_id=NULL
+    WHERE channel='web_push' AND session_id=OLD.id AND user_id=OLD.user_id;
+  RETURN OLD;
+END;
+$$;
+CREATE TRIGGER auth_sessions_delete_web_push
+  BEFORE DELETE ON auth_sessions
+  FOR EACH ROW EXECUTE FUNCTION detach_deleted_web_push_sessions();
