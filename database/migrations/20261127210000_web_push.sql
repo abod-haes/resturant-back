@@ -1,31 +1,16 @@
--- Web Push is separate from Expo; expand both channels atomically.
+-- Extend existing push registry and deliveries; preserve Expo rows.
 ALTER TABLE auth_sessions ADD CONSTRAINT auth_sessions_web_push_owner_unique UNIQUE (id,user_id);
-CREATE TABLE employee_web_push_subscriptions (
- id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
- user_id uuid NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
- session_id uuid NOT NULL,
- endpoint_hash char(64) NOT NULL UNIQUE CHECK (endpoint_hash ~ '^[0-9a-f]{64}$'),
- subscription_box text NOT NULL CHECK (length(subscription_box) BETWEEN 50 AND 8192),
- expires_at timestamptz,
- is_active boolean NOT NULL DEFAULT true,
- last_seen_at timestamptz NOT NULL DEFAULT now(),
- created_at timestamptz NOT NULL DEFAULT now(),
- FOREIGN KEY (session_id,user_id) REFERENCES auth_sessions(id,user_id) ON DELETE RESTRICT
-);
-CREATE INDEX web_push_user_active_idx ON employee_web_push_subscriptions(user_id) WHERE is_active;
-CREATE INDEX web_push_session_idx ON employee_web_push_subscriptions(session_id) WHERE is_active;
-CREATE TABLE web_push_deliveries (
- id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
- outbox_id uuid NOT NULL REFERENCES call_outbox(id) ON DELETE RESTRICT,
- subscription_id uuid NOT NULL REFERENCES employee_web_push_subscriptions(id) ON DELETE RESTRICT,
- state varchar(12) NOT NULL DEFAULT 'pending' CHECK (state IN ('pending','accepted','failed')),
- attempts integer NOT NULL DEFAULT 0 CHECK (attempts BETWEEN 0 AND 10),
- next_attempt_at timestamptz NOT NULL DEFAULT now(),
- lease_until timestamptz,
- last_error_code varchar(64),
- created_at timestamptz NOT NULL DEFAULT now(),
- updated_at timestamptz NOT NULL DEFAULT now(),
- UNIQUE(outbox_id,subscription_id)
-);
-CREATE INDEX web_push_due_idx ON web_push_deliveries(next_attempt_at,id) WHERE state='pending';
-CREATE TRIGGER web_push_touch_updated_at BEFORE UPDATE ON web_push_deliveries FOR EACH ROW EXECUTE FUNCTION platform_touch_updated_at();
+ALTER TABLE employee_push_devices DROP CONSTRAINT employee_push_devices_platform_check;
+ALTER TABLE employee_push_devices DROP CONSTRAINT employee_push_devices_token_box_check;
+ALTER TABLE employee_push_devices ADD COLUMN channel varchar(12) NOT NULL DEFAULT 'expo',
+ ADD COLUMN session_id uuid, ADD COLUMN expires_at timestamptz;
+ALTER TABLE employee_push_devices ADD CONSTRAINT push_device_channel_check CHECK (
+ (channel='expo' AND platform IN ('android','ios') AND session_id IS NULL AND expires_at IS NULL)
+ OR (channel='web_push' AND platform='web' AND session_id IS NOT NULL));
+ALTER TABLE employee_push_devices ADD CONSTRAINT push_device_box_check CHECK (
+ (channel='expo' AND length(token_box) BETWEEN 50 AND 900)
+ OR (channel='web_push' AND length(token_box) BETWEEN 50 AND 8192));
+ALTER TABLE employee_push_devices ADD CONSTRAINT push_device_session_owner_fk
+ FOREIGN KEY(session_id,user_id) REFERENCES auth_sessions(id,user_id) ON DELETE RESTRICT;
+CREATE INDEX push_device_web_session_idx ON employee_push_devices(session_id) WHERE channel='web_push' AND is_active;
+ALTER TABLE push_deliveries ADD COLUMN channel varchar(12) NOT NULL DEFAULT 'expo' CHECK(channel IN ('expo','web_push'));
