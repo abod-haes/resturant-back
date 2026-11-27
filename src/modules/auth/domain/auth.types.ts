@@ -3,6 +3,8 @@ export type { AuthPrincipal } from "../../../common/auth/principal";
 
 export interface AuthUser {
   readonly id: string;
+  readonly name?: string;
+  readonly username?: string;
   readonly role: PlatformRole;
   readonly restaurantId: string | null;
   readonly branchId: string | null;

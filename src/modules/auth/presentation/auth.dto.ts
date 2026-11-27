@@ -45,6 +45,8 @@ export class ChangePasswordDto {
 }
 
 export class UserDto {
+  @ApiPropertyOptional() name?: string;
+  @ApiPropertyOptional() username?: string;
   @ApiProperty({ format: "uuid" }) id!: string;
   @ApiProperty({ enum: ["PRIMARY_ADMIN","PLATFORM_ADMIN","RESTAURANT_OWNER","EMPLOYEE"] }) role!: PlatformRole;
   @ApiProperty({ format: "uuid", nullable: true }) restaurantId!: string | null;
