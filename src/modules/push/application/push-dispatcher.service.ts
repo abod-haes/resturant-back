@@ -45,21 +45,22 @@ export class PushDispatcherService {
         const expired = now.getTime() - row.created_at.getTime() >= MAX_PUSH_AGE_MS;
         const staff = await trx.selectFrom("users")
           .innerJoin("branches", "branches.id", "users.branch_id")
-          .select("users.id")
+          .select(["users.id","users.department"])
           .where("users.id", "=", row.recipient_user_id)
           .where("users.role", "=", "EMPLOYEE")
           .where("users.must_change_password","=",false)
-          .where("users.department", "=", row.type)
+          .where("users.department", "is not", null)
           .where("users.restaurant_id", "=", row.restaurant_id)
           .where("users.is_active", "=", true).where("users.archived_at", "is", null)
           .where("branches.is_active", "=", true)
           .where("branches.id", "=", row.branch_id)
           .where("branches.restaurant_id", "=", row.restaurant_id)
           .executeTakeFirst();
-        const shift = staff && await trx.selectFrom("employee_shifts").select("id")
+        const shift = staff?.department && await trx.selectFrom("employee_shifts").select("id")
           .where("user_id", "=", row.recipient_user_id)
           .where("branch_id", "=", row.branch_id)
-          .where("department","=",row.type)
+          .where("restaurant_id","=",row.restaurant_id)
+          .where("department","=",staff.department)
           .where("ended_at", "is", null).where("auto_end_at", ">", now)
           .executeTakeFirst();
         if (expired || !staff || !shift) {
@@ -143,14 +144,14 @@ export class PushDispatcherService {
         "users.role", "users.department", "users.must_change_password", "branches.restaurant_id as branch_restaurant_id", "users.branch_id as employee_branch_id", "users.restaurant_id as employee_restaurant_id",
       ]).where("push_deliveries.id", "=", claim.id).executeTakeFirstOrThrow();
     const now = new Date();
-    const stillOnShift = await this.database.db.selectFrom("employee_shifts")
+    const stillOnShift = record.department && await this.database.db.selectFrom("employee_shifts")
       .select("id").where("user_id", "=", record.recipient_user_id)
-      .where("branch_id", "=", record.branch_id).where("department","=",record.type).where("ended_at", "is", null)
+      .where("branch_id", "=", record.branch_id).where("restaurant_id","=",record.restaurant_id).where("department","=",record.department).where("ended_at", "is", null)
       .where("auto_end_at", ">", now).executeTakeFirst();
     let ticket: PushTicket;
     let deactivateWeb = false;
     const webSession = claim.channel === "web_push" && record.session_id ? await this.database.db.selectFrom("auth_sessions").select("id").where("id","=",record.session_id).where("user_id","=",record.recipient_user_id).where("revoked_at","is",null).where("expires_at",">",now).executeTakeFirst() : null;
-    if (record.device_channel !== claim.channel || record.device_user_id !== record.recipient_user_id || record.role !== "EMPLOYEE" || record.must_change_password || record.branch_restaurant_id !== record.restaurant_id || record.department !== record.type || record.employee_branch_id !== record.branch_id || record.employee_restaurant_id !== record.restaurant_id || (claim.channel === "web_push" && (!webSession || !this.config.webPush || (record.device_expires_at && record.device_expires_at <= now))) || !record.device_active || !record.employee_active || !record.branch_active || record.employee_archived ||
+    if (record.device_channel !== claim.channel || record.device_user_id !== record.recipient_user_id || record.role !== "EMPLOYEE" || record.must_change_password || record.branch_restaurant_id !== record.restaurant_id || !record.department || record.employee_branch_id !== record.branch_id || record.employee_restaurant_id !== record.restaurant_id || (claim.channel === "web_push" && (!webSession || !this.config.webPush || (record.device_expires_at && record.device_expires_at <= now))) || !record.device_active || !record.employee_active || !record.branch_active || record.employee_archived ||
       !stillOnShift || now.getTime() - record.created_at.getTime() >= MAX_PUSH_AGE_MS) {
       ticket = { ok: false, retryable: false, errorCode: "RECIPIENT_NOT_ELIGIBLE" };
     } else {
