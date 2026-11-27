@@ -256,16 +256,21 @@ export class PushDispatcherService {
   /** Disable stale web credentials without deleting delivery history. */
   async cleanupWebSubscriptions(): Promise<void> {
     const now = new Date();
-    await this.database.db.updateTable("employee_push_devices")
-      .set({is_active:false})
-      .where("channel","=","web_push").where("is_active","=",true)
-      .where(eb=>eb.or([
-        eb("expires_at","<=",now),
-        eb.not(eb.exists(eb.selectFrom("auth_sessions").select("id")
-          .whereRef("auth_sessions.id","=","employee_push_devices.session_id")
-          .whereRef("auth_sessions.user_id","=","employee_push_devices.user_id")
-          .where("revoked_at","is",null).where("expires_at",">",now)))
-      ])).execute();
+    await this.database.db.transaction().execute(async trx => {
+      const stale = await trx.selectFrom("employee_push_devices").select("id")
+        .where("channel","=","web_push").where("is_active","=",true)
+        .where(eb=>eb.or([
+          eb("expires_at","<=",now),
+          eb.not(eb.exists(eb.selectFrom("auth_sessions").select("id")
+            .whereRef("auth_sessions.id","=","employee_push_devices.session_id")
+            .whereRef("auth_sessions.user_id","=","employee_push_devices.user_id")
+            .where("revoked_at","is",null).where("expires_at",">",now)))
+        ]))
+        .orderBy("id").limit(100).forUpdate().skipLocked().execute();
+      if (!stale.length) return;
+      await trx.updateTable("employee_push_devices").set({is_active:false})
+        .where("id","in",stale.map(device=>device.id)).execute();
+    });
   }
 
   /** Exactly one bounded iteration. An API server must NEVER run the dispatcher automatically. */
