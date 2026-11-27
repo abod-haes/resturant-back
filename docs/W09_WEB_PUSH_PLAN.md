@@ -40,3 +40,6 @@ Pending acceptance: install pinned dependencies, verify provider redirect behavi
 - Contract bounds and success literals documented in 6e84b26; DTO validation and Swagger metadata updated in 1443820. Generated contract and runtime validation remain unverified.
 - Migration fe5bef9 adds a BEFORE DELETE trigger to deactivate and detach web devices when an auth session is removed while preserving delivery rows; active web devices still require a session. PostgreSQL migration and deletion/concurrency acceptance remain pending.
 - Comparison at fe5bef9: 54 feature commits ahead, 5 main commits behind. Main synchronization remains a release blocker. No merge, deployment or database execution performed.
+
+## Integration inventory — 2026-11-27
+Main incorporated by ec8c759; branch was 60 ahead / 0 behind at verification. Auth response schemas documented in 670655a. Recipient scope and employee history labels fixed in 48a4f8f; dispatcher honors persisted recipients in 4cc7955; subscription operational display in c8812ea; registry forced-password recheck in a48cdda. Source readback only; contract generation, runtime, migration, lockfiles and physical device acceptance remain pending. No production merge or deployment.
