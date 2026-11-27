@@ -9,6 +9,7 @@ import type { EmployeePushDevicesTable } from "../../../database/database.types"
 import type { PushDeviceDto, RegisterPushDeviceDto } from "../presentation/push.dto";
 
 function toView(row: Selectable<EmployeePushDevicesTable>): PushDeviceDto {
+  if (row.channel !== 'expo' || row.platform === 'web') throw new Error('Invalid Expo device');
   return { id: row.id, platform: row.platform, isActive: row.is_active,
     lastSeenAt: row.last_seen_at.toISOString(), createdAt: row.created_at.toISOString() };
 }
@@ -44,14 +45,14 @@ export class DeviceRegistryService {
         await requireOperationalEntitlements(trx, restaurantId,
           department === "waiter" ? "waiter_calls" : "hookah_calls");
         const current = await trx.selectFrom("employee_push_devices").selectAll()
-          .where("token_hash", "=", tokenHash).forUpdate().executeTakeFirst();
+          .where("channel", "=", "expo").where("token_hash", "=", tokenHash).forUpdate().executeTakeFirst();
         if (current && current.user_id !== principal.id) {
           throw new ConflictException({ code: "DEVICE_ALREADY_REGISTERED",
             message: "Push token belongs to another employee; unregister the old account first" });
         }
         const count = await trx.selectFrom("employee_push_devices")
           .select(sql<number>`count(*)::int`.as("count"))
-          .where("user_id", "=", principal.id).where("is_active", "=", true)
+          .where("user_id", "=", principal.id).where("channel", "=", "expo").where("is_active", "=", true)
           .executeTakeFirstOrThrow();
         if ((!current || !current.is_active) && count.count >= MAX_ACTIVE_DEVICES) {
           throw new ConflictException({ code: "DEVICE_LIMIT_REACHED",
@@ -78,7 +79,7 @@ export class DeviceRegistryService {
     const { restaurantId } = requireEmployee(principal);
     await requireOperationalEntitlements(this.database.db, restaurantId);
     const rows = await this.database.db.selectFrom("employee_push_devices").selectAll()
-      .where("user_id", "=", principal.id).where("is_active", "=", true)
+      .where("user_id", "=", principal.id).where("channel", "=", "expo").where("is_active", "=", true)
       .orderBy("last_seen_at", "desc").limit(MAX_ACTIVE_DEVICES).execute();
     return rows.map(toView);
   }
@@ -87,7 +88,7 @@ export class DeviceRegistryService {
     requireEmployee(principal);
     const row = await this.database.db.updateTable("employee_push_devices")
       .set({ is_active: false }).where("id", "=", deviceId)
-      .where("user_id", "=", principal.id).where("is_active", "=", true)
+      .where("user_id", "=", principal.id).where("channel", "=", "expo").where("is_active", "=", true)
       .returning("id").executeTakeFirst();
     if (!row) throw new NotFoundException("Device not registered to current employee");
     return { unregistered: true };
