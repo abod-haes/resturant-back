@@ -590,7 +590,80 @@ paths:
                     required: [enabled, publicKey]
                     properties:
                       enabled: { type: boolean }
-                      publicKey: { type: [string, 'null'] }
+                      publicKey: { type: [string, 'null'], pattern: '^[A-Za-z0-9_-]{87}
+        '401': { description: Authentication required }
+        '403': { description: Employee access required }
+  /employee/web-push/subscriptions:
+    post:
+      operationId: registerEmployeeWebPushSubscription
+      tags: [Employee Web Push]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [endpoint, expirationTime, keys]
+              properties:
+                endpoint: { type: string, format: uri, maxLength: 2048, writeOnly: true }
+                expirationTime: { type: [integer, 'null'], minimum: 1, maximum: 8640000000000000, description: Unix milliseconds }
+                keys:
+                  type: object
+                  additionalProperties: false
+                  required: [p256dh, auth]
+                  properties:
+                    p256dh: { type: string, pattern: '^[A-Za-z0-9_-]{87}$', writeOnly: true }
+                    auth: { type: string, pattern: '^[A-Za-z0-9_-]{22}$', writeOnly: true }
+      responses:
+        '201':
+          description: Registered subscription
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    required: [id, isActive]
+                    properties:
+                      id: { type: string, format: uuid }
+                      isActive: { type: boolean, enum: [true] }
+        '400': { description: Invalid subscription }
+        '401': { description: Authentication required }
+        '403': { description: Employee or entitlement required }
+        '409': { description: DEVICE_ALREADY_REGISTERED, WEB_DEVICE_LIMIT_REACHED or CONFLICT }
+        '503': { description: Web Push unavailable }
+  /employee/web-push/subscriptions/{id}:
+    delete:
+      operationId: unregisterEmployeeWebPushSubscription
+      tags: [Employee Web Push]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Idempotent deactivation for current session
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    required: [unregistered]
+                    properties:
+                      unregistered: { type: boolean, enum: [true] }
+        '400': { description: Invalid ID }
+        '401': { description: Authentication required }
+        '403': { description: Employee access required }
+ }
         '401': { description: Authentication required }
         '403': { description: Employee access required }
   /employee/web-push/subscriptions:
