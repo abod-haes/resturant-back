@@ -90,7 +90,7 @@ export class PushDispatcherService {
         if (devices.length) {
           await trx.insertInto("push_deliveries")
             .values(devices.map(device => ({
-              outbox_id: row.id, device_id: device.id, channel: device.channel,
+              outbox_id: row.id, device_id: device.id, channel: device.channel, receipt_status: device.channel === "web_push" ? "not_required" as const : "waiting" as const,
               lease_until: null, ticket_id: null, receipt_checked_at: null, last_error_code: null,
             })))
             .onConflict(oc => oc.columns(["outbox_id","device_id"]).doNothing()).execute();
@@ -184,7 +184,7 @@ export class PushDispatcherService {
         state, lease_until: null,
         ticket_id: ticket.ok && claim.channel === "expo" ? ticket.id : null,
         last_error_code: ticket.ok ? null : ticket.errorCode,
-        next_attempt_at: ticket.ok ? new Date(Date.now() + RECEIPT_POLL_DELAY_MS)
+        next_attempt_at: ticket.ok ? (claim.channel === "expo" ? new Date(Date.now() + RECEIPT_POLL_DELAY_MS) : now)
           : retry ? new Date(Date.now() + pushRetryDelay(claim.attempts)) : now,
       }).where("id", "=", claim.id).where("state", "=", "pending")
         .where("attempts", "=", claim.attempts).returning("id").executeTakeFirst();
