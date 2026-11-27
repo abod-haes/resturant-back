@@ -14,3 +14,9 @@ ALTER TABLE employee_push_devices ADD CONSTRAINT push_device_session_owner_fk
  FOREIGN KEY(session_id,user_id) REFERENCES auth_sessions(id,user_id) ON DELETE RESTRICT;
 CREATE INDEX push_device_web_session_idx ON employee_push_devices(session_id) WHERE channel='web_push' AND is_active;
 ALTER TABLE push_deliveries ADD COLUMN channel varchar(12) NOT NULL DEFAULT 'expo' CHECK(channel IN ('expo','web_push'));
+
+-- Web Push has provider acceptance but no Expo-style delivery receipt.
+ALTER TABLE push_deliveries DROP CONSTRAINT push_deliveries_receipt_status_check;
+ALTER TABLE push_deliveries ADD CONSTRAINT push_deliveries_receipt_status_check CHECK (
+ (channel='expo' AND receipt_status IN ('waiting','ok','error','expired')) OR
+ (channel='web_push' AND receipt_status='not_required'));
