@@ -45,6 +45,8 @@ export class PushDispatcherService {
           .select("users.id")
           .where("users.id", "=", row.recipient_user_id)
           .where("users.role", "=", "EMPLOYEE")
+          .where("users.department", "=", row.type)
+          .where("users.restaurant_id", "=", row.restaurant_id)
           .where("users.is_active", "=", true).where("users.archived_at", "is", null)
           .where("branches.is_active", "=", true)
           .where("branches.id", "=", row.branch_id)
@@ -68,13 +70,24 @@ export class PushDispatcherService {
           await trx.updateTable("call_outbox").set({ state: "failed" }).where("id", "=", row.id).execute();
           continue;
         }
-        const devices = await trx.selectFrom("employee_push_devices").select("id")
-          .where("user_id", "=", row.recipient_user_id)
-          .where("is_active", "=", true).limit(5).execute();
+        const expoDevices = await trx.selectFrom("employee_push_devices").select(["id","channel"])
+          .where("user_id", "=", row.recipient_user_id).where("channel","=","expo")
+          .where("is_active", "=", true).orderBy("last_seen_at","desc").limit(5).execute();
+        const webDevices = this.config.webPush ? await trx.selectFrom("employee_push_devices")
+          .innerJoin("auth_sessions","auth_sessions.id","employee_push_devices.session_id")
+          .select(["employee_push_devices.id","employee_push_devices.channel"])
+          .where("employee_push_devices.user_id","=",row.recipient_user_id)
+          .whereRef("auth_sessions.user_id","=","employee_push_devices.user_id")
+          .where("employee_push_devices.channel","=","web_push")
+          .where("employee_push_devices.is_active","=",true)
+          .where("auth_sessions.revoked_at","is",null).where("auth_sessions.expires_at",">",now)
+          .where(eb=>eb.or([eb("employee_push_devices.expires_at","is",null),eb("employee_push_devices.expires_at",">",now)]))
+          .orderBy("employee_push_devices.last_seen_at","desc").limit(5).execute() : [];
+        const devices = [...expoDevices,...webDevices];
         if (devices.length) {
           await trx.insertInto("push_deliveries")
             .values(devices.map(device => ({
-              outbox_id: row.id, device_id: device.id,
+              outbox_id: row.id, device_id: device.id, channel: device.channel,
               lease_until: null, ticket_id: null, receipt_checked_at: null, last_error_code: null,
             })))
             .onConflict(oc => oc.columns(["outbox_id","device_id"]).doNothing()).execute();
@@ -91,7 +104,7 @@ export class PushDispatcherService {
     const now = new Date();
     return this.database.db.transaction().execute(async trx => {
       const row = await trx.selectFrom("push_deliveries").selectAll()
-        .where("state", "=", "pending").where("next_attempt_at", "<=", now)
+        .where("channel","=","expo").where("state", "=", "pending").where("next_attempt_at", "<=", now)
         .where(eb => eb.or([eb("lease_until", "is", null), eb("lease_until", "<", now)]))
         .orderBy("next_attempt_at", "asc").orderBy("id", "asc")
         .forUpdate().skipLocked().executeTakeFirst();
@@ -187,7 +200,7 @@ export class PushDispatcherService {
   private async checkReceipts(): Promise<number> {
     const now = new Date();
     const rows = await this.database.db.selectFrom("push_deliveries").select(["id", "ticket_id", "device_id", "created_at"])
-      .where("state", "=", "accepted").where("receipt_status", "=", "waiting")
+      .where("channel","=","expo").where("state", "=", "accepted").where("receipt_status", "=", "waiting")
       .where("ticket_id", "is not", null)
       .where("next_attempt_at", "<=", now)
       .orderBy("next_attempt_at", "asc").limit(BATCH_LIMIT).execute();
