@@ -1,4 +1,4 @@
-import { ConflictException, ForbiddenException, Inject, Injectable, ServiceUnavailableException } from "@nestjs/common";
+import { BadRequestException, ConflictException, ForbiddenException, Inject, Injectable, ServiceUnavailableException } from "@nestjs/common";
 import { sql } from "kysely";
 import { DatabaseService } from "../../../database/database.service";
 import type { AuthPrincipal } from "../../../common/auth/principal";
@@ -13,18 +13,18 @@ export class WebDeviceRegistryService {
   if (principal.role !== "EMPLOYEE" || !principal.restaurantId || !principal.branchId || !principal.department || principal.mustChangePassword) throw new ForbiddenException();
   const key = this.config.pushTokenEncryptionKey;
   if (!key || !this.config.webPush) throw new ServiceUnavailableException("Web push not configured");
-  if (!validateWebSubscription(subscription)) throw new ForbiddenException("Invalid web subscription");
+  if (!validateWebSubscription(subscription)) throw new BadRequestException("Invalid web subscription");
   const hash = webEndpointHash(subscription.endpoint);
   const box = sealWebSubscription(subscription, key);
   const now = new Date();
-  const restaurantId = principal.restaurantId;
+  const {restaurantId,branchId,department} = principal;
   try {
    return await this.database.db.transaction().execute(async trx => {
-    const user = await trx.selectFrom("users").select("id").where("id","=",principal.id).where("role","=","EMPLOYEE").where("restaurant_id","=",restaurantId).where("branch_id","=",principal.branchId).where("department","=",principal.department).where("is_active","=",true).where("archived_at","is",null).forUpdate().executeTakeFirst();
+    const user = await trx.selectFrom("users").select("id").where("id","=",principal.id).where("role","=","EMPLOYEE").where("restaurant_id","=",restaurantId).where("branch_id","=",branchId).where("department","=",department).where("is_active","=",true).where("archived_at","is",null).forUpdate().executeTakeFirst();
     if (!user) throw new ForbiddenException();
-    const session = await trx.selectFrom("auth_sessions").select("id").where("id","=",principal.sessionId).where("user_id","=",principal.id).where("revoked_at","is",null).where("expires_at",">",now).executeTakeFirst();
+    const session = await trx.selectFrom("auth_sessions").select("id").where("id","=",principal.sessionId).where("user_id","=",principal.id).where("revoked_at","is",null).where("expires_at",">",now).forUpdate().executeTakeFirst();
     if (!session) throw new ForbiddenException();
-    await requireOperationalEntitlements(trx,restaurantId,principal.department === "waiter" ? "waiter_calls" : "hookah_calls");
+    await requireOperationalEntitlements(trx,restaurantId,department === "waiter" ? "waiter_calls" : "hookah_calls");
     // Expired credentials and revoked sessions must not consume device slots.
     await trx.updateTable("employee_push_devices").set({is_active:false})
       .where("user_id","=",principal.id).where("channel","=","web_push").where("is_active","=",true)
