@@ -80,13 +80,18 @@ export class CallsService {
       const candidates = await trx.selectFrom("employee_shifts")
         .innerJoin("users", "users.id", "employee_shifts.user_id")
         .innerJoin("branches", "branches.id", "employee_shifts.branch_id")
-        .select("users.id as user_id")
+        .select("users.id as user_id").distinct()
         .where("employee_shifts.branch_id", "=", session.branch_id)
         .where("employee_shifts.restaurant_id", "=", session.restaurant_id)
         .where("employee_shifts.ended_at", "is", null)
         .where("employee_shifts.auto_end_at", ">", now)
         .where("users.is_active", "=", true).where("users.archived_at", "is", null)
-        .where("users.role", "=", "EMPLOYEE").where("branches.is_active", "=", true)
+        .where("users.role", "=", "EMPLOYEE").where("users.must_change_password", "=", false)
+        .whereRef("users.restaurant_id", "=", "employee_shifts.restaurant_id")
+        .whereRef("users.branch_id", "=", "employee_shifts.branch_id")
+        .whereRef("users.department", "=", "employee_shifts.department")
+        .where("branches.is_active", "=", true)
+        .where("branches.restaurant_id", "=", session.restaurant_id)
         .$if(settings.routingMode === "department_on_shift", qb =>
           qb.where("employee_shifts.department", "=", input.type))
         .execute();
@@ -194,10 +199,14 @@ export class CallsService {
     await requireOperationalEntitlements(this.database.db, principal.restaurantId);
     let qb = this.database.db.selectFrom("service_calls")
       .innerJoin("call_outbox", "call_outbox.call_id", "service_calls.id")
+      .innerJoin("restaurant_tables", "restaurant_tables.id", "service_calls.table_id")
+      .innerJoin("branches", "branches.id", "service_calls.branch_id")
       .selectAll("service_calls")
+      .select(["restaurant_tables.label as table_label", "branches.name as branch_name"])
       .select(sql<string>`to_char(service_calls.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`.as("cursor_timestamp"))
       .where("call_outbox.recipient_user_id", "=", principal.id)
-      .where("service_calls.branch_id", "=", principal.branchId);
+      .where("service_calls.branch_id", "=", principal.branchId)
+      .where("service_calls.restaurant_id", "=", principal.restaurantId);
     if (query.type) qb = qb.where("service_calls.type", "=", query.type);
     if (query.cursor) {
       const c = decodeKeysetCursor(query.cursor);
