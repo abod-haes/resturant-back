@@ -243,7 +243,10 @@ export type PushReceiptStatus = "waiting" | "ok" | "error" | "expired";
 export interface EmployeePushDevicesTable {
   id: Generated<string>;
   user_id: string;
-  platform: "android" | "ios";
+  platform: "android" | "ios" | "web";
+  channel: Generated<"expo" | "web_push">;
+  session_id: Generated<string | null>;
+  expires_at: Generated<Date | null>;
   token_hash: string;
   token_box: string;
   is_active: Generated<boolean>;
@@ -251,6 +254,7 @@ export interface EmployeePushDevicesTable {
   created_at: Generated<Date>;
 }
 export interface PushDeliveriesTable {
+  channel: Generated<"expo" | "web_push">;
   id: Generated<string>;
   outbox_id: string;
   device_id: string;
@@ -300,30 +304,7 @@ export interface MediaAssetsTable {
   updated_at: Generated<Date>;
 }
 
-export interface EmployeeWebPushSubscriptionsTable {
-  id: Generated<string>;
-  user_id: string;
-  session_id: string;
-  endpoint_hash: string;
-  subscription_box: string;
-  expires_at: Date | null;
-  is_active: Generated<boolean>;
-  last_seen_at: Generated<Date>;
-  created_at: Generated<Date>;
-}
-export interface WebPushDeliveriesTable extends Timestamped {
-  id: Generated<string>;
-  outbox_id: string;
-  subscription_id: string;
-  state: Generated<PushDeliveryStatus>;
-  attempts: Generated<number>;
-  next_attempt_at: Generated<Date>;
-  lease_until: Date | null;
-  last_error_code: string | null;
-}
 export interface DatabaseTables {
-  employee_web_push_subscriptions: EmployeeWebPushSubscriptionsTable;
-  web_push_deliveries: WebPushDeliveriesTable;
   restaurants: RestaurantsTable;
   branches: BranchesTable;
   categories: CategoriesTable;
