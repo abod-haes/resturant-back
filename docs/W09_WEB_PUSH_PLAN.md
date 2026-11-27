@@ -13,3 +13,18 @@ Reuse employee_push_devices, push_deliveries, call_outbox and service_calls. No 
 - Existing unique (outbox_id,device_id) prevents duplicate delivery records. Multiple devices are intentionally supported.
 - Retry scheduling is bounded by the existing 120-second call age and five attempts. Web acceptance is not a delivery receipt.
 - Source changes saved; runtime tests, migration execution and device acceptance remain pending user verification.
+
+
+## B10 — Frontend handoff (source implementation, runtime acceptance pending)
+
+API prefix: /api/v1. Employee bearer authentication required.
+- GET /employee/web-push/config -> {data:{enabled:boolean,publicKey:string|null}}.
+- POST /employee/web-push/subscriptions -> send endpoint, expirationTime (Unix milliseconds or null), keys {p256dh,auth}; response {data:{id,isActive}}.
+- DELETE /employee/web-push/subscriptions/{id} -> {data:{unregistered:true}}; current session scoped and idempotent.
+- Request notification permission only after an explicit user gesture. Check secure context, service worker, PushManager and installed mode on iOS.
+- Register or reconcile the browser subscription for the current authenticated employee; handle ownership conflicts by explicitly replacing the browser subscription. Never store raw subscription keys in localStorage.
+- On logout, attempt unregister and browser unsubscribe; server session revocation independently deactivates web devices.
+- Use callId and tag for notification deduplication; invalidate calls query on push and reconcile via GET /employee/calls.
+- Keep native Expo behavior and existing database tables. Do not enable Web Push in production until migration and runtime acceptance.
+
+Pending acceptance: install pinned dependencies, verify provider redirect behavior, typecheck, build, contract check, migration on isolated database, session revocation and concurrency tests, Expo regression, real Android/iOS PWA push tests. Review auth-session deletion/retention compatibility with restrictive FK. Feature branch must incorporate current main before merge. No production deployment or migration has been performed.
