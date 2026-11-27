@@ -168,7 +168,7 @@ export class PushDispatcherService {
           deactivateWeb = !result.ok && result.deactivate;
           ticket = result.ok ? {ok:true,id:claim.id} : {ok:false,errorCode:result.errorCode,retryable:result.retryable};
         } else {
-          ticket = await this.gateway.send(openPushToken(record.token_box,this.config.pushTokenEncryptionKey),message);
+          ticket = await this.gateway.send(openPushToken(record.token_box,this.config.pushTokenEncryptionKey),message,Math.floor((MAX_PUSH_AGE_MS-(Date.now()-record.created_at.getTime()))/1000));
         }
       } catch (error: unknown) {
         ticket = error instanceof ForbiddenException
