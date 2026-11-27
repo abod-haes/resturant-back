@@ -149,7 +149,7 @@ export class PushDispatcherService {
     let deactivateWeb = false;
     const webSession = claim.channel === "web_push" && record.session_id ? await this.database.db.selectFrom("auth_sessions").select("id").where("id","=",record.session_id).where("user_id","=",record.recipient_user_id).where("revoked_at","is",null).where("expires_at",">",now).executeTakeFirst() : null;
     if (record.device_channel !== claim.channel || record.device_user_id !== record.recipient_user_id || record.role !== "EMPLOYEE" || record.department !== record.type || record.employee_branch_id !== record.branch_id || record.employee_restaurant_id !== record.restaurant_id || (claim.channel === "web_push" && (!webSession || !this.config.webPush || (record.device_expires_at && record.device_expires_at <= now))) || !record.device_active || !record.employee_active || !record.branch_active || record.employee_archived ||
-      !stillOnShift || now.getTime() - record.created_at.getTime() > MAX_PUSH_AGE_MS) {
+      !stillOnShift || now.getTime() - record.created_at.getTime() >= MAX_PUSH_AGE_MS) {
       ticket = { ok: false, retryable: false, errorCode: "RECIPIENT_NOT_ELIGIBLE" };
     } else {
       try {
@@ -174,8 +174,10 @@ export class PushDispatcherService {
           : { ok: false, retryable: true, errorCode: "SENDER_TEMPORARY" };
       }
     }
+    const retryAt = new Date(Date.now() + pushRetryDelay(claim.attempts));
+    const expiresAt = record.created_at.getTime() + MAX_PUSH_AGE_MS;
     const retry = !ticket.ok && ticket.retryable && claim.attempts < MAX_ATTEMPTS
-      && now.getTime() - record.created_at.getTime() < MAX_PUSH_AGE_MS;
+      && retryAt.getTime() < expiresAt;
     const state = ticket.ok ? "accepted" as const : retry ? "pending" as const : "failed" as const;
     await this.database.db.transaction().execute(async trx => {
       // Serialize aggregation with expansion and other delivery completions.
@@ -185,7 +187,7 @@ export class PushDispatcherService {
         ticket_id: ticket.ok && claim.channel === "expo" ? ticket.id : null,
         last_error_code: ticket.ok ? null : ticket.errorCode,
         next_attempt_at: ticket.ok ? (claim.channel === "expo" ? new Date(Date.now() + RECEIPT_POLL_DELAY_MS) : now)
-          : retry ? new Date(Date.now() + pushRetryDelay(claim.attempts)) : now,
+          : retry ? retryAt : now,
       }).where("id", "=", claim.id).where("state", "=", "pending")
         .where("attempts", "=", claim.attempts).returning("id").executeTakeFirst();
       if (!changed) return;
