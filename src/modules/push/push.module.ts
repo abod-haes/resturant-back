@@ -8,10 +8,12 @@ import { PushDevicesController } from "./presentation/push.controller";
 import { WebDeviceRegistryService } from "./application/web-device-registry.service";
 import { WebPushController } from "./presentation/web-push.controller";
 
+import { WebPushGateway } from "./infrastructure/web-push.gateway";
+
 @Module({
   imports: [DatabaseModule],
   providers: [
-    DeviceRegistryService, WebDeviceRegistryService, PushDispatcherService,
+    DeviceRegistryService, WebDeviceRegistryService, PushDispatcherService, WebPushGateway,
     { provide: PUSH_GATEWAY, useClass: ExpoPushGateway },
   ],
   controllers: [PushDevicesController, WebPushController],
