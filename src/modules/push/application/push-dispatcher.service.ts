@@ -253,8 +253,24 @@ export class PushDispatcherService {
     return ready.length;
   }
 
+  /** Disable stale web credentials without deleting delivery history. */
+  async cleanupWebSubscriptions(): Promise<void> {
+    const now = new Date();
+    await this.database.db.updateTable("employee_push_devices")
+      .set({is_active:false})
+      .where("channel","=","web_push").where("is_active","=",true)
+      .where(eb=>eb.or([
+        eb("expires_at","<=",now),
+        eb.not(eb.exists(eb.selectFrom("auth_sessions").select("id")
+          .whereRef("auth_sessions.id","=","employee_push_devices.session_id")
+          .whereRef("auth_sessions.user_id","=","employee_push_devices.user_id")
+          .where("revoked_at","is",null).where("expires_at",">",now)))
+      ])).execute();
+  }
+
   /** Exactly one bounded iteration. An API server must NEVER run the dispatcher automatically. */
   async tick(): Promise<{ expanded: number; attempts: number; receipts: number }> {
+    await this.cleanupWebSubscriptions();
     const expanded = await this.expand();
     let attempts = 0;
     for (let i = 0; i < BATCH_LIMIT; i++) {
