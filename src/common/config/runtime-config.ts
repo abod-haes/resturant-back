@@ -1,3 +1,4 @@
+import { createECDH } from "node:crypto";
 import { Global, Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 
@@ -24,6 +25,7 @@ export interface RuntimeConfig {
   readonly authAccessSecret: string;
   readonly pushTokenEncryptionKey: string | null;
   readonly pushDispatchEnabled: boolean;
+  readonly webPush?: Readonly<{publicKey:string;privateKey:string;subject:string}> | null;
   readonly expoPushAccessToken: string | null;
 }
 
@@ -173,6 +175,22 @@ export function parseRuntimeConfig(env: NodeJS.ProcessEnv): RuntimeConfig {
   }
   const expoPushAccessToken = env.EXPO_PUSH_ACCESS_TOKEN?.trim() || null;
 
+  const webFlag = env.WEB_PUSH_ENABLED?.trim() || "false";
+  if (!["true","false"].includes(webFlag)) throw new Error("WEB_PUSH_ENABLED must be true or false");
+  let webPush: RuntimeConfig["webPush"] = null;
+  if (webFlag === "true") {
+    const publicKey = env.WEB_PUSH_VAPID_PUBLIC_KEY?.trim() || "";
+    const privateKey = env.WEB_PUSH_VAPID_PRIVATE_KEY?.trim() || "";
+    const subject = env.WEB_PUSH_VAPID_SUBJECT?.trim() || "";
+    if (!pushTokenEncryptionKey || !/^[A-Za-z0-9_-]{87}$/.test(publicKey) || !/^[A-Za-z0-9_-]{43}$/.test(privateKey) || !/^mailto:[^\s@]+@[^\s@]+\.[^\s@]+$/.test(subject)) throw new Error("Web Push requires encryption key, VAPID key pair and mailto subject");
+    try {
+      const ecdh = createECDH("prime256v1");
+      ecdh.setPrivateKey(Buffer.from(privateKey,"base64url"));
+      if (ecdh.getPublicKey().toString("base64url") !== publicKey) throw new Error();
+    } catch { throw new Error("VAPID key pair is invalid or mismatched"); }
+    webPush = Object.freeze({publicKey,privateKey,subject});
+  }
+
   const authAccessSecret = env.AUTH_ACCESS_SECRET ?? "";
   if (Buffer.byteLength(authAccessSecret, "utf8") < 32) {
     throw new Error("AUTH_ACCESS_SECRET must contain at least 32 bytes of secret entropy");
@@ -194,6 +212,7 @@ export function parseRuntimeConfig(env: NodeJS.ProcessEnv): RuntimeConfig {
     pushTokenEncryptionKey,
     pushDispatchEnabled,
     expoPushAccessToken,
+    webPush,
   });
 }
 
