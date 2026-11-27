@@ -2,6 +2,8 @@ import { ForbiddenException, Inject, Injectable, Logger } from "@nestjs/common";
 import { sql } from "kysely";
 import { DatabaseService } from "../../../database/database.service";
 import { RUNTIME_CONFIG, type RuntimeConfig } from "../../../common/config/runtime-config";
+import { WebPushGateway } from "../infrastructure/web-push.gateway";
+import { openWebSubscription } from "../../../common/push/web-push-subscription";
 import { openPushToken } from "../../../common/push/push-token";
 import { requireOperationalEntitlements } from "../../../common/subscription/operational-entitlement";
 import { PUSH_GATEWAY, type PushGateway, type PushCallMessage, type PushTicket } from "../infrastructure/expo-push.gateway";
@@ -24,6 +26,7 @@ export class PushDispatcherService {
     private readonly database: DatabaseService,
     @Inject(RUNTIME_CONFIG) private readonly config: RuntimeConfig,
     @Inject(PUSH_GATEWAY) private readonly gateway: PushGateway,
+    private readonly webGateway: WebPushGateway,
   ) {}
 
   /** Expand recipient rows to per-device attempts while the outbox row is locked. */
@@ -104,7 +107,7 @@ export class PushDispatcherService {
     const now = new Date();
     return this.database.db.transaction().execute(async trx => {
       const row = await trx.selectFrom("push_deliveries").selectAll()
-        .where("channel","=","expo").where("state", "=", "pending").where("next_attempt_at", "<=", now)
+        .where("state", "=", "pending").where("next_attempt_at", "<=", now)
         .where(eb => eb.or([eb("lease_until", "is", null), eb("lease_until", "<", now)]))
         .orderBy("next_attempt_at", "asc").orderBy("id", "asc")
         .forUpdate().skipLocked().executeTakeFirst();
@@ -133,6 +136,9 @@ export class PushDispatcherService {
         "restaurant_tables.label", "employee_push_devices.token_box", "employee_push_devices.is_active as device_active",
         "users.is_active as employee_active", "users.archived_at as employee_archived",
         "branches.is_active as branch_active",
+        "employee_push_devices.channel as device_channel", "employee_push_devices.user_id as device_user_id",
+        "employee_push_devices.session_id", "employee_push_devices.expires_at as device_expires_at",
+        "users.role", "users.department", "users.branch_id as employee_branch_id", "users.restaurant_id as employee_restaurant_id",
       ]).where("push_deliveries.id", "=", claim.id).executeTakeFirstOrThrow();
     const now = new Date();
     const stillOnShift = await this.database.db.selectFrom("employee_shifts")
@@ -140,7 +146,9 @@ export class PushDispatcherService {
       .where("branch_id", "=", record.branch_id).where("ended_at", "is", null)
       .where("auto_end_at", ">", now).executeTakeFirst();
     let ticket: PushTicket;
-    if (!record.device_active || !record.employee_active || !record.branch_active || record.employee_archived ||
+    let deactivateWeb = false;
+    const webSession = claim.channel === "web_push" && record.session_id ? await this.database.db.selectFrom("auth_sessions").select("id").where("id","=",record.session_id).where("user_id","=",record.recipient_user_id).where("revoked_at","is",null).where("expires_at",">",now).executeTakeFirst() : null;
+    if (record.device_channel !== claim.channel || record.device_user_id !== record.recipient_user_id || record.role !== "EMPLOYEE" || record.department !== record.type || record.employee_branch_id !== record.branch_id || record.employee_restaurant_id !== record.restaurant_id || (claim.channel === "web_push" && (!webSession || !this.config.webPush || (record.device_expires_at && record.device_expires_at <= now))) || !record.device_active || !record.employee_active || !record.branch_active || record.employee_archived ||
       !stillOnShift || now.getTime() - record.created_at.getTime() > MAX_PUSH_AGE_MS) {
       ticket = { ok: false, retryable: false, errorCode: "RECIPIENT_NOT_ELIGIBLE" };
     } else {
@@ -148,12 +156,18 @@ export class PushDispatcherService {
         await requireOperationalEntitlements(this.database.db, record.restaurant_id,
           record.type === "waiter" ? "waiter_calls" : "hookah_calls");
         if (!this.config.pushTokenEncryptionKey) throw new Error("Missing push token key");
-        const token = openPushToken(record.token_box, this.config.pushTokenEncryptionKey);
         const message: PushCallMessage = {
           callId: record.call_id, branchId: record.branch_id, tableId: record.table_id,
           tableLabel: record.label, type: record.type,
         };
-        ticket = await this.gateway.send(token, message);
+        if (claim.channel === "web_push") {
+          const subscription = openWebSubscription(record.token_box,this.config.pushTokenEncryptionKey);
+          const result = await this.webGateway.send(subscription,message,Math.floor((MAX_PUSH_AGE_MS-(Date.now()-record.created_at.getTime()))/1000));
+          deactivateWeb = !result.ok && result.deactivate;
+          ticket = result.ok ? {ok:true,id:claim.id} : {ok:false,errorCode:result.errorCode,retryable:result.retryable};
+        } else {
+          ticket = await this.gateway.send(openPushToken(record.token_box,this.config.pushTokenEncryptionKey),message);
+        }
       } catch (error: unknown) {
         ticket = error instanceof ForbiddenException
           ? { ok: false, retryable: false, errorCode: "SUBSCRIPTION_INACTIVE" }
@@ -166,7 +180,7 @@ export class PushDispatcherService {
     await this.database.db.transaction().execute(async trx => {
       const changed = await trx.updateTable("push_deliveries").set({
         state, lease_until: null,
-        ticket_id: ticket.ok ? ticket.id : null,
+        ticket_id: ticket.ok && claim.channel === "expo" ? ticket.id : null,
         last_error_code: ticket.ok ? null : ticket.errorCode,
         next_attempt_at: ticket.ok ? new Date(Date.now() + RECEIPT_POLL_DELAY_MS)
           : retry ? new Date(Date.now() + pushRetryDelay(claim.attempts)) : now,
@@ -189,9 +203,9 @@ export class PushDispatcherService {
     if (!ticket.ok) {
       this.logger.warn(JSON.stringify({ event: "push_send_failed", code: ticket.errorCode,
         retry, deliveryId: claim.id }));
-      if (ticket.errorCode === "DeviceNotRegistered") {
+      if (ticket.errorCode === "DeviceNotRegistered" || deactivateWeb) {
         await this.database.db.updateTable("employee_push_devices")
-          .set({ is_active: false }).where("id", "=", claim.device_id).execute();
+          .set({ is_active: false }).where("id", "=", claim.device_id).where("token_box","=",record.token_box).execute();
       }
     }
     return true;
