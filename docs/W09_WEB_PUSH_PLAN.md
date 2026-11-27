@@ -28,3 +28,10 @@ API prefix: /api/v1. Employee bearer authentication required.
 - Keep native Expo behavior and existing database tables. Do not enable Web Push in production until migration and runtime acceptance.
 
 Pending acceptance: install pinned dependencies, verify provider redirect behavior, typecheck, build, contract check, migration on isolated database, session revocation and concurrency tests, Expo regression, real Android/iOS PWA push tests. Review auth-session deletion/retention compatibility with restrictive FK. Feature branch must incorporate current main before merge. No production deployment or migration has been performed.
+
+## Source audit — 2026-11-27
+
+- Compared main and the feature branch in both directions before the gateway privacy update: feature 49 ahead / 5 behind. Main-only changes affect subdomain.ts, auth.service.ts, auth.types.ts and auth.dto.ts; no overlapping changed paths were reported. Auth/session behavior still requires integration review after synchronization.
+- Reviewed channel filtering in registry, dispatch eligibility, session revocation trigger, bounded retries and Expo-only receipt handling. This is source inspection, not runtime regression evidence.
+- Web Push provider payload now uses a generic body without table details (d05ac6b). Authenticated calls API remains authoritative.
+- Main synchronization, migration/retention compatibility, contract validation, build and device acceptance remain pending. No merge or deployment performed.
