@@ -16,7 +16,7 @@ export type PushTicket =
   | { ok: false; errorCode: string; retryable: boolean };
 export type PushReceipt = { status: "ok" } | { status: "error"; errorCode: string };
 export interface PushGateway {
-  send(token: string, message: PushCallMessage): Promise<PushTicket>;
+  send(token: string, message: PushCallMessage, ttlSeconds?: number): Promise<PushTicket>;
   receipts(ids: readonly string[]): Promise<Record<string, PushReceipt>>;
 }
 
@@ -48,14 +48,15 @@ export class ExpoPushGateway implements PushGateway {
     return response.json() as Promise<unknown>;
   }
 
-  async send(token: string, message: PushCallMessage): Promise<PushTicket> {
+  async send(token: string, message: PushCallMessage, ttlSeconds = 120): Promise<PushTicket> {
+    if (!Number.isFinite(ttlSeconds) || ttlSeconds < 1) return {ok:false,errorCode:"CALL_EXPIRED",retryable:false};
     try {
       const payload = {
         to: token, priority: "high", sound: "default",
         channelId: message.type === "waiter" ? "waiter_calls" : "hookah_calls",
         title: message.type === "waiter" ? "استدعاء نادل" : "استدعاء أركيلة",
         body: "طلب جديد من " + message.tableLabel,
-        ttl: 120,
+        ttl: Math.min(120, Math.floor(ttlSeconds)),
         data: { eventType: "call.created", callId: message.callId,
           branchId: message.branchId, tableId: message.tableId, type: message.type },
       };
