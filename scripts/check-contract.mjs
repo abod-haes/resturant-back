@@ -46,6 +46,7 @@ for (const [path, method] of [
   ["/admin/platform-admins","post"], ["/admin/platform-admins","get"],
   ["/admin/platform-admins/{id}","get"], ["/admin/platform-admins/{id}","patch"],
   ["/admin/platform-admins/{id}/reset-password","post"],
+  ["/employee/web-push/config","get"], ["/employee/web-push/subscriptions","post"], ["/employee/web-push/subscriptions/{id}","delete"],
   ["/employee/devices","post"], ["/employee/devices","get"], ["/employee/devices/{id}","delete"],
   ["/owner/events","get"], ["/employee/events","get"],
   ["/public/calls","post"], ["/employee/shifts/start","post"],
@@ -61,6 +62,11 @@ for (const [path, method] of [
 for (const path of ["/auth/restaurant-identity","/owner/events","/employee/events","/employee/devices"]) {
   const method = path.endsWith("devices") ? "post" : "get";
   if (!doc.paths[path][method].security?.some(x => Object.hasOwn(x, "bearerAuth"))) {
+    throw new Error("Bearer security missing from " + path);
+  }
+}
+for (const [path,method] of [["/employee/web-push/config","get"],["/employee/web-push/subscriptions","post"],["/employee/web-push/subscriptions/{id}","delete"]]) {
+  if (!doc.paths[path][method].security?.some(x => Object.hasOwn(x,"bearerAuth"))) {
     throw new Error("Bearer security missing from " + path);
   }
 }
