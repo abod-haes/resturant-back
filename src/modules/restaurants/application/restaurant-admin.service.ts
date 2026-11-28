@@ -63,6 +63,7 @@ type RestaurantRow = {
   logo_url: string | null;
   primary_color: string | null;
   secondary_color: string | null;
+  menu_font_family: import("../../../common/tenancy/branding.dto").MenuFont | null;
   font_family: "cairo" | "system" | null;
   subdomain: string | null;
   domain_status: "pending" | "ready";
@@ -86,7 +87,7 @@ function toSummary(row: RestaurantRow, publicOrigin?: string): RestaurantSummary
     slug: row.slug,
     subdomain: row.subdomain,
     domainStatus: row.domain_status,
-    branding: { logoUrl: row.logo_url, logoPath: managedImagePath(row.logo_url, row.id, publicOrigin), primaryColor: row.primary_color, secondaryColor: row.secondary_color, fontFamily: row.font_family },
+    branding: { logoUrl: row.logo_url, logoPath: managedImagePath(row.logo_url, row.id, publicOrigin), primaryColor: row.primary_color, secondaryColor: row.secondary_color, menuFontFamily: row.menu_font_family, fontFamily: row.font_family },
     isActive: row.is_active,
     createdAt: row.created_at.toISOString(),
     branchCount: row.branch_count,
@@ -109,7 +110,7 @@ export class RestaurantAdminService {
         .on("users.role", "=", "RESTAURANT_OWNER"))
       .select([
         "restaurants.id", "restaurants.name", "restaurants.slug",
-        "restaurants.is_active", "restaurants.created_at", "restaurants.subdomain", "restaurants.domain_status", "restaurants.logo_url", "restaurants.primary_color", "restaurants.secondary_color", "restaurants.font_family",
+        "restaurants.is_active", "restaurants.created_at", "restaurants.subdomain", "restaurants.domain_status", "restaurants.logo_url", "restaurants.primary_color", "restaurants.secondary_color", "restaurants.font_family", "restaurants.menu_font_family",
         "users.id as owner_id", "users.display_name as owner_name",
         "users.username as owner_username",
         sql<number>`(select count(*)::int from branches b where b.restaurant_id = restaurants.id and b.is_active)`.as("branch_count"),
@@ -204,7 +205,7 @@ export class RestaurantAdminService {
   }
 
   async update(id: string, changes: UpdateRestaurantDto, actor: AuthPrincipal, requestId: string | undefined): Promise<RestaurantDetailsDto> {
-    const patch: { name?: string; is_active?: boolean; subdomain?: string; domain_status?: "pending" | "ready"; logo_url?: string | null; primary_color?: string | null; secondary_color?: string | null; font_family?: "cairo" | "system" | null } = {};
+    const patch: { name?: string; is_active?: boolean; subdomain?: string; domain_status?: "pending" | "ready"; logo_url?: string | null; primary_color?: string | null; secondary_color?: string | null; font_family?: "cairo" | "system" | null; menu_font_family?: import("../../../common/tenancy/branding.dto").MenuFont | null } = {};
     if (changes.name !== undefined) patch.name = changes.name.trim();
     if (changes.isActive !== undefined) patch.is_active = changes.isActive;
     if (changes.subdomain != null) { validateSubdomain(changes.subdomain); patch.subdomain = changes.subdomain; }
@@ -212,6 +213,7 @@ export class RestaurantAdminService {
     if (changes.branding?.logoUrl !== undefined) patch.logo_url = changes.branding.logoUrl;
     if (changes.branding?.primaryColor !== undefined) patch.primary_color = changes.branding.primaryColor;
     if (changes.branding?.secondaryColor !== undefined) patch.secondary_color = changes.branding.secondaryColor;
+    if (changes.branding?.menuFontFamily !== undefined) patch.menu_font_family = changes.branding.menuFontFamily;
     if (changes.branding?.fontFamily !== undefined) patch.font_family = changes.branding.fontFamily;
     const logoMediaId = changes.branding?.logoMediaId;
     if (logoMediaId != null && changes.branding?.logoUrl !== undefined) throw new BadRequestException("Provide either logoMediaId or logoUrl");

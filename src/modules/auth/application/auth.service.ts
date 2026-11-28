@@ -76,7 +76,7 @@ export class AuthService {
       throw new ForbiddenException("Restaurant account required");
     }
     const restaurant = await this.database.db.selectFrom("restaurants")
-      .select(["id", "name", "subdomain", "logo_url", "primary_color", "secondary_color", "font_family"])
+      .select(["id", "name", "subdomain", "logo_url", "primary_color", "secondary_color", "font_family", "menu_font_family"])
       .where("id", "=", principal.restaurantId)
       .where("is_active", "=", true)
       .executeTakeFirst();
@@ -85,7 +85,7 @@ export class AuthService {
       id: restaurant.id, name: restaurant.name, subdomain: restaurant.subdomain,
       branding: {
         logoUrl: restaurant.logo_url, logoPath: managedImagePath(restaurant.logo_url, restaurant.id, this.config.mediaStorage?.publicOrigin), primaryColor: restaurant.primary_color,
-        secondaryColor: restaurant.secondary_color, fontFamily: restaurant.font_family,
+        secondaryColor: restaurant.secondary_color, menuFontFamily: restaurant.menu_font_family, fontFamily: restaurant.font_family,
       },
     };
   }

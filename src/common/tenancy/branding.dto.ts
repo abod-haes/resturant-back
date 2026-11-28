@@ -2,7 +2,12 @@ import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { IsIn, IsOptional, IsString, IsUrl, IsUUID, Matches, MaxLength } from "class-validator";
 
 export type RestaurantFont = "cairo" | "system";
+export type MenuFont = "cairo" | "tajawal" | "noto-naskh" | "amiri" | "ibm-plex" | "system";
+const MENU_FONTS = ["cairo", "tajawal", "noto-naskh", "amiri", "ibm-plex", "system"];
 export class BrandingPatchDto {
+  @ApiPropertyOptional({ type: String, enum: MENU_FONTS, nullable: true })
+  @IsOptional() @IsIn(MENU_FONTS)
+  menuFontFamily?: MenuFont | null;
   @ApiPropertyOptional({ type: String, enum: ["cairo", "system"], nullable: true })
   @IsOptional() @IsIn(["cairo", "system"])
   fontFamily?: RestaurantFont | null;
@@ -25,6 +30,7 @@ export class BrandingPatchDto {
 }
 
 export class BrandingDto {
+  @ApiPropertyOptional({ type: String, enum: MENU_FONTS, nullable: true }) menuFontFamily?: MenuFont | null;
   @ApiProperty({ type: String, enum: ["cairo", "system"], nullable: true }) fontFamily!: RestaurantFont | null;
   @ApiProperty({ type: String, nullable: true }) logoUrl!: string | null;
   @ApiPropertyOptional({ type: String, nullable: true }) logoPath?: string | null;

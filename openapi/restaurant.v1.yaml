@@ -62,6 +62,7 @@ components:
       type: object
       properties:
         fontFamily: { type: [string, 'null'], enum: [cairo, system, null] }
+        menuFontFamily: { type: [string, 'null'], enum: [cairo, tajawal, noto-naskh, amiri, ibm-plex, system, null] }
         logoUrl: { type: [string, "null"], maxLength: 2048 }
         logoPath: { type: [string, "null"], readOnly: true }
         logoMediaId: { type: string, format: uuid, writeOnly: true, description: Use instead of logoUrl to attach a ready image owned by the restaurant }
@@ -1172,6 +1173,7 @@ paths:
                 primaryColor: { type: string, nullable: true, pattern: '^#[0-9a-fA-F]{6}$' }
                 secondaryColor: { type: string, nullable: true, pattern: '^#[0-9a-fA-F]{6}$' }
                 fontFamily: { type: string, nullable: true, enum: [cairo, system] }
+                menuFontFamily: { type: string, nullable: true, enum: [cairo, tajawal, noto-naskh, amiri, ibm-plex, system] }
       responses:
         '200':
           description: Updated restaurant identity
