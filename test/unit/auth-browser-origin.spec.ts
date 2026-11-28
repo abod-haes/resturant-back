@@ -75,3 +75,32 @@ describe("browser origin policy", () => {
     expect(req.headers.cookie).toBeDefined();
   });
 });
+
+describe("browser cookie isolation", () => {
+  const base = "example.com";
+  const origins = [
+    "https://resturen-admin." + base,
+    "https://resturen." + base,
+    "https://resturen-employee." + base,
+    "https://jubran." + base,
+    "https://other." + base,
+    "http://localhost:5173",
+    "http://localhost:5174",
+  ];
+  it("uses distinct cookies for each origin and ignores the legacy name", () => {
+    const names = origins.map(origin => browserRefreshCookieName(origin, base));
+    expect(new Set(names).size).toBe(origins.length);
+    expect(names[0]).toMatch(/^restaurant_admin_refresh_/);
+    expect(names[1]).toMatch(/^restaurant_owner_refresh_/);
+    expect(names[2]).toMatch(/^restaurant_employee_refresh_/);
+    expect(names).not.toContain("restaurant_refresh");
+  });
+  it("does not read an admin cookie when refreshing an employee session", async () => {
+    const { instance, res } = controller(["*"]);
+    const configured = instance as unknown as { config: RuntimeConfig };
+    configured.config = { ...configured.config, restaurantBaseDomain: base };
+    const cookie = browserRefreshCookieName(origins[0], base) + "=test-refresh-token";
+    const req = { headers: { cookie } } as Parameters<AuthController["refresh"]>[1];
+    await expect(instance.refresh({}, req, origins[2], res)).rejects.toBeInstanceOf(UnauthorizedException);
+  });
+});
