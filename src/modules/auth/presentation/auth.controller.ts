@@ -1,4 +1,4 @@
-import { subdomainFromOrigin } from "../../../common/tenancy/subdomain";
+import { browserRefreshCookieName } from "../domain/browser-session";
 import { Body, Controller, Get, Headers, HttpCode, HttpStatus, Post, Req, Res, UnauthorizedException } from "@nestjs/common";
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiResponse, ApiTags } from "@nestjs/swagger";
 import type { Response } from "express";
@@ -9,8 +9,6 @@ import type { AuthenticatedRequest } from "./auth.guards";
 import { AllowAuthenticated, AllowInitialPassword, Public, Roles } from "../../../common/auth/policy.decorators";
 import { ChangePasswordDto, ChangedResponseDto, LoginDto, LoginResponseDto, MeResponseDto, RefreshDto, AuthenticatedRestaurantIdentityResponseDto } from "./auth.dto";
 
-const COOKIE_NAME = "restaurant_refresh";
-
 @ApiTags("Authentication")
 @Controller("auth")
 export class AuthController {
@@ -20,8 +18,7 @@ export class AuthController {
   ) {}
 
   private cookieName(origin?: string): string {
-    const tenant = subdomainFromOrigin(origin, this.config.restaurantBaseDomain);
-    return tenant ? COOKIE_NAME + "_" + tenant : COOKIE_NAME;
+    return browserRefreshCookieName(origin, this.config.restaurantBaseDomain);
   }
 
   private setRefreshCookie(res: Response, refreshToken: string, origin?: string): void {
