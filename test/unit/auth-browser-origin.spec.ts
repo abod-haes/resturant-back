@@ -1,4 +1,5 @@
 import { UnauthorizedException } from "@nestjs/common";
+import { browserRefreshCookieName } from "../../src/modules/auth/domain/browser-session";
 import { AuthController } from "../../src/modules/auth/presentation/auth.controller";
 import type { AuthService, IssuedSession } from "../../src/modules/auth/application/auth.service";
 import type { RuntimeConfig } from "../../src/common/config/runtime-config";
@@ -44,7 +45,7 @@ describe("browser origin policy", () => {
     };
     await instance.login({ username: "platform.admin", password: "valid-password", client: "web" },
       "http://localhost:5173", res);
-    expect(res.cookie).toHaveBeenCalledWith("restaurant_refresh", "test-refresh-token",
+    expect(res.cookie).toHaveBeenCalledWith(browserRefreshCookieName("http://localhost:5173"), "test-refresh-token",
       expect.objectContaining({
         httpOnly: true, secure: true, sameSite: "none", partitioned: true,
         path: "/api/v1/auth",
@@ -55,7 +56,7 @@ describe("browser origin policy", () => {
     const { instance, res } = controller(["*"]);
     await instance.login({ username: "platform.admin", password: "valid-password", client: "web" },
       "http://localhost:5173", res);
-    expect(res.cookie).toHaveBeenCalledWith("restaurant_refresh", "test-refresh-token",
+    expect(res.cookie).toHaveBeenCalledWith(browserRefreshCookieName("http://localhost:5173"), "test-refresh-token",
       expect.objectContaining({ sameSite: "strict", partitioned: undefined }));
   });
 
