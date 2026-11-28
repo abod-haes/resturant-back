@@ -1,6 +1,7 @@
 import { managedImagePath } from "../../../common/tenancy/managed-image-path";
 import { Inject, Injectable, UnauthorizedException, ForbiddenException, BadRequestException } from "@nestjs/common";
 import { subdomainFromOrigin } from "../../../common/tenancy/subdomain";
+import { browserApplication } from "../domain/browser-session";
 import { JwtService } from "@nestjs/jwt";
 import { createHash, randomBytes } from "node:crypto";
 import { DatabaseService } from "../../../database/database.service";
@@ -55,6 +56,12 @@ export class AuthService {
   ) {}
 
   async assertBrowserTenant(user: Pick<AuthUser, "restaurantId" | "role">, origin?: string): Promise<void> {
+    const application = browserApplication(origin, this.config.restaurantBaseDomain);
+    if ((application === "admin" && user.role !== "PRIMARY_ADMIN" && user.role !== "PLATFORM_ADMIN") ||
+        (application === "owner" && user.role !== "RESTAURANT_OWNER") ||
+        (application === "employee" && user.role !== "EMPLOYEE")) {
+      throw new UnauthorizedException("Invalid application account");
+    }
     const subdomain = subdomainFromOrigin(origin, this.config.restaurantBaseDomain);
     if (!subdomain) return;
     if (user.role !== "RESTAURANT_OWNER" || !user.restaurantId) throw new UnauthorizedException("Invalid restaurant account");
@@ -261,7 +268,7 @@ export class AuthService {
   }
 
   private async assertRefreshTenant(digest: string, origin?: string): Promise<void> {
-    if (!subdomainFromOrigin(origin, this.config.restaurantBaseDomain)) return;
+    if (!subdomainFromOrigin(origin, this.config.restaurantBaseDomain) && !browserApplication(origin, this.config.restaurantBaseDomain)) return;
     const db = this.database.db;
     const current = await db.selectFrom("auth_sessions").select("user_id").where("refresh_hash", "=", digest).executeTakeFirst();
     const historic = current ? undefined : await db.selectFrom("auth_refresh_history").innerJoin("auth_sessions", "auth_sessions.id", "auth_refresh_history.session_id").select("auth_sessions.user_id").where("auth_refresh_history.refresh_hash", "=", digest).executeTakeFirst();
